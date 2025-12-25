@@ -44,8 +44,6 @@ if (env.CORS === 1) {
 app.get('/', (c) => c.text('Running'));
 registerHealthRoutes(app, dep);
 registerEventRoutes(app, dep);
-startEventStream(dep);
-void startIngest(dep);
 
 // Swagger
 //
@@ -75,6 +73,12 @@ const server = serve(
     logger.info(`Server is running at http://${env.HOST}:${info.port}`);
   },
 );
+
+// Background Services
+//
+
+startEventStream(dep);
+void startIngest(dep);
 
 // Shutdown
 //
