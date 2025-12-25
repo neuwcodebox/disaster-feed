@@ -31,7 +31,7 @@ type DisasterSmsItem = z.infer<typeof schemaDisasterSmsItem>;
 
 export class DisasterSmsSource implements Source {
   public readonly sourceId = 'safekorea_sms';
-  public readonly pollIntervalSec = 180;
+  public readonly pollIntervalSec = 60;
 
   private lastSeenSerial: number | null = null;
 
