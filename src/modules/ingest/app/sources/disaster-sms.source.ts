@@ -4,7 +4,7 @@ import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKind, EventLevel } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent } from '../../domain/port/source.interface';
 
-const DISASTER_SMS_ENDPOINT = 'https://www.safetydata.go.kr/idsiSFK/sfk/cs/sua/web/DisasterSmsList.do';
+const DISASTER_SMS_ENDPOINT = 'https://www.safekorea.go.kr/idsiSFK/sfk/cs/sua/web/DisasterSmsList.do';
 const DISASTER_SMS_KIND = EventKind.Cbs;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 10000;
