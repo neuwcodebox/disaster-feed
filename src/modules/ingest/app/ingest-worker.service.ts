@@ -38,6 +38,21 @@ export class IngestWorkerService {
     });
   }
 
+  public async stop(): Promise<void> {
+    if (!this.worker) {
+      return;
+    }
+
+    try {
+      await this.worker.close();
+      logger.debug('Ingest worker stopped');
+    } catch (error) {
+      logger.warn({ error }, 'Failed to stop ingest worker');
+    } finally {
+      this.worker = null;
+    }
+  }
+
   private async processJob(job: Job<IngestJobPayload>): Promise<void> {
     const sourceId = job.data.sourceId;
     const source = this.sourceRegistry.get(sourceId);

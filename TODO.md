@@ -72,7 +72,11 @@
 ## 7. 운영 최소
 
 - [ ] /healthz, /readyz
-- [ ] graceful shutdown(서버/redis/worker/db)
+- [x] graceful shutdown(서버/redis/worker/db)
+  - [x] BullMQ worker/queue 종료 훅 추가
+  - [x] Redis pubsub 구독 해제 및 클라이언트 종료
+  - [x] DB pool 종료(Kysely destroy)
+  - [x] shutdown 시퀀스/중복 시그널 처리
 - [ ] 로그 정리(잡 실패/파싱 실패 구분)
 - [x] 디버그 로그 보강
 - [x] health 모듈 ping API 단순화 및 health 테이블 제거

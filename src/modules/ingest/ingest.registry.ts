@@ -31,3 +31,15 @@ export async function startIngest(dep: DependencyContainer): Promise<void> {
 
   worker.start();
 }
+
+export async function stopIngest(dep: DependencyContainer): Promise<void> {
+  if (env.INGEST_ENABLED !== 1) {
+    return;
+  }
+
+  const scheduler = dep.get<IngestSchedulerService>(IngestDeps.IngestSchedulerService);
+  const worker = dep.get<IngestWorkerService>(IngestDeps.IngestWorkerService);
+
+  await worker.stop();
+  await scheduler.stop();
+}

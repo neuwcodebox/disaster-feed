@@ -23,3 +23,7 @@ export function registerEventRoutes(app: OpenAPIHono, dep: DependencyContainer) 
 export function startEventStream(dep: DependencyContainer) {
   void dep.get<EventStreamService>(EventDeps.EventStreamService).start();
 }
+
+export async function stopEventStream(dep: DependencyContainer): Promise<void> {
+  await dep.get<EventStreamService>(EventDeps.EventStreamService).stop();
+}

@@ -25,6 +25,15 @@ export class IngestSchedulerService {
     }
   }
 
+  public async stop(): Promise<void> {
+    try {
+      await this.queue.close();
+      logger.debug('Ingest queue closed');
+    } catch (error) {
+      logger.warn({ error }, 'Failed to close ingest queue');
+    }
+  }
+
   private async scheduleSource(source: Source): Promise<void> {
     if (source.pollIntervalSec <= 0) {
       logger.warn({ sourceId: source.sourceId }, 'Invalid poll interval, skipping');

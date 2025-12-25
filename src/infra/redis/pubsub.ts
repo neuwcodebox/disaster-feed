@@ -6,6 +6,7 @@ export const NEW_EVENTS_CHANNEL = 'events:new';
 type NewEventMessage = {
   eventId: string;
 };
+type NewEventHandler = (eventId: string) => Promise<void>;
 
 function parseNewEventMessage(message: string): NewEventMessage | null {
   try {
@@ -31,10 +32,10 @@ export async function publishNewEvent(redis: Redis, eventId: string): Promise<vo
   await redis.publish(NEW_EVENTS_CHANNEL, JSON.stringify(message));
 }
 
-export async function subscribeNewEvents(redis: Redis, handler: (eventId: string) => Promise<void>): Promise<void> {
+export async function subscribeNewEvents(redis: Redis, handler: NewEventHandler): Promise<() => Promise<void>> {
   await redis.subscribe(NEW_EVENTS_CHANNEL);
 
-  redis.on('message', async (channel, message) => {
+  const onMessage = async (channel: string, message: string) => {
     if (channel !== NEW_EVENTS_CHANNEL) {
       return;
     }
@@ -45,5 +46,12 @@ export async function subscribeNewEvents(redis: Redis, handler: (eventId: string
     }
 
     await handler(parsed.eventId);
-  });
+  };
+
+  redis.on('message', onMessage);
+
+  return async () => {
+    redis.removeListener('message', onMessage);
+    await redis.unsubscribe(NEW_EVENTS_CHANNEL);
+  };
 }

@@ -13,6 +13,7 @@ import { toEventDto } from './event.mapper';
 export class EventStreamService {
   private readonly clients = new Set<SSEStreamingApi>();
   private started = false;
+  private unsubscribe: (() => Promise<void>) | null = null;
 
   constructor(
     @inject(EventDeps.EventRepo)
@@ -30,7 +31,7 @@ export class EventStreamService {
     this.started = true;
 
     try {
-      await subscribeNewEvents(this.redisSubscriber, async (eventId) => {
+      this.unsubscribe = await subscribeNewEvents(this.redisSubscriber, async (eventId) => {
         await this.handleNewEvent(eventId);
       });
       logger.debug('Subscribed to new event channel');
@@ -38,6 +39,28 @@ export class EventStreamService {
       this.started = false;
       logger.error({ error }, 'Failed to start event stream service');
     }
+  }
+
+  public async stop(): Promise<void> {
+    if (!this.started) {
+      return;
+    }
+
+    this.started = false;
+
+    if (this.unsubscribe) {
+      try {
+        await this.unsubscribe();
+        logger.debug('Unsubscribed from new event channel');
+      } catch (error) {
+        logger.warn({ error }, 'Failed to unsubscribe event stream');
+      } finally {
+        this.unsubscribe = null;
+      }
+    }
+
+    this.clients.clear();
+    logger.debug('Event stream stopped');
   }
 
   public addClient(stream: SSEStreamingApi): void {
