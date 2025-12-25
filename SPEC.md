@@ -26,7 +26,7 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
 
 ## 4. 이벤트 스키마(논리)
 
-- id: string (ULID)
+- id: UUID v7
 - source: number (앱에서 enum 관리)
 - kind: number (앱에서 enum 관리)
 - title: string

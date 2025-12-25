@@ -17,7 +17,7 @@
 
 ## 2. 이벤트 저장/조회
 
-- [x] ULID 기반 이벤트 id 생성 유틸
+- [x] UUID 기반 이벤트 id 생성 유틸
 - [x] events insert/list repo(또는 서비스) 구현
 - [x] GET /events 구현(최신 목록, limit/kind/source 정도)
 - [x] events 스키마 본문/level 타입 변경 및 enum 정리
@@ -65,3 +65,7 @@
 - [ ] 로그 정리(잡 실패/파싱 실패 구분)
 - [x] 디버그 로그 보강
 - [x] health 모듈 ping API 단순화 및 health 테이블 제거
+
+## 8. 문서
+
+- [x] README 프로젝트 소개 문서 작성
