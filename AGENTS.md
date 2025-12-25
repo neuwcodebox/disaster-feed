@@ -76,6 +76,7 @@ HTTP API 및 SSE로 최신 이벤트 목록을 제공한다.
 - 주석은 남용하지 말고 코드만 봐서 이해하기 어려운 부분에만 한국어로 작성합니다.
 - Code smells를 피합니다. (예: 중복 코드, 긴 함수, 긴 매개변수 목록 등)
 - Kysely 쿼리는 raw SQL을 최소화하고, 가능한 Kysely 메서드를 사용합니다. 예: `foo as a` 대신 `foo().as('a')`
+- 타입에는 PascalCase, 변수/함수/메서드에는 camelCase, 상수에는 UPPER_SNAKE_CASE를 사용합니다.
 
 ## Git commit style
 
