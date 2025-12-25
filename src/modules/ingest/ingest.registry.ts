@@ -1,4 +1,5 @@
 import type { DependencyContainer } from '@/core/dep';
+import { env } from '@/core/env';
 import { logger } from '@/core/logger';
 import { IngestSchedulerService } from './app/ingest-scheduler.service';
 import { IngestWorkerService } from './app/ingest-worker.service';
@@ -12,6 +13,11 @@ export function registerIngestDeps(dep: DependencyContainer) {
 }
 
 export async function startIngest(dep: DependencyContainer): Promise<void> {
+  if (env.INGEST_ENABLED !== 1) {
+    logger.info({ ingestEnabled: env.INGEST_ENABLED }, 'Ingest disabled');
+    return;
+  }
+
   const scheduler = dep.get<IngestSchedulerService>(IngestDeps.IngestSchedulerService);
   const worker = dep.get<IngestWorkerService>(IngestDeps.IngestWorkerService);
 

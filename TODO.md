@@ -37,6 +37,7 @@
 - [x] 소스 registry 작성(활성화된 소스 목록)
 - [x] 앱 부팅 시 repeatable job 등록(소스별 주기)
 - [x] worker에서 sourceId로 소스 run() 실행 → events insert → publish
+- [x] INGEST_ENABLED 플래그로 수집 역할 분리
 
 ## 5. 실제 소스 어댑터 구현 전 사전 파악(중요)
 

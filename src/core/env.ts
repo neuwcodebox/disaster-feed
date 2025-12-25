@@ -15,6 +15,7 @@ export const env = z
     PORT: z.coerce.number().default(3000),
     CORS: z.coerce.number().default(0),
     SWAGGER: z.coerce.number().default(1),
+    INGEST_ENABLED: z.coerce.number().default(0),
     DATABASE_URL: z.url(),
     REDIS_URL: z.url(),
   })
