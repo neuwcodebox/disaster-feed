@@ -79,6 +79,7 @@ HTTP API 및 SSE로 최신 이벤트 목록을 제공한다.
 - Code smells를 피합니다. (예: 중복 코드, 긴 함수, 긴 매개변수 목록 등)
 - Kysely 쿼리는 raw SQL을 최소화하고, 가능한 Kysely 메서드를 사용합니다. 예: `foo as a` 대신 `foo().as('a')`
 - 타입에는 PascalCase, 변수/함수/메서드에는 camelCase, 상수에는 UPPER_SNAKE_CASE를 사용합니다.
+- enum 이름은 복수형으로 작성합니다.
 - Zod 스키마 변수는 schemaXXX 형태의 camelCase로 작성합니다.
 - `logger`를 사용하여 적절한 수준의 로그를 남깁니다. (debug/info/warn/error)
 
