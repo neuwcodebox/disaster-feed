@@ -1,9 +1,3 @@
-CREATE TABLE IF NOT EXISTS health (
-  "id" BIGSERIAL PRIMARY KEY,
-  "message" TEXT,
-  "createdAt" TIMESTAMPTZ DEFAULT NOW()
-);
-
 CREATE TABLE IF NOT EXISTS events (
   id TEXT PRIMARY KEY,
   source TEXT NOT NULL,
