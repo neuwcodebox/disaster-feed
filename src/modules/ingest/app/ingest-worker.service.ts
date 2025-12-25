@@ -1,7 +1,7 @@
 import type { Job, Worker } from 'bullmq';
 import { inject, injectable } from 'inversify';
 import { logger } from '@/core/logger';
-import { createUlid } from '@/core/ulid';
+import { createUuidV7 } from '@/core/uuid';
 import { createIngestWorker } from '@/infra/queue/worker';
 import { EventDeps } from '@/modules/events/domain/dep/event.dep';
 import type { IEventWriterService } from '@/modules/events/domain/port/event-writer-service.interface';
@@ -51,7 +51,7 @@ export class IngestWorkerService {
   private async insertEvent(sourceId: string, fetchedAt: string, event: SourceEvent): Promise<void> {
     try {
       await this.eventWriter.appendEvent({
-        id: createUlid(),
+        id: createUuidV7(),
         source: sourceId,
         kind: event.kind,
         title: event.title,
