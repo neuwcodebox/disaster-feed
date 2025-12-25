@@ -12,9 +12,13 @@ export type SourceEvent = {
   payload?: EventPayload | null;
 };
 
+export type SourceRunResult = {
+  events: SourceEvent[];
+  nextState: string | null;
+};
+
 export interface Source {
-  sourceKey: EventSources;
-  sourceId: string;
+  sourceId: EventSources;
   pollIntervalSec: number;
-  run(): Promise<SourceEvent[]>;
+  run(state: string | null): Promise<SourceRunResult>;
 }

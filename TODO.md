@@ -38,6 +38,7 @@
 - [x] 앱 부팅 시 repeatable job 등록(소스별 주기)
 - [x] worker에서 sourceId로 소스 run() 실행 → events insert → publish
 - [x] INGEST_ENABLED 플래그로 수집 역할 분리
+- [x] DB 체크포인트(소스별 state) 저장/조회
 
 ## 5. 실제 소스 어댑터 구현 전 사전 파악(중요)
 

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
-import type { Source, SourceEvent } from '../../domain/port/source.interface';
+import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 
 const DISASTER_SMS_ENDPOINT = 'https://www.safekorea.go.kr/idsiSFK/sfk/cs/sua/web/DisasterSmsList.do';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -29,13 +29,10 @@ const schemaDisasterSmsResponse = z.object({
 type DisasterSmsItem = z.infer<typeof schemaDisasterSmsItem>;
 
 export class DisasterSmsSource implements Source {
-  public readonly sourceKey = EventSources.SafekoreaSms;
-  public readonly sourceId = 'safekorea_sms';
+  public readonly sourceId = EventSources.SafekoreaSms;
   public readonly pollIntervalSec = 60;
 
-  private lastSeenSerial: number | null = null;
-
-  public async run(): Promise<SourceEvent[]> {
+  public async run(state: string | null): Promise<SourceRunResult> {
     const { startDate, endDate } = getKstDateRange(1);
     const payload = buildRequestBody(startDate, endDate);
 
@@ -49,26 +46,28 @@ export class DisasterSmsSource implements Source {
     });
 
     if (!response) {
-      return [];
+      return { events: [], nextState: state };
     }
 
     const data = await parseJsonResponse(response, this.sourceId);
     if (!data) {
-      return [];
+      return { events: [], nextState: state };
     }
 
     const parsed = schemaDisasterSmsResponse.safeParse(data);
     if (!parsed.success) {
       logger.warn({ error: parsed.error }, 'Failed to parse disaster SMS response');
-      return [];
+      return { events: [], nextState: state };
     }
 
-    const items = filterNewItems(parsed.data.disasterSmsList, this.lastSeenSerial);
-    if (items.length > 0) {
-      this.lastSeenSerial = Math.max(...items.map((item) => item.MD101_SN));
-    }
+    const lastSeenSerial = parseSerial(state);
+    const items = filterNewItems(parsed.data.disasterSmsList, lastSeenSerial);
+    const nextState = getNextSerialState(items, lastSeenSerial);
 
-    return items.map((item) => toSourceEvent(item));
+    return {
+      events: items.map((item) => toSourceEvent(item)),
+      nextState,
+    };
   }
 }
 
@@ -119,6 +118,28 @@ const filterNewItems = (items: DisasterSmsItem[], lastSeenSerial: number | null)
   return items.filter((item) => item.MD101_SN > lastSeenSerial);
 };
 
+const parseSerial = (value: string | null): number | null => {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  return Math.trunc(parsed);
+};
+
+const getNextSerialState = (items: DisasterSmsItem[], lastSeenSerial: number | null): string | null => {
+  if (items.length === 0) {
+    return lastSeenSerial === null ? null : String(lastSeenSerial);
+  }
+
+  const maxSerial = Math.max(...items.map((item) => item.MD101_SN));
+  return String(maxSerial);
+};
+
 const buildRequestBody = (startDate: string, endDate: string) => {
   const pageSizeText = String(PAGE_SIZE);
 
@@ -164,7 +185,7 @@ const fetchWithTimeout = async (url: string, init: RequestInit): Promise<Respons
   }
 };
 
-const parseJsonResponse = async (response: Response, sourceId: string): Promise<unknown | null> => {
+const parseJsonResponse = async (response: Response, sourceId: EventSources): Promise<unknown | null> => {
   try {
     const text = await response.text();
     return JSON.parse(text) as unknown;

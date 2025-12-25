@@ -5,11 +5,13 @@ import { IngestSchedulerService } from './app/ingest-scheduler.service';
 import { IngestWorkerService } from './app/ingest-worker.service';
 import { SourceRegistry } from './app/source.registry';
 import { IngestDeps } from './domain/dep/ingest.dep';
+import { IngestCheckpointRepository } from './infra/ingest-checkpoint.repo';
 
 export function registerIngestDeps(dep: DependencyContainer) {
   dep.add(IngestDeps.SourceRegistry, SourceRegistry);
   dep.add(IngestDeps.IngestSchedulerService, IngestSchedulerService);
   dep.add(IngestDeps.IngestWorkerService, IngestWorkerService);
+  dep.add(IngestDeps.IngestCheckpointRepository, IngestCheckpointRepository);
 }
 
 export async function startIngest(dep: DependencyContainer): Promise<void> {

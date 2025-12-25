@@ -4,7 +4,7 @@ import { sourceList } from './source.list';
 
 @injectable()
 export class SourceRegistry {
-  private readonly sources = new Map<string, Source>();
+  private readonly sources = new Map<EventSources, Source>();
 
   constructor() {
     for (const source of sourceList) {
@@ -16,7 +16,9 @@ export class SourceRegistry {
     return Array.from(this.sources.values());
   }
 
-  public get(sourceId: string): Source | undefined {
+  public get(sourceId: EventSources): Source | undefined {
     return this.sources.get(sourceId);
   }
 }
+
+import type { EventSources } from '@/modules/events/domain/event.enums';

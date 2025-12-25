@@ -19,6 +19,7 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
    - 원본 fetch
    - 이벤트로 정형화
    - DB insert(append-only)
+   - 체크포인트 state 저장(소스별 문자열 상태)
 3) insert 성공 시 Redis Pub/Sub로 eventId publish
 4) 각 인스턴스는 Pub/Sub 메시지를 받아 DB 조회 후 로컬 SSE로 브로드캐스트
 5) SSE 재연결 시 DB에서 누락분 catch-up 후 live 전환
@@ -62,13 +63,19 @@ create table if not exists events (
 create index if not exists idx_events_fetched_at on events (fetched_at desc);
 create index if not exists idx_events_kind_fetched_at on events (kind, fetched_at desc);
 create index if not exists idx_events_source_fetched_at on events (source, fetched_at desc);
+
+create table if not exists ingest_checkpoints (
+  source_id integer primary key,
+  state text null,
+  updated_at timestamptz not null default now()
+);
 ````
 
 ## 6. BullMQ
 
 - queue: "ingest"
 - job: "poll-source"
-- payload: { sourceId: string }
+- payload: { sourceId: number }
 - 재시도/백오프는 무난한 수준으로만(에이전트가 합리적으로 선택)
 
 ## 7. Redis Pub/Sub
@@ -92,9 +99,9 @@ create index if not exists idx_events_source_fetched_at on events (source, fetch
 
 각 소스는 "하나의 클래스/객체"가 fetch+정형화를 함께 책임진다.
 
-- sourceId
+- sourceId (EventSources enum 숫자값)
 - pollIntervalSec
-- run(): Promise<Event[]>  // 내부에서 fetch + normalize
+- run(state: string | null): Promise<{ events: Event[]; nextState: string | null }>  // 내부에서 fetch + normalize + state 갱신
 
 소스 추가는:
 
