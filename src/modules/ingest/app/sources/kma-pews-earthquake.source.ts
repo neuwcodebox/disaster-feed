@@ -5,7 +5,8 @@ import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/sou
 
 const KMA_PEWS_ENDPOINT = 'https://www.weather.go.kr/pews/data';
 const REQUEST_TIMEOUT_MS = 10000;
-const HEADER_LENGTH_BYTES = 4;
+const DEFAULT_HEADER_LENGTH_BYTES = 4;
+const SIMULATION_HEADER_LENGTH_BYTES = 1;
 const INFO_TEXT_BYTES = 60;
 const INFO_BITS_LENGTH = 120;
 const INFO_BITS_BYTES = INFO_BITS_LENGTH / 8;
@@ -13,6 +14,9 @@ const INFO_BLOCK_BYTES = INFO_TEXT_BYTES + INFO_BITS_BYTES;
 const KST_OFFSET_SEC = 9 * 60 * 60;
 const KST_OFFSET_MS = KST_OFFSET_SEC * 1000;
 const MAX_REASONABLE_TIME_DIFF_MS = 1000 * 60 * 60 * 24 * 30;
+const SIMULATION_WINDOW_MS = 5 * 60 * 1000;
+const ENV_SIM_EQK_ID = 'KMA_PEWS_SIM_EQK_ID';
+const ENV_SIM_START_AT = 'KMA_PEWS_SIM_START_AT';
 
 const AREA_NAMES = [
   '서울',
@@ -55,18 +59,36 @@ export class KmaPewsEarthquakeSource implements Source {
   public readonly sourceId = EventSources.KmaPewsEarthquake;
   public readonly pollIntervalSec = 2;
   private timeOffsetMs = 1000;
+  private baseUrl = KMA_PEWS_ENDPOINT;
+  private headerLengthBytes = DEFAULT_HEADER_LENGTH_BYTES;
+  private simEndUtcMs: number | null = null;
+  private simMode = false;
+
+  public constructor() {
+    this.configureSimulation();
+  }
 
   public async run(state: string | null): Promise<SourceRunResult> {
     const parsedState = parseState(state);
+    if (this.simMode && this.simEndUtcMs !== null) {
+      const simulatedTimeMs = Date.now() - this.timeOffsetMs;
+      if (simulatedTimeMs >= this.simEndUtcMs) {
+        this.stopSimulation();
+        return { events: [], nextState: state };
+      }
+    }
+
     const binTime = new Date(Date.now() - this.timeOffsetMs);
     const binTimeStr = formatUtcTimestamp(binTime);
 
-    const response = await fetchWithTimeout(`${KMA_PEWS_ENDPOINT}/${binTimeStr}.b`);
+    const response = await fetchWithTimeout(`${this.baseUrl}/${binTimeStr}.b`);
     if (!response) {
       return { events: [], nextState: state };
     }
 
-    this.timeOffsetMs = updateOffsetFromHeaders(response.headers, this.timeOffsetMs);
+    if (!this.simMode) {
+      this.timeOffsetMs = updateOffsetFromHeaders(response.headers, this.timeOffsetMs);
+    }
 
     if (!response.ok) {
       logger.warn({ status: response.status }, 'PEWS binary request failed');
@@ -74,12 +96,12 @@ export class KmaPewsEarthquakeSource implements Source {
     }
 
     const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.length < HEADER_LENGTH_BYTES + INFO_BLOCK_BYTES) {
+    if (bytes.length < this.headerLengthBytes + INFO_BLOCK_BYTES) {
       logger.warn({ size: bytes.length }, 'PEWS binary payload too small');
       return { events: [], nextState: state };
     }
 
-    const phase = parsePhase(bytes);
+    const phase = parsePhase(bytes, this.headerLengthBytes);
     if (phase < 2) {
       return { events: [], nextState: state };
     }
@@ -103,7 +125,92 @@ export class KmaPewsEarthquakeSource implements Source {
       nextState,
     };
   }
+
+  private configureSimulation(): void {
+    const config = parseSimulationConfig();
+    if (!config) {
+      return;
+    }
+
+    const startUtc = parseKstCompactTimestamp(config.startAt);
+    if (!startUtc) {
+      logger.warn({ startAt: config.startAt }, 'Invalid PEWS simulation start time');
+      return;
+    }
+
+    const eqkId = normalizeEqkId(config.eqkId);
+    if (!eqkId) {
+      logger.warn({ eqkId: config.eqkId }, 'Invalid PEWS simulation earthquake id');
+      return;
+    }
+
+    this.applySimulation(eqkId, startUtc);
+  }
+
+  private applySimulation(eqkId: string, startUtc: Date): void {
+    this.simMode = true;
+    this.baseUrl = `${KMA_PEWS_ENDPOINT}/${eqkId}`;
+    this.headerLengthBytes = SIMULATION_HEADER_LENGTH_BYTES;
+    this.timeOffsetMs = Date.now() - startUtc.getTime();
+    this.simEndUtcMs = startUtc.getTime() + SIMULATION_WINDOW_MS;
+    logger.info({ eqkId, startUtc: startUtc.toISOString() }, 'PEWS simulation enabled');
+  }
+
+  private stopSimulation(): void {
+    if (!this.simMode) {
+      return;
+    }
+    this.resetSimulation();
+    logger.info('PEWS simulation finished');
+  }
+
+  private resetSimulation(): void {
+    this.simMode = false;
+    this.baseUrl = KMA_PEWS_ENDPOINT;
+    this.headerLengthBytes = DEFAULT_HEADER_LENGTH_BYTES;
+    this.timeOffsetMs = 1000;
+    this.simEndUtcMs = null;
+  }
 }
+
+const parseSimulationConfig = (): { eqkId: string; startAt: string } | null => {
+  const eqkId = process.env[ENV_SIM_EQK_ID];
+  const startAt = process.env[ENV_SIM_START_AT];
+
+  if (!eqkId && !startAt) {
+    return null;
+  }
+
+  if (!eqkId || !startAt) {
+    logger.warn({ eqkId: eqkId ?? null, startAt: startAt ?? null }, 'PEWS simulation requires both env vars');
+    return null;
+  }
+
+  return { eqkId, startAt };
+};
+
+const parseKstCompactTimestamp = (value: string): Date | null => {
+  const matched = value.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/);
+  if (!matched) {
+    return null;
+  }
+
+  const [, year, month, day, hour, minute, second] = matched;
+  const utcMs = Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour) - 9,
+    Number(minute),
+    Number(second),
+  );
+  const date = new Date(utcMs);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const normalizeEqkId = (value: string): string => {
+  return value.trim();
+};
 
 const parseState = (state: string | null): PewsState => {
   if (!state) {
@@ -128,8 +235,8 @@ const buildState = (state: PewsState): string | null => {
   return JSON.stringify(state);
 };
 
-const parsePhase = (bytes: Uint8Array): number => {
-  const headerBits = bytesToBitString(bytes.subarray(0, HEADER_LENGTH_BYTES));
+const parsePhase = (bytes: Uint8Array, headerLengthBytes: number): number => {
+  const headerBits = bytesToBitString(bytes.subarray(0, headerLengthBytes));
   if (headerBits.length < 3) {
     return 0;
   }
