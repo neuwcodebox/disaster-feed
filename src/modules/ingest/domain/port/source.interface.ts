@@ -8,7 +8,6 @@ export type SourceEvent = {
   occurredAt?: string | null;
   regionText?: string | null;
   level: EventLevels;
-  link?: string | null;
   payload?: EventPayload | null;
 };
 

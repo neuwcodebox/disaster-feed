@@ -70,7 +70,6 @@ const buildMicroEarthquakeEvent = (text: string): SourceEvent => {
     occurredAt: detail?.occurredAt ?? null,
     regionText: detail?.regionText ?? null,
     level: EventLevels.Info,
-    link: null,
     payload: buildPayload(text, detail, detailLine),
   };
 };

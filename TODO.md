@@ -21,6 +21,7 @@
 - [x] events insert/list repo(또는 서비스) 구현
 - [x] GET /events 구현(최신 목록, limit/kind/source 정도)
 - [x] events 스키마 본문/level 타입 변경 및 enum 정리
+- [x] events 테이블 link 컬럼 제거
 
 ## 3. SSE(멀티 인스턴스 포함)
 
@@ -44,7 +45,7 @@
 
 - [ ] 사람과 함께 각 소스별로 수집 방식 파악(정적 HTML / 내부 JSON / RSS / 인증/쿠키 필요 여부)
 - [ ] 폴링 주기/변경 빈도 대략 파악(너무 잦은 요청 방지)
-- [ ] 파싱에 필요한 최소 필드 합의(title, occurred_at, region_text, link, payload 후보)
+- [ ] 파싱에 필요한 최소 필드 합의(title, occurred_at, region_text, payload 후보)
 - [ ] 실패 케이스 파악(요청 차단, 응답 포맷 변경, 빈 목록 등) 및 최소 대응(로그/타임아웃)
 
 ## 6. 실제 소스 어댑터 구현

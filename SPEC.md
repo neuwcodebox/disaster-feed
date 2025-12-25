@@ -35,7 +35,6 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
 - occurred_at?: timestamptz
 - region_text?: text
 - level: number
-- link?: text
 - payload?: jsonb
 
 ## 5. DB 스키마(최소)
@@ -56,7 +55,6 @@ create table if not exists events (
   occurred_at  timestamptz null,
   region_text  text null,
   level        integer not null,
-  link         text null,
   payload      jsonb null
 );
 

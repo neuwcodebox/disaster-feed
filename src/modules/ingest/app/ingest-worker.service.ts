@@ -81,7 +81,6 @@ export class IngestWorkerService {
         occurredAt: event.occurredAt ?? null,
         regionText: event.regionText ?? null,
         level: event.level,
-        link: event.link ?? null,
         payload: event.payload ?? null,
       });
       return true;

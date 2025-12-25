@@ -120,7 +120,6 @@ const toSourceEvent = (item: DisasterSmsItem): SourceEvent => {
     occurredAt: parseKstDateTime(item.CREAT_DT),
     regionText: region || null,
     level: mapEmergencyLevel(item.EMRGNCY_STEP_NM),
-    link: null,
     payload: buildPayload(item),
   };
 };

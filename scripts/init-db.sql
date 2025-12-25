@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS events (
   occurred_at TIMESTAMPTZ NULL,
   region_text TEXT NULL,
   level INTEGER NOT NULL,
-  link TEXT NULL,
   payload JSONB NULL
 );
 

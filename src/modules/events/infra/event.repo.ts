@@ -69,7 +69,6 @@ function toEventRow(data: NewEvent): NewEventRow {
     occurred_at: data.occurredAt ?? null,
     region_text: data.regionText ?? null,
     level: data.level,
-    link: data.link ?? null,
     payload: data.payload ?? null,
   };
 }
@@ -95,7 +94,6 @@ function toEvent(row: EventRow): Event {
     occurredAt: normalizeTimestamp(row.occurred_at),
     regionText: row.region_text ?? null,
     level: row.level,
-    link: row.link ?? null,
     payload: row.payload ?? null,
   };
 }

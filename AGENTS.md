@@ -52,7 +52,7 @@ HTTP API 및 SSE로 최신 이벤트 목록을 제공한다.
 - title: 한 줄
 - body: 본문(선택)
 - fetched_at: timestamptz (필수)
-- 선택: occurred_at, region_text, link, payload(jsonb)
+- 선택: occurred_at, region_text, payload(jsonb)
 - level: 숫자 enum (필수)
 
 ## 다중 인스턴스 SSE

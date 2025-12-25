@@ -10,7 +10,6 @@ export interface EventsTable {
   occurred_at: string | null;
   region_text: string | null;
   level: number;
-  link: string | null;
   payload: Record<string, unknown> | null;
 }
 

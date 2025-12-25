@@ -12,7 +12,6 @@ export function toEventDto(event: Event): EventDto {
     occurredAt: event.occurredAt,
     regionText: event.regionText,
     level: event.level,
-    link: event.link ?? null,
     payload: event.payload ?? null,
   };
 }

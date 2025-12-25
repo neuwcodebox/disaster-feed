@@ -12,7 +12,6 @@ export type Event = {
   occurredAt: string | null;
   regionText: string | null;
   level: EventLevels;
-  link: string | null;
   payload: EventPayload | null;
 };
 
@@ -26,6 +25,5 @@ export type NewEvent = {
   occurredAt?: string | null;
   regionText?: string | null;
   level: EventLevels;
-  link?: string | null;
   payload?: EventPayload | null;
 };

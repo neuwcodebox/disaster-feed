@@ -10,7 +10,6 @@ export const schemaEvent = z.object({
   occurredAt: z.string().nullable(),
   regionText: z.string().nullable(),
   level: z.number().int(),
-  link: z.string().nullable(),
   payload: z.record(z.string(), z.unknown()).nullable(),
 });
 
