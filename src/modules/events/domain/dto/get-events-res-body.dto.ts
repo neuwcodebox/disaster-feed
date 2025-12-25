@@ -10,7 +10,7 @@ export const schemaEvent = z.object({
   regionText: z.string().nullable(),
   level: z.string().nullable(),
   link: z.string().nullable(),
-  payload: z.unknown().nullable(),
+  payload: z.record(z.string(), z.unknown()).nullable(),
 });
 
 export type EventDto = z.infer<typeof schemaEvent>;
