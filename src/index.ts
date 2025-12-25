@@ -9,6 +9,7 @@ import { registerQueueDeps } from './infra/queue/queue';
 import { registerRedisDeps } from './infra/redis/redis-conn';
 import { registerEventDeps, registerEventRoutes, startEventStream } from './modules/events/events.registry';
 import { registerHealthDeps, registerHealthRoutes } from './modules/health/health.registry';
+import { registerIngestDeps, startIngest } from './modules/ingest/ingest.registry';
 import { setSecuritySchemes } from './view/docs/security-schemes';
 import { corsMiddleware } from './view/middleware/cors.middleware';
 
@@ -28,6 +29,7 @@ registerRedisDeps(dep);
 registerQueueDeps(dep);
 registerHealthDeps(dep);
 registerEventDeps(dep);
+registerIngestDeps(dep);
 
 // Middleware
 //
@@ -43,6 +45,7 @@ app.get('/', (c) => c.text('Running'));
 registerHealthRoutes(app, dep);
 registerEventRoutes(app, dep);
 startEventStream(dep);
+void startIngest(dep);
 
 // Swagger
 //
