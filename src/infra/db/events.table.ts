@@ -1,4 +1,4 @@
-import type { Insertable, JSONColumnType, Selectable } from 'kysely';
+import type { Insertable, Selectable } from 'kysely';
 
 export interface EventsTable {
   id: string;
@@ -10,7 +10,7 @@ export interface EventsTable {
   region_text: string | null;
   level: string | null;
   link: string | null;
-  payload: JSONColumnType<Record<string, unknown> | null>;
+  payload: Record<string, unknown> | null;
 }
 
 export type EventRow = Selectable<EventsTable>;
