@@ -39,7 +39,8 @@ const AREA_NAMES = [
 ];
 
 type PewsState = {
-  lastAlarmId: string | null;
+  lastEqkId: string | null;
+  lastPhase: number | null;
 };
 
 type ParsedEarthquakeInfo = {
@@ -112,13 +113,17 @@ export class KmaPewsEarthquakeSource implements Source {
       return { events: [], nextState: state };
     }
 
-    const alarmId = info.eqkId ? `${info.eqkId}-${phase}` : null;
-    if (alarmId && parsedState.lastAlarmId === alarmId) {
+    const previousAlarmId = buildAlarmId(parsedState.lastEqkId, parsedState.lastPhase);
+    const currentAlarmId = buildAlarmId(info.eqkId, phase);
+    if (currentAlarmId && previousAlarmId === currentAlarmId) {
       return { events: [], nextState: state };
     }
 
-    const event = buildEarthquakeEvent(phase, info, binTimeStr);
-    const nextState = buildState({ lastAlarmId: alarmId ?? parsedState.lastAlarmId });
+    const event = buildEarthquakeEvent(phase, info, parsedState.lastEqkId, parsedState.lastPhase, binTimeStr);
+    const nextState = buildState({
+      lastEqkId: info.eqkId ?? parsedState.lastEqkId,
+      lastPhase: phase,
+    });
 
     return {
       events: [event],
@@ -214,21 +219,22 @@ const normalizeEqkId = (value: string): string => {
 
 const parseState = (state: string | null): PewsState => {
   if (!state) {
-    return { lastAlarmId: null };
+    return { lastEqkId: null, lastPhase: null };
   }
 
   try {
-    const parsed = JSON.parse(state) as { lastAlarmId?: unknown };
-    const lastAlarmId = typeof parsed.lastAlarmId === 'string' ? parsed.lastAlarmId : null;
-    return { lastAlarmId };
+    const parsed = JSON.parse(state) as { lastEqkId?: unknown; lastPhase?: unknown };
+    const lastEqkId = typeof parsed.lastEqkId === 'string' ? parsed.lastEqkId : null;
+    const lastPhase = typeof parsed.lastPhase === 'number' ? parsed.lastPhase : null;
+    return { lastEqkId, lastPhase };
   } catch (error) {
     logger.warn({ error }, 'Failed to parse PEWS checkpoint state');
-    return { lastAlarmId: null };
+    return { lastEqkId: null, lastPhase: null };
   }
 };
 
 const buildState = (state: PewsState): string | null => {
-  if (!state.lastAlarmId) {
+  if (!state.lastEqkId && state.lastPhase === null) {
     return null;
   }
 
@@ -254,6 +260,14 @@ const parsePhase = (bytes: Uint8Array, headerLengthBytes: number): number => {
   }
 
   return 0;
+};
+
+const buildAlarmId = (eqkId: string | null, phase: number | null): string | null => {
+  if (!eqkId || phase === null) {
+    return null;
+  }
+
+  return `${eqkId}-${phase}`;
 };
 
 const parseEarthquakeInfo = (bytes: Uint8Array): ParsedEarthquakeInfo | null => {
@@ -381,7 +395,13 @@ const parseUnixTimeToIso = (seconds: number): string | null => {
   return date.toISOString();
 };
 
-const buildEarthquakeEvent = (phase: number, info: ParsedEarthquakeInfo, binTimeStr: string): SourceEvent => {
+const buildEarthquakeEvent = (
+  phase: number,
+  info: ParsedEarthquakeInfo,
+  previousEqkId: string | null,
+  previousPhase: number | null,
+  binTimeStr: string,
+): SourceEvent => {
   const phaseLabel = phase === 2 ? '지진 신속정보' : '지진 상세정보';
   const title = buildTitle(phaseLabel, info);
   const body = buildBody(phaseLabel, info);
@@ -392,7 +412,7 @@ const buildEarthquakeEvent = (phase: number, info: ParsedEarthquakeInfo, binTime
     body,
     occurredAt: info.occurredAt,
     regionText: info.infoText ?? (info.maxAreas.length > 0 ? info.maxAreas.join(', ') : null),
-    level: mapIntensityToLevel(info.intensity, phase),
+    level: mapIntensityToLevel(info.intensity, phase, info.eqkId, previousPhase, previousEqkId),
     payload: buildPayload(phase, info, binTimeStr),
   };
 };
@@ -475,25 +495,45 @@ const formatDepthKm = (value: number): string => {
   return `${value.toFixed(1)} km`;
 };
 
-const mapIntensityToLevel = (intensity: number | null, phase: number): EventLevels => {
+const mapIntensityToLevel = (
+  intensity: number | null,
+  phase: number,
+  eqkId: string | null,
+  previousPhase: number | null,
+  previousEqkId: string | null,
+): EventLevels => {
+  // 같은 지진에 대해 이미 신속 정보가 발송된 경우, 상세 정보는 Info 레벨로 설정
+  if (eqkId && previousEqkId && eqkId === previousEqkId && previousPhase === 2 && phase !== 2) {
+    return EventLevels.Info;
+  }
+
   if (intensity === null) {
-    return phase === 2 ? EventLevels.Moderate : EventLevels.Minor;
+    return phase === 2 ? EventLevels.Severe : EventLevels.Moderate;
   }
 
-  if (intensity >= 7) {
-    return EventLevels.Critical;
-  }
-
-  if (intensity >= 5) {
-    return EventLevels.Severe;
-  }
-
-  if (intensity >= 4) {
-    return EventLevels.Moderate;
-  }
-
-  if (intensity >= 3) {
-    return EventLevels.Minor;
+  if (phase === 2) {
+    if (intensity >= 7) {
+      return EventLevels.Critical;
+    }
+    if (intensity >= 5) {
+      return EventLevels.Severe;
+    }
+    if (intensity >= 4) {
+      return EventLevels.Moderate;
+    }
+    if (intensity >= 3) {
+      return EventLevels.Minor;
+    }
+  } else {
+    if (intensity >= 7) {
+      return EventLevels.Severe;
+    }
+    if (intensity >= 5) {
+      return EventLevels.Moderate;
+    }
+    if (intensity >= 4) {
+      return EventLevels.Minor;
+    }
   }
 
   return EventLevels.Info;
