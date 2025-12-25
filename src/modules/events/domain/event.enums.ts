@@ -1,5 +1,6 @@
 export enum EventKinds {
   Cbs = 1,
+  MicroEarthquake = 2,
 }
 
 export enum EventLevels {
@@ -12,4 +13,5 @@ export enum EventLevels {
 
 export enum EventSources {
   SafekoreaSms = 1,
+  KmaMicroEarthquake = 2,
 }
