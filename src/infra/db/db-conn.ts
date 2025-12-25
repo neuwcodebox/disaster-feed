@@ -1,12 +1,15 @@
-import SQLite from 'better-sqlite3';
-import { Kysely, SqliteDialect } from 'kysely';
+import { Kysely, PostgresDialect } from 'kysely';
+import { Pool } from 'pg';
 import type { DependencyContainer } from '@/core/dep';
+import { env } from '@/core/env';
 import { DbDeps } from './db.dep';
 import type { DatabaseScheme } from './db-scheme';
 
 function createDbConnection(): Kysely<DatabaseScheme> {
-  const dialect = new SqliteDialect({
-    database: new SQLite('sqlite.db'),
+  const dialect = new PostgresDialect({
+    pool: new Pool({
+      connectionString: env.DATABASE_URL,
+    }),
   });
 
   const db = new Kysely<DatabaseScheme>({
