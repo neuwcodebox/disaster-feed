@@ -7,6 +7,7 @@ import { DependencyContainer } from './core/dep';
 import { registerDbDeps } from './infra/db/db-conn';
 import { registerQueueDeps } from './infra/queue/queue';
 import { registerRedisDeps } from './infra/redis/redis-conn';
+import { registerEventDeps, registerEventRoutes, startEventStream } from './modules/events/events.registry';
 import { registerHealthDeps, registerHealthRoutes } from './modules/health/health.registry';
 import { setSecuritySchemes } from './view/docs/security-schemes';
 import { corsMiddleware } from './view/middleware/cors.middleware';
@@ -26,6 +27,7 @@ registerDbDeps(dep);
 registerRedisDeps(dep);
 registerQueueDeps(dep);
 registerHealthDeps(dep);
+registerEventDeps(dep);
 
 // Middleware
 //
@@ -39,6 +41,8 @@ if (env.CORS === 1) {
 
 app.get('/', (c) => c.text('Running'));
 registerHealthRoutes(app, dep);
+registerEventRoutes(app, dep);
+startEventStream(dep);
 
 // Swagger
 //
