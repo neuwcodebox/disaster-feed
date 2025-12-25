@@ -76,7 +76,7 @@ const toSourceEvent = (item: DisasterSmsItem): SourceEvent => {
   const region = item.RCV_AREA_NM.trim();
   return {
     kind: DISASTER_SMS_KIND,
-    title: `${item.DSSTR_SE_NM} ${item.EMRGNCY_STEP_NM} ${region ? `(${region})` : ''}`.trim(),
+    title: `${region} ${item.DSSTR_SE_NM} ${item.EMRGNCY_STEP_NM}`.trim(),
     body: item.MSG_CN.trim(),
     occurredAt: parseKstDateTime(item.CREAT_DT),
     regionText: region || null,
