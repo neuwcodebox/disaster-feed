@@ -19,6 +19,7 @@ export class IngestSchedulerService {
 
   public async scheduleRepeatableJobs(): Promise<void> {
     const sources = this.sourceRegistry.list();
+    logger.debug({ sourceCount: sources.length }, 'Scheduling ingest jobs');
     for (const source of sources) {
       await this.scheduleSource(source);
     }
@@ -33,6 +34,7 @@ export class IngestSchedulerService {
     const repeatEveryMs = source.pollIntervalSec * 1000;
     const jobId = `${INGEST_JOB_NAME}:${source.sourceId}`;
 
+    logger.debug({ sourceId: source.sourceId, jobId }, 'Registering ingest job');
     await this.queue.add(
       INGEST_JOB_NAME,
       { sourceId: source.sourceId },

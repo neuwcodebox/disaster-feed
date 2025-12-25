@@ -66,7 +66,7 @@ HTTP API 및 SSE로 최신 이벤트 목록을 제공한다.
 - docker-compose로 Postgres + Redis 제공
 - DB 스키마는 마이그레이션 대신 init-sql.db(= init SQL 파일)에 최신 전체 스키마를 유지한다
 
-## Code style
+## Coding conventions
 
 - 보기 좋은 코드를 작성합니다.
 - Type Safe를 준수합니다. `any` 사용을 금지하며 꼭 필요하다면 `unknown`을 사용합니다. Zod 스키마를 적극 활용합니다.
@@ -77,6 +77,7 @@ HTTP API 및 SSE로 최신 이벤트 목록을 제공한다.
 - Code smells를 피합니다. (예: 중복 코드, 긴 함수, 긴 매개변수 목록 등)
 - Kysely 쿼리는 raw SQL을 최소화하고, 가능한 Kysely 메서드를 사용합니다. 예: `foo as a` 대신 `foo().as('a')`
 - 타입에는 PascalCase, 변수/함수/메서드에는 camelCase, 상수에는 UPPER_SNAKE_CASE를 사용합니다.
+- `logger`를 사용하여 적절한 수준의 로그를 남깁니다. (debug/info/warn/error)
 
 ## Git commit style
 

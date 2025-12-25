@@ -54,4 +54,5 @@
 - [ ] /healthz, /readyz
 - [ ] graceful shutdown(서버/redis/worker/db)
 - [ ] 로그 정리(잡 실패/파싱 실패 구분)
+- [x] 디버그 로그 보강
 - [x] health 모듈 ping API 단순화 및 health 테이블 제거

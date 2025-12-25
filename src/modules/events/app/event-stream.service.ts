@@ -26,12 +26,14 @@ export class EventStreamService {
       return;
     }
 
+    logger.debug('Starting event stream subscriber');
     this.started = true;
 
     try {
       await subscribeNewEvents(this.redisSubscriber, async (eventId) => {
         await this.handleNewEvent(eventId);
       });
+      logger.debug('Subscribed to new event channel');
     } catch (error) {
       this.started = false;
       logger.error({ error }, 'Failed to start event stream service');
@@ -40,9 +42,11 @@ export class EventStreamService {
 
   public addClient(stream: SSEStreamingApi): void {
     this.clients.add(stream);
+    logger.debug({ clientCount: this.clients.size }, 'SSE client connected');
 
     stream.onAbort(() => {
       this.clients.delete(stream);
+      logger.debug({ clientCount: this.clients.size }, 'SSE client disconnected');
     });
   }
 
@@ -51,24 +55,29 @@ export class EventStreamService {
       return;
     }
 
+    logger.debug({ since }, 'Sending SSE catch-up events');
     const events = await this.eventRepository.listEventsSince({ since });
     for (const event of events) {
       await stream.writeSSE({ data: JSON.stringify(toEventDto(event)) });
     }
+    logger.debug({ count: events.length, since }, 'Completed SSE catch-up events');
   }
 
   private async handleNewEvent(eventId: string): Promise<void> {
+    logger.debug({ eventId }, 'Received pubsub event');
     const event = await this.eventRepository.getEventById(eventId);
     if (!event) {
       logger.warn({ eventId }, 'Event not found for pubsub message');
       return;
     }
 
-    await this.broadcast(event);
+    const sentCount = await this.broadcast(event);
+    logger.debug({ eventId, sentCount, clientCount: this.clients.size }, 'Broadcasted SSE event');
   }
 
-  private async broadcast(event: Event): Promise<void> {
+  private async broadcast(event: Event): Promise<number> {
     const payload = JSON.stringify(toEventDto(event));
+    let sentCount = 0;
 
     for (const client of this.clients) {
       if (client.aborted || client.closed) {
@@ -78,10 +87,12 @@ export class EventStreamService {
 
       try {
         await client.writeSSE({ data: payload, id: event.id });
+        sentCount += 1;
       } catch (error) {
         this.clients.delete(client);
         logger.warn({ error }, 'Failed to broadcast SSE');
       }
     }
+    return sentCount;
   }
 }

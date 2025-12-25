@@ -27,6 +27,7 @@ export class IngestWorkerService {
     }
 
     this.worker = createIngestWorker(this.processJob.bind(this));
+    logger.debug('Ingest worker started');
     this.worker.on('failed', (job, error) => {
       logger.error({ error, jobId: job?.id }, 'Ingest job failed');
     });
@@ -40,12 +41,15 @@ export class IngestWorkerService {
       return;
     }
 
+    logger.debug({ sourceId, jobId: job.id }, 'Running ingest job');
     const fetchedAt = new Date().toISOString();
     const events = await source.run();
 
     for (const event of events) {
       await this.insertEvent(sourceId, fetchedAt, event);
     }
+
+    logger.debug({ sourceId, jobId: job.id, eventCount: events.length }, 'Completed ingest job');
   }
 
   private async insertEvent(sourceId: string, fetchedAt: string, event: SourceEvent): Promise<void> {

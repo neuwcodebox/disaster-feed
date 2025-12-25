@@ -19,9 +19,11 @@ export class EventWriterService implements IEventWriterService {
 
   public async appendEvent(data: NewEvent): Promise<Event> {
     const event = await this.eventRepository.insertEvent(data);
+    logger.debug({ eventId: event.id, source: event.source, kind: event.kind }, 'Event persisted');
 
     try {
       await publishNewEvent(this.redisClient, event.id);
+      logger.debug({ eventId: event.id }, 'Published new event');
     } catch (error) {
       logger.warn({ error, eventId: event.id }, 'Failed to publish new event');
     }
