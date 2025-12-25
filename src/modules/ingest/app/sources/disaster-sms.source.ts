@@ -73,9 +73,11 @@ export class DisasterSmsSource implements Source {
 
 const toSourceEvent = (item: DisasterSmsItem): SourceEvent => {
   const region = item.RCV_AREA_NM.trim();
+  const sender = extractSenderName(item.MSG_CN);
+  const titlePrefix = sender ?? pickRegionPrefix(region) ?? '';
   return {
     kind: EventKinds.Cbs,
-    title: `${region} ${item.DSSTR_SE_NM} ${item.EMRGNCY_STEP_NM}`.trim(),
+    title: `${titlePrefix} ${item.DSSTR_SE_NM} ${item.EMRGNCY_STEP_NM}`.trim(),
     body: item.MSG_CN.trim(),
     occurredAt: parseKstDateTime(item.CREAT_DT),
     regionText: region || null,
@@ -83,6 +85,26 @@ const toSourceEvent = (item: DisasterSmsItem): SourceEvent => {
     link: null,
     payload: buildPayload(item),
   };
+};
+
+const extractSenderName = (message: string): string | null => {
+  const matched = message.match(/\[([^[\]]+)\]\s*$/);
+  if (!matched) {
+    return null;
+  }
+
+  const sender = matched[1].trim();
+  return sender.length > 0 ? sender : null;
+};
+
+const pickRegionPrefix = (region: string): string | null => {
+  const trimmed = region.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const [first] = trimmed.split(/\s+/);
+  return first ?? null;
 };
 
 const buildPayload = (item: DisasterSmsItem): EventPayload => {
