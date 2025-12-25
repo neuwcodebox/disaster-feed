@@ -42,11 +42,11 @@ export enum EventKinds {
 }
 
 export enum EventLevels {
-  Info = 1,
-  Minor = 2,
-  Moderate = 3,
-  Severe = 4,
-  Critical = 5,
+  Info = 1, // 상황 인지용 정보 / 알고만 있으면 됨 / 몰라도 무방
+  Minor = 2, // 지역·국소적 문제 / 주의만 기울일 것 / 대비 권장
+  Moderate = 3, // 명확한 위험, 주의 필요 / 행동 권장 / 대비 필요
+  Severe = 4, // 광범위 영향, 즉각 대응 / 행동 필요 / 신속한 대비
+  Critical = 5, // 생명 위협·대규모 재난 / 즉시 행동 / 최우선 대응
 }
 
 export enum EventSources {
