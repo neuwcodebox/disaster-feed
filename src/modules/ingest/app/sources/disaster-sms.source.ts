@@ -72,7 +72,7 @@ export class DisasterSmsSource implements Source {
 }
 
 const toSourceEvent = (item: DisasterSmsItem): SourceEvent => {
-  const region = item.RCV_AREA_NM.trim();
+  const region = normalizeRegionText(item.RCV_AREA_NM);
   const sender = extractSenderName(item.MSG_CN);
   const titlePrefix = sender ?? pickRegionPrefix(region) ?? '';
   return {
@@ -95,6 +95,10 @@ const extractSenderName = (message: string): string | null => {
 
   const sender = matched[1].trim();
   return sender.length > 0 ? sender : null;
+};
+
+const normalizeRegionText = (region: string): string => {
+  return region.replace(/\s*,\s*/g, ', ').trim();
 };
 
 const pickRegionPrefix = (region: string): string | null => {
