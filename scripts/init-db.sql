@@ -3,10 +3,11 @@ CREATE TABLE IF NOT EXISTS events (
   source TEXT NOT NULL,
   kind INTEGER NOT NULL,
   title TEXT NOT NULL,
+  body TEXT NULL,
   fetched_at TIMESTAMPTZ NOT NULL,
   occurred_at TIMESTAMPTZ NULL,
   region_text TEXT NULL,
-  level TEXT NULL,
+  level INTEGER NOT NULL,
   link TEXT NULL,
   payload JSONB NULL
 );

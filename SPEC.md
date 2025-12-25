@@ -29,10 +29,11 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
 - source: string
 - kind: number (앱에서 enum 관리)
 - title: string
+- body?: text
 - fetched_at: timestamptz
 - occurred_at?: timestamptz
 - region_text?: text
-- level?: text
+- level: number
 - link?: text
 - payload?: jsonb
 
@@ -49,10 +50,11 @@ create table if not exists events (
   source       text not null,
   kind         integer not null,
   title        text not null,
+  body         text null,
   fetched_at   timestamptz not null,
   occurred_at  timestamptz null,
   region_text  text null,
-  level        text null,
+  level        integer not null,
   link         text null,
   payload      jsonb null
 );

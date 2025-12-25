@@ -5,10 +5,11 @@ export const schemaEvent = z.object({
   source: z.string(),
   kind: z.number().int(),
   title: z.string(),
+  body: z.string().nullable(),
   fetchedAt: z.string(),
   occurredAt: z.string().nullable(),
   regionText: z.string().nullable(),
-  level: z.string().nullable(),
+  level: z.number().int(),
   link: z.string().nullable(),
   payload: z.record(z.string(), z.unknown()).nullable(),
 });

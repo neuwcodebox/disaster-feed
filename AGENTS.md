@@ -50,8 +50,10 @@ HTTP API 및 SSE로 최신 이벤트 목록을 제공한다.
 - source: 문자열 식별자 (예: "safekorea_sms")
 - kind: 숫자 enum (앱에서 관리; DB에는 enum 제약 없음)
 - title: 한 줄
+- body: 본문(선택)
 - fetched_at: timestamptz (필수)
-- 선택: occurred_at, region_text, level, link, payload(jsonb)
+- 선택: occurred_at, region_text, link, payload(jsonb)
+- level: 숫자 enum (필수)
 
 ## 다중 인스턴스 SSE
 
@@ -77,6 +79,7 @@ HTTP API 및 SSE로 최신 이벤트 목록을 제공한다.
 - Code smells를 피합니다. (예: 중복 코드, 긴 함수, 긴 매개변수 목록 등)
 - Kysely 쿼리는 raw SQL을 최소화하고, 가능한 Kysely 메서드를 사용합니다. 예: `foo as a` 대신 `foo().as('a')`
 - 타입에는 PascalCase, 변수/함수/메서드에는 camelCase, 상수에는 UPPER_SNAKE_CASE를 사용합니다.
+- Zod 스키마 변수는 schemaXXX 형태의 camelCase로 작성합니다.
 - `logger`를 사용하여 적절한 수준의 로그를 남깁니다. (debug/info/warn/error)
 
 ## Git commit style

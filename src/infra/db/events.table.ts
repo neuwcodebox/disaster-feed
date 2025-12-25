@@ -5,10 +5,11 @@ export interface EventsTable {
   source: string;
   kind: number;
   title: string;
+  body: string | null;
   fetched_at: string;
   occurred_at: string | null;
   region_text: string | null;
-  level: string | null;
+  level: number;
   link: string | null;
   payload: Record<string, unknown> | null;
 }
