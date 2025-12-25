@@ -2,40 +2,40 @@
 
 ## 0. 기본 준비
 
-- [ ] hono-template 기반으로 프로젝트 시작
-- [ ] npm 기준 스크립트 정리(dev/start/lint 등)
-- [ ] docker-compose: postgres, redis
-- [ ] .env.example 작성(DATABASE_URL, REDIS_URL 등)
-- [ ] init-sql.db(또는 init SQL 파일) 추가: events 테이블 + 인덱스
+- [x] hono-template 기반으로 프로젝트 시작
+- [x] npm 기준 스크립트 정리(dev/start/lint 등)
+- [x] docker-compose: postgres, redis
+- [x] .env.example 작성(DATABASE_URL, REDIS_URL 등)
+- [x] init-sql.db(또는 init SQL 파일) 추가: events 테이블 + 인덱스
 
 ## 1. Infra 구성
 
-- [ ] Postgres 연결(Kysely) 세팅
-- [ ] Redis 연결 세팅
-- [ ] BullMQ queue/worker 세팅(단일 앱 내에서 같이 구동)
-- [ ] Redis Pub/Sub publish/subscribe 세팅
+- [x] Postgres 연결(Kysely) 세팅
+- [x] Redis 연결 세팅
+- [x] BullMQ queue/worker 세팅(단일 앱 내에서 같이 구동)
+- [x] Redis Pub/Sub publish/subscribe 세팅
 
 ## 2. 이벤트 저장/조회
 
-- [ ] ULID 기반 이벤트 id 생성 유틸
-- [ ] events insert/list repo(또는 서비스) 구현
-- [ ] GET /events 구현(최신 목록, limit/kind/source 정도)
+- [x] ULID 기반 이벤트 id 생성 유틸
+- [x] events insert/list repo(또는 서비스) 구현
+- [x] GET /events 구현(최신 목록, limit/kind/source 정도)
 
 ## 3. SSE(멀티 인스턴스 포함)
 
-- [ ] 로컬 SSE 클라이언트 관리(Set 등) 구현
-- [ ] GET /events/stream 구현
-  - [ ] (선택) since 파라미터로 DB에서 먼저 보내고 live 전환
-- [ ] 새 이벤트 fanout:
-  - [ ] 이벤트 insert 성공 후 Pub/Sub로 eventId publish
-  - [ ] subscribe 측에서 eventId 수신 → DB 조회 → 로컬 SSE broadcast
+- [x] 로컬 SSE 클라이언트 관리(Set 등) 구현
+- [x] GET /events/stream 구현
+  - [x] (선택) since 파라미터로 DB에서 먼저 보내고 live 전환
+- [x] 새 이벤트 fanout:
+  - [x] 이벤트 insert 성공 후 Pub/Sub로 eventId publish
+  - [x] subscribe 측에서 eventId 수신 → DB 조회 → 로컬 SSE broadcast
 
 ## 4. Ingest(소스 실행)
 
-- [ ] "소스 클래스" 인터페이스/형식 정리(sourceId, pollIntervalSec, run())
-- [ ] 소스 registry 작성(활성화된 소스 목록)
-- [ ] 앱 부팅 시 repeatable job 등록(소스별 주기)
-- [ ] worker에서 sourceId로 소스 run() 실행 → events insert → publish
+- [x] "소스 클래스" 인터페이스/형식 정리(sourceId, pollIntervalSec, run())
+- [x] 소스 registry 작성(활성화된 소스 목록)
+- [x] 앱 부팅 시 repeatable job 등록(소스별 주기)
+- [x] worker에서 sourceId로 소스 run() 실행 → events insert → publish
 
 ## 5. 실제 소스 어댑터 구현 전 사전 파악(중요)
 
