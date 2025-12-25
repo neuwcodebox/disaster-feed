@@ -47,7 +47,7 @@ HTTP API 및 SSE로 최신 이벤트 목록을 제공한다.
 ## 이벤트 모델(프로토타입 최소)
 
 - id: ULID (텍스트)
-- source: 문자열 식별자 (예: "safekorea_sms")
+- source: 숫자 enum (앱에서 관리; DB에는 enum 제약 없음)
 - kind: 숫자 enum (앱에서 관리; DB에는 enum 제약 없음)
 - title: 한 줄
 - body: 본문(선택)

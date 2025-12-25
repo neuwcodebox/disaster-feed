@@ -46,13 +46,13 @@ export class IngestWorkerService {
     const events = await source.run();
 
     for (const event of events) {
-      await this.insertEvent(sourceId, fetchedAt, event);
+      await this.insertEvent(source.sourceKey, fetchedAt, event);
     }
 
     logger.debug({ sourceId, jobId: job.id, eventCount: events.length }, 'Completed ingest job');
   }
 
-  private async insertEvent(sourceId: string, fetchedAt: string, event: SourceEvent): Promise<void> {
+  private async insertEvent(sourceId: number, fetchedAt: string, event: SourceEvent): Promise<void> {
     try {
       await this.eventWriter.appendEvent({
         id: createUuidV7(),

@@ -1,11 +1,10 @@
 import { z } from 'zod';
 import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
-import { EventKind, EventLevel } from '@/modules/events/domain/event.enums';
+import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent } from '../../domain/port/source.interface';
 
 const DISASTER_SMS_ENDPOINT = 'https://www.safekorea.go.kr/idsiSFK/sfk/cs/sua/web/DisasterSmsList.do';
-const DISASTER_SMS_KIND = EventKind.Cbs;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 10000;
 const PAGE_SIZE = 50;
@@ -30,6 +29,7 @@ const schemaDisasterSmsResponse = z.object({
 type DisasterSmsItem = z.infer<typeof schemaDisasterSmsItem>;
 
 export class DisasterSmsSource implements Source {
+  public readonly sourceKey = EventSources.SafekoreaSms;
   public readonly sourceId = 'safekorea_sms';
   public readonly pollIntervalSec = 60;
 
@@ -75,13 +75,13 @@ export class DisasterSmsSource implements Source {
 const toSourceEvent = (item: DisasterSmsItem): SourceEvent => {
   const region = item.RCV_AREA_NM.trim();
   return {
-    kind: DISASTER_SMS_KIND,
+    kind: EventKinds.Cbs,
     title: `${region} ${item.DSSTR_SE_NM} ${item.EMRGNCY_STEP_NM}`.trim(),
     body: item.MSG_CN.trim(),
     occurredAt: parseKstDateTime(item.CREAT_DT),
     regionText: region || null,
     level: mapEmergencyLevel(item.EMRGNCY_STEP_NM),
-    link: 'https://www.safekorea.go.kr/idsiSFK/neo/sfk/cs/sfc/dis/disasterMsgList.jsp?emgPage=Y&menuSeq=679',
+    link: null,
     payload: buildPayload(item),
   };
 };
@@ -98,17 +98,17 @@ const buildPayload = (item: DisasterSmsItem): EventPayload => {
   };
 };
 
-const mapEmergencyLevel = (value: string): EventLevel => {
+const mapEmergencyLevel = (value: string): EventLevels => {
   if (value.includes('위급')) {
-    return EventLevel.Critical;
+    return EventLevels.Critical;
   }
   if (value.includes('긴급')) {
-    return EventLevel.Severe;
+    return EventLevels.Severe;
   }
   if (value.includes('안전')) {
-    return EventLevel.Minor;
+    return EventLevels.Minor;
   }
-  return EventLevel.Info;
+  return EventLevels.Info;
 };
 
 const filterNewItems = (items: DisasterSmsItem[], lastSeenSerial: number | null): DisasterSmsItem[] => {

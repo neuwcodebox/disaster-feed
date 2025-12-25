@@ -26,7 +26,7 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
 ## 4. 이벤트 스키마(논리)
 
 - id: string (ULID)
-- source: string
+- source: number (앱에서 enum 관리)
 - kind: number (앱에서 enum 관리)
 - title: string
 - body?: text
@@ -47,7 +47,7 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
 ```sql
 create table if not exists events (
   id           text primary key,
-  source       text not null,
+  source       integer not null,
   kind         integer not null,
   title        text not null,
   body         text null,

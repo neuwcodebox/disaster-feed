@@ -1,10 +1,10 @@
 import type { Event, NewEvent } from '../entity/event.entity';
-import type { EventKind } from '../event.enums';
+import type { EventKinds, EventSources } from '../event.enums';
 
 export type ListEventsParams = {
   limit?: number;
-  kind?: EventKind;
-  source?: string;
+  kind?: EventKinds;
+  source?: EventSources;
 };
 
 export type ListEventsSinceParams = {

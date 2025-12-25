@@ -2,7 +2,7 @@ import type { Insertable, Selectable } from 'kysely';
 
 export interface EventsTable {
   id: string;
-  source: string;
+  source: number;
   kind: number;
   title: string;
   body: string | null;

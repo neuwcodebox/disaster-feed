@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const schemaEvent = z.object({
   id: z.string(),
-  source: z.string(),
+  source: z.number().int(),
   kind: z.number().int(),
   title: z.string(),
   body: z.string().nullable(),

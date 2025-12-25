@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS events (
   id UUID PRIMARY KEY,
-  source TEXT NOT NULL,
+  source INTEGER NOT NULL,
   kind INTEGER NOT NULL,
   title TEXT NOT NULL,
   body TEXT NULL,
