@@ -52,4 +52,5 @@ export enum EventLevels {
 export enum EventSources {
   SafekoreaSms = 1,
   KmaMicroEarthquake = 2,
+  KmaPewsEarthquake = 3,
 }
