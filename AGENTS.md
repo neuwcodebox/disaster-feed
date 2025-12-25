@@ -69,7 +69,7 @@ HTTP API 및 SSE로 최신 이벤트 목록을 제공한다.
 ## Code style
 
 - 보기 좋은 코드를 작성합니다.
-- Type Safe를 준수합니다. `any` 사용을 금지하며 꼭 필요하다면 `unknown`을 사용합니다.
+- Type Safe를 준수합니다. `any` 사용을 금지하며 꼭 필요하다면 `unknown`을 사용합니다. Zod 스키마를 적극 활용합니다.
 - Biome을 사용하여 코드 스타일을 강제합니다.
 - `forEach` 대신 `for` 문을 사용합니다.
 - `then` 대신 `async/await`를 사용합니다.
