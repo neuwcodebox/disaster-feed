@@ -1,0 +1,38 @@
+# Node modules & dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temporary files
+*.swp
+*.swo
+
+# Git files
+.git
+.gitignore
+
+# Docker & CI files
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# IDE & OS generated files
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
