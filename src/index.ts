@@ -5,6 +5,8 @@ import { env } from '@/core/env';
 import { logger } from '@/core/logger';
 import { DependencyContainer } from './core/dep';
 import { registerDbDeps } from './infra/db/db-conn';
+import { registerQueueDeps } from './infra/queue/queue';
+import { registerRedisDeps } from './infra/redis/redis-conn';
 import { registerHealthDeps, registerHealthRoutes } from './modules/health/health.registry';
 import { setSecuritySchemes } from './view/docs/security-schemes';
 import { corsMiddleware } from './view/middleware/cors.middleware';
@@ -21,6 +23,8 @@ const app = new OpenAPIHono();
 //
 
 registerDbDeps(dep);
+registerRedisDeps(dep);
+registerQueueDeps(dep);
 registerHealthDeps(dep);
 
 // Middleware
