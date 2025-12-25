@@ -1,8 +1,9 @@
 import type { Event, NewEvent } from '../entity/event.entity';
+import type { EventKind } from '../event.enums';
 
 export type ListEventsParams = {
   limit?: number;
-  kind?: number;
+  kind?: EventKind;
   source?: string;
 };
 

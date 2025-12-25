@@ -7,10 +7,11 @@ export function toEventDto(event: Event): EventDto {
     source: event.source,
     kind: event.kind,
     title: event.title,
+    body: event.body ?? null,
     fetchedAt: event.fetchedAt,
     occurredAt: event.occurredAt,
     regionText: event.regionText,
-    level: event.level ?? null,
+    level: event.level,
     link: event.link ?? null,
     payload: event.payload ?? null,
   };

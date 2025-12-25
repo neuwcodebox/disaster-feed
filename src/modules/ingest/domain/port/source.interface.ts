@@ -1,11 +1,13 @@
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
+import type { EventKind, EventLevel } from '@/modules/events/domain/event.enums';
 
 export type SourceEvent = {
-  kind: number;
+  kind: EventKind;
   title: string;
+  body?: string | null;
   occurredAt?: string | null;
   regionText?: string | null;
-  level?: string | null;
+  level: EventLevel;
   link?: string | null;
   payload?: EventPayload | null;
 };

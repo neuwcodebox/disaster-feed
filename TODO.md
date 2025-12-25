@@ -20,6 +20,7 @@
 - [x] ULID 기반 이벤트 id 생성 유틸
 - [x] events insert/list repo(또는 서비스) 구현
 - [x] GET /events 구현(최신 목록, limit/kind/source 정도)
+- [x] events 스키마 본문/level 타입 변경 및 enum 정리
 
 ## 3. SSE(멀티 인스턴스 포함)
 
@@ -43,6 +44,10 @@
 - [ ] 폴링 주기/변경 빈도 대략 파악(너무 잦은 요청 방지)
 - [ ] 파싱에 필요한 최소 필드 합의(title, occurred_at, region_text, link, payload 후보)
 - [ ] 실패 케이스 파악(요청 차단, 응답 포맷 변경, 빈 목록 등) 및 최소 대응(로그/타임아웃)
+  - [x] 재난문자(DisasterSmsList) 엔드포인트 확인 및 요청 파라미터 정리
+  - [x] 재난문자 필드 매핑 합의(title/occurred_at/region_text/level/payload)
+  - [x] 재난문자 폴링 주기 초안 결정
+  - [x] 재난문자 실패 케이스 최소 대응(타임아웃/빈 목록/포맷 변경)
 
 ## 6. 소스 1~2개로 E2E 확인
 

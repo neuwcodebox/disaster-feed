@@ -59,10 +59,11 @@ export class IngestWorkerService {
         source: sourceId,
         kind: event.kind,
         title: event.title,
+        body: event.body ?? null,
         fetchedAt,
         occurredAt: event.occurredAt ?? null,
         regionText: event.regionText ?? null,
-        level: event.level ?? null,
+        level: event.level,
         link: event.link ?? null,
         payload: event.payload ?? null,
       });
