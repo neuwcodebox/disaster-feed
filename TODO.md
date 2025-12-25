@@ -1,0 +1,56 @@
+# TODO.md
+
+## 0. 기본 준비
+
+- [ ] hono-template 기반으로 프로젝트 시작
+- [ ] npm 기준 스크립트 정리(dev/start/lint 등)
+- [ ] docker-compose: postgres, redis
+- [ ] .env.example 작성(DATABASE_URL, REDIS_URL 등)
+- [ ] init-sql.db(또는 init SQL 파일) 추가: events 테이블 + 인덱스
+
+## 1. Infra 구성
+
+- [ ] Postgres 연결(Kysely) 세팅
+- [ ] Redis 연결 세팅
+- [ ] BullMQ queue/worker 세팅(단일 앱 내에서 같이 구동)
+- [ ] Redis Pub/Sub publish/subscribe 세팅
+
+## 2. 이벤트 저장/조회
+
+- [ ] ULID 기반 이벤트 id 생성 유틸
+- [ ] events insert/list repo(또는 서비스) 구현
+- [ ] GET /events 구현(최신 목록, limit/kind/source 정도)
+
+## 3. SSE(멀티 인스턴스 포함)
+
+- [ ] 로컬 SSE 클라이언트 관리(Set 등) 구현
+- [ ] GET /events/stream 구현
+  - [ ] (선택) since 파라미터로 DB에서 먼저 보내고 live 전환
+- [ ] 새 이벤트 fanout:
+  - [ ] 이벤트 insert 성공 후 Pub/Sub로 eventId publish
+  - [ ] subscribe 측에서 eventId 수신 → DB 조회 → 로컬 SSE broadcast
+
+## 4. Ingest(소스 실행)
+
+- [ ] "소스 클래스" 인터페이스/형식 정리(sourceId, pollIntervalSec, run())
+- [ ] 소스 registry 작성(활성화된 소스 목록)
+- [ ] 앱 부팅 시 repeatable job 등록(소스별 주기)
+- [ ] worker에서 sourceId로 소스 run() 실행 → events insert → publish
+
+## 5. 실제 소스 어댑터 구현 전 사전 파악(중요)
+
+- [ ] 사람과 함께 각 소스별로 수집 방식 파악(정적 HTML / 내부 JSON / RSS / 인증/쿠키 필요 여부)
+- [ ] 폴링 주기/변경 빈도 대략 파악(너무 잦은 요청 방지)
+- [ ] 파싱에 필요한 최소 필드 합의(title, occurred_at, region_text, link, payload 후보)
+- [ ] 실패 케이스 파악(요청 차단, 응답 포맷 변경, 빈 목록 등) 및 최소 대응(로그/타임아웃)
+
+## 6. 소스 1~2개로 E2E 확인
+
+- [ ] 가장 쉬운 소스 1개부터 붙여 end-to-end 확인(수집→저장→SSE)
+- [ ] 두 번째 소스 추가하여 kind/source 필터 동작 확인
+
+## 7. 운영 최소
+
+- [ ] /healthz, /readyz
+- [ ] graceful shutdown(서버/redis/worker/db)
+- [ ] 로그 정리(잡 실패/파싱 실패 구분)
