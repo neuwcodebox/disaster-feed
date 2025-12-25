@@ -55,6 +55,8 @@
 - [x] 재난문자 실패 케이스 최소 대응(타임아웃/빈 목록/포맷 변경)
 - [x] 재난문자 제목에 발송 주체 반영
 - [x] 재난문자 region 콤마 공백 정규화
+- [x] EventKinds 재난 종류 확장
+- [x] 재난문자 DSSTR_SE_NM kind 매핑 확장
 - [x] 기상청 미소지진(HTML) 엔드포인트 확인 및 응답 파싱 규칙 정리
 - [x] 기상청 미소지진 필드 매핑 합의(title/occurred_at/region_text/level/payload)
 - [x] 기상청 미소지진 폴링 주기 초안 결정

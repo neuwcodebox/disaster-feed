@@ -28,6 +28,44 @@ const schemaDisasterSmsResponse = z.object({
 
 type DisasterSmsItem = z.infer<typeof schemaDisasterSmsItem>;
 
+const DISASTER_KIND_BY_NAME: Record<string, EventKinds> = {
+  AI: EventKinds.Ai,
+  가뭄: EventKinds.Drought,
+  가축질병: EventKinds.Livestock,
+  강풍: EventKinds.Wind,
+  건조: EventKinds.Dry,
+  교통: EventKinds.Transport,
+  교통사고: EventKinds.TrafficCrash,
+  교통통제: EventKinds.TrafficCtrl,
+  금융: EventKinds.Finance,
+  기타: EventKinds.Other,
+  대설: EventKinds.Snow,
+  미세먼지: EventKinds.FineDust,
+  민방공: EventKinds.CivDef,
+  붕괴: EventKinds.Collapse,
+  산불: EventKinds.Wildfire,
+  산사태: EventKinds.Landslide,
+  수도: EventKinds.Water,
+  안개: EventKinds.Fog,
+  에너지: EventKinds.Energy,
+  전염병: EventKinds.Epidemic,
+  정전: EventKinds.Blackout,
+  지진: EventKinds.Quake,
+  지진해일: EventKinds.Tsunami,
+  태풍: EventKinds.Typhoon,
+  테러: EventKinds.Terror,
+  통신: EventKinds.Telecom,
+  폭발: EventKinds.Explosion,
+  폭염: EventKinds.Heat,
+  풍랑: EventKinds.HighSeas,
+  한파: EventKinds.Cold,
+  호우: EventKinds.Rain,
+  홍수: EventKinds.Flood,
+  화재: EventKinds.Fire,
+  환경오염사고: EventKinds.Pollution,
+  황사: EventKinds.YellowDust,
+};
+
 export class DisasterSmsSource implements Source {
   public readonly sourceId = EventSources.SafekoreaSms;
   public readonly pollIntervalSec = 60;
@@ -76,7 +114,7 @@ const toSourceEvent = (item: DisasterSmsItem): SourceEvent => {
   const sender = extractSenderName(item.MSG_CN);
   const titlePrefix = sender ?? pickRegionPrefix(region) ?? '';
   return {
-    kind: EventKinds.Cbs,
+    kind: mapDisasterKind(item.DSSTR_SE_NM),
     title: `${titlePrefix} ${item.DSSTR_SE_NM} ${item.EMRGNCY_STEP_NM}`.trim(),
     body: item.MSG_CN.trim(),
     occurredAt: parseKstDateTime(item.CREAT_DT),
@@ -85,6 +123,11 @@ const toSourceEvent = (item: DisasterSmsItem): SourceEvent => {
     link: null,
     payload: buildPayload(item),
   };
+};
+
+const mapDisasterKind = (value: string): EventKinds => {
+  const normalized = value.trim();
+  return DISASTER_KIND_BY_NAME[normalized] ?? EventKinds.Other;
 };
 
 const extractSenderName = (message: string): string | null => {

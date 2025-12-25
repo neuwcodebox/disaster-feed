@@ -64,7 +64,7 @@ const buildMicroEarthquakeEvent = (text: string): SourceEvent => {
   const body = detailLine ?? text;
 
   return {
-    kind: EventKinds.MicroEarthquake,
+    kind: EventKinds.Quake,
     title,
     body,
     occurredAt: detail?.occurredAt ?? null,
