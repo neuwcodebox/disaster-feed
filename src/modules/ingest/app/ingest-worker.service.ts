@@ -15,6 +15,7 @@ import type { SourceRegistry } from './source.registry';
 @injectable()
 export class IngestWorkerService {
   private worker: Worker<IngestJobPayload> | null = null;
+  private readonly runningSourceIds = new Set<EventSources>();
 
   constructor(
     @inject(IngestDeps.SourceRegistry)
@@ -45,28 +46,39 @@ export class IngestWorkerService {
       return;
     }
 
-    const checkpoint = await this.ingestCheckpointRepository.getCheckpoint(sourceId);
-    const checkpointState = checkpoint?.state ?? null;
+    if (this.runningSourceIds.has(sourceId)) {
+      logger.warn({ sourceId, jobId: job.id }, 'Skipping ingest job due to running source');
+      return;
+    }
 
-    logger.debug({ sourceId, jobId: job.id }, 'Running ingest job');
-    const fetchedAt = new Date().toISOString();
-    const { events, nextState } = await source.run(checkpointState);
-    let allInserted = true;
+    this.runningSourceIds.add(sourceId);
 
-    for (const event of events) {
-      const inserted = await this.insertEvent(source.sourceId, fetchedAt, event);
-      if (!inserted) {
-        allInserted = false;
+    try {
+      const checkpoint = await this.ingestCheckpointRepository.getCheckpoint(sourceId);
+      const checkpointState = checkpoint?.state ?? null;
+
+      logger.debug({ sourceId, jobId: job.id }, 'Running ingest job');
+      const fetchedAt = new Date().toISOString();
+      const { events, nextState } = await source.run(checkpointState);
+      let allInserted = true;
+
+      for (const event of events) {
+        const inserted = await this.insertEvent(source.sourceId, fetchedAt, event);
+        if (!inserted) {
+          allInserted = false;
+        }
       }
-    }
 
-    if (allInserted) {
-      await this.ingestCheckpointRepository.upsertCheckpoint(sourceId, nextState);
-    } else {
-      logger.warn({ sourceId, jobId: job.id }, 'Skipping checkpoint update due to insert failures');
-    }
+      if (allInserted) {
+        await this.ingestCheckpointRepository.upsertCheckpoint(sourceId, nextState);
+      } else {
+        logger.warn({ sourceId, jobId: job.id }, 'Skipping checkpoint update due to insert failures');
+      }
 
-    logger.debug({ sourceId, jobId: job.id, eventCount: events.length }, 'Completed ingest job');
+      logger.debug({ sourceId, jobId: job.id, eventCount: events.length }, 'Completed ingest job');
+    } finally {
+      this.runningSourceIds.delete(sourceId);
+    }
   }
 
   private async insertEvent(sourceId: EventSources, fetchedAt: string, event: SourceEvent): Promise<boolean> {
