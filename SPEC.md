@@ -47,14 +47,14 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
 ```sql
 create table if not exists events (
   id           text primary key,
-  source       integer not null,
-  kind         integer not null,
+  source       smallint not null,
+  kind         smallint not null,
   title        text not null,
   body         text null,
   fetched_at   timestamptz not null,
   occurred_at  timestamptz null,
   region_text  text null,
-  level        integer not null,
+  level        smallint not null,
   payload      jsonb null
 );
 

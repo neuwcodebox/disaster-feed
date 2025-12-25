@@ -1,13 +1,13 @@
 CREATE TABLE IF NOT EXISTS events (
   id UUID PRIMARY KEY,
-  source INTEGER NOT NULL,
-  kind INTEGER NOT NULL,
+  source SMALLINT NOT NULL,
+  kind SMALLINT NOT NULL,
   title TEXT NOT NULL,
   body TEXT NULL,
   fetched_at TIMESTAMPTZ NOT NULL,
   occurred_at TIMESTAMPTZ NULL,
   region_text TEXT NULL,
-  level INTEGER NOT NULL,
+  level SMALLINT NOT NULL,
   payload JSONB NULL
 );
 
