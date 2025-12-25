@@ -69,6 +69,10 @@ export class EventRoute implements IRoute {
         return streamSSE(c, async (stream) => {
           eventStreamService.addClient(stream);
           await eventStreamService.sendCatchUp(stream, query.since);
+          while (!stream.aborted && !stream.closed) {
+            await stream.writeSSE({ event: 'ping', data: 'keep-alive' });
+            await stream.sleep(15000);
+          }
         });
       },
     );
