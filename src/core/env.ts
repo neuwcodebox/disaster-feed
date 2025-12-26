@@ -18,5 +18,6 @@ export const env = z
     INGEST_ENABLED: z.coerce.number().default(0),
     DATABASE_URL: z.url(),
     REDIS_URL: z.url(),
+    KMA_API_KEY: z.string().optional(),
   })
   .parse(process.env);

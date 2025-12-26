@@ -54,4 +54,5 @@ export enum EventSources {
   KmaMicroEarthquake = 2,
   KmaPewsEarthquake = 3,
   NfdsFireDispatch = 4,
+  KmaWeatherWarning = 5,
 }

@@ -26,6 +26,7 @@
     "bullmq": "^5.60.0",
     "dotenv": "^17.2.3",
     "hono": "^4.11.1",
+    "iconv-lite": "^0.7.1",
     "inversify": "^7.10.8",
     "ioredis": "^5.7.0",
     "kysely": "^0.28.9",
