@@ -4,6 +4,7 @@ import { KmaMicroEarthquakeSource } from './sources/kma-micro-earthquake.source'
 import { KmaPewsEarthquakeSource } from './sources/kma-pews-earthquake.source';
 import { KmaWeatherWarningSource } from './sources/kma-weather-warning.source';
 import { NfdsFireDispatchSource } from './sources/nfds-fire-dispatch.source';
+import { UticTrafficIncidentSource } from './sources/utic-traffic-incident.source';
 
 export const sourceList: Source[] = [
   new DisasterSmsSource(),
@@ -11,4 +12,5 @@ export const sourceList: Source[] = [
   new KmaMicroEarthquakeSource(),
   new KmaPewsEarthquakeSource(),
   new NfdsFireDispatchSource(),
+  new UticTrafficIncidentSource(),
 ];
