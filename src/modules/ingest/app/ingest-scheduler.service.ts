@@ -49,7 +49,7 @@ export class IngestSchedulerService {
       { sourceId: source.sourceId },
       {
         jobId,
-        repeat: { every: repeatEveryMs },
+        repeat: { every: repeatEveryMs, key: jobId },
         attempts: 3,
         backoff: { type: 'exponential', delay: 5000 },
         removeOnComplete: true,
