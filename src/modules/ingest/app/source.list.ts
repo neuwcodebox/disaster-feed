@@ -1,4 +1,5 @@
 import type { Source } from '../domain/port/source.interface';
+import { AirkoreaPmWarningSource } from './sources/airkorea-pm-warning.source';
 import { DisasterSmsSource } from './sources/disaster-sms.source';
 import { KmaMicroEarthquakeSource } from './sources/kma-micro-earthquake.source';
 import { KmaPewsEarthquakeSource } from './sources/kma-pews-earthquake.source';
@@ -13,4 +14,5 @@ export const sourceList: Source[] = [
   new KmaPewsEarthquakeSource(),
   new NfdsFireDispatchSource(),
   new UticTrafficIncidentSource(),
+  new AirkoreaPmWarningSource(),
 ];

@@ -56,4 +56,5 @@ export enum EventSources {
   NfdsFireDispatch = 4,
   KmaWeatherWarning = 5,
   UticTrafficIncident = 6,
+  AirkoreaPmWarning = 7,
 }
