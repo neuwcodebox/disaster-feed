@@ -246,7 +246,7 @@ const fetchWithTimeout = async (url: string, init: RequestInit): Promise<Respons
 
     return response;
   } catch (error) {
-    logger.warn({ error }, 'Disaster SMS request error');
+    logger.warn(error, 'Disaster SMS request error');
     return null;
   } finally {
     clearTimeout(timeout);

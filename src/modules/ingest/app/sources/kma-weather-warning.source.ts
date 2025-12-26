@@ -446,7 +446,7 @@ const fetchWithTimeout = async (url: string): Promise<Response | null> => {
 
     return response;
   } catch (error) {
-    logger.warn({ error }, 'KMA weather warning request error');
+    logger.warn(error, 'KMA weather warning request error');
     return null;
   } finally {
     clearTimeout(timeout);

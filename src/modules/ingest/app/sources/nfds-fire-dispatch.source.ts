@@ -474,7 +474,7 @@ const fetchWithTimeout = async (url: string): Promise<Response | null> => {
 
     return response;
   } catch (error) {
-    logger.warn({ error }, 'NFDS fire dispatch request error');
+    logger.warn(error, 'NFDS fire dispatch request error');
     return null;
   } finally {
     clearTimeout(timeout);

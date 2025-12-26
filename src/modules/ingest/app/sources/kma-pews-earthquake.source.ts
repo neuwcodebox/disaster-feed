@@ -607,7 +607,7 @@ const fetchWithTimeout = async (url: string): Promise<Response | null> => {
       },
     });
   } catch (error) {
-    logger.warn({ error }, 'PEWS request error');
+    logger.warn(error, 'PEWS request error');
     return null;
   } finally {
     clearTimeout(timeout);

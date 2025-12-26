@@ -248,7 +248,7 @@ const fetchWithTimeout = async (url: string): Promise<Response | null> => {
 
     return response;
   } catch (error) {
-    logger.warn({ error }, 'Micro earthquake request error');
+    logger.warn(error, 'Micro earthquake request error');
     return null;
   } finally {
     clearTimeout(timeout);
