@@ -9,7 +9,8 @@ import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/sou
 
 const UTIC_INCIDENT_ENDPOINT = 'https://www.utic.go.kr/tsdms/incident.do';
 const REQUEST_TIMEOUT_MS = 20000;
-const STATE_TTL_MS = 1000 * 60 * 60 * 12;
+const STATE_TTL_MS = 1000 * 60 * 60 * 6;
+const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 const INSECURE_DISPATCHER = new Agent({ connect: { rejectUnauthorized: false } });
 let loggedInsecure = false;
 
@@ -382,7 +383,7 @@ const isTooOld = (occurredAt: string | null, nowMs: number): boolean => {
     return false;
   }
 
-  return nowMs - parsed > STATE_TTL_MS;
+  return nowMs - parsed > EVENT_MAX_AGE_MS;
 };
 
 const buildRequestUrl = (grade: IncidentGrade): string => {

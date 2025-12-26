@@ -7,7 +7,8 @@ import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/sou
 
 const KMA_WARNING_ENDPOINT = 'https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php';
 const REQUEST_TIMEOUT_MS = 30000;
-const STATE_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+const STATE_TTL_MS = 1000 * 60 * 60 * 24 * 6;
+const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 
 const WARNING_KIND_BY_NAME: Record<string, EventKinds> = {
   강풍: EventKinds.Wind,
@@ -90,9 +91,13 @@ export class KmaWeatherWarningSource implements Source {
 
     const events: SourceEvent[] = [];
     for (const group of groups) {
+      const occurredAt = parseKstCompactTimestamp(group.tmFc);
+      if (isTooOld(occurredAt, nowMs)) {
+        continue;
+      }
       const key = buildGroupKey(group.regUp, group.tmFc, group.tmEf, group.wrn, group.lvl, group.cmd);
       if (!seen.has(key)) {
-        events.push(buildWarningEvent(group));
+        events.push(buildWarningEvent(group, occurredAt));
       }
       seen.set(key, nowIso);
     }
@@ -104,7 +109,7 @@ export class KmaWeatherWarningSource implements Source {
   }
 }
 
-const buildWarningEvent = (group: WarningGroup): SourceEvent => {
+const buildWarningEvent = (group: WarningGroup, occurredAt: string | null): SourceEvent => {
   const regUpKo = normalizeOptionalText(group.regUpKo) ?? '';
   const kindLabel = normalizeWarningKindLabel(group.wrn);
   const levelLabel = normalizeWarningLevelLabel(group.lvl);
@@ -114,7 +119,7 @@ const buildWarningEvent = (group: WarningGroup): SourceEvent => {
     kind: mapWarningKind(kindLabel),
     title: buildTitle(regUpKo, kindLabel, levelLabel, commandLabel),
     body: buildBody(group.regKos, group.tmEf, group.edTm),
-    occurredAt: parseKstCompactTimestamp(group.tmFc),
+    occurredAt,
     regionText: buildRegionText(regUpKo, group.regKos),
     level: mapWarningLevel(levelLabel),
     payload: buildPayload(group, kindLabel, levelLabel, commandLabel),
@@ -385,6 +390,19 @@ const pruneSeen = (seen: Map<string, string>, nowMs: number): void => {
       seen.delete(key);
     }
   }
+};
+
+const isTooOld = (occurredAt: string | null, nowMs: number): boolean => {
+  if (!occurredAt) {
+    return false;
+  }
+
+  const parsed = Date.parse(occurredAt);
+  if (!Number.isFinite(parsed)) {
+    return false;
+  }
+
+  return nowMs - parsed > EVENT_MAX_AGE_MS;
 };
 
 const normalizeText = (value: string): string => {

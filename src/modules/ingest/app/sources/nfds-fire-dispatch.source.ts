@@ -6,7 +6,8 @@ import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/sou
 
 const NFDS_FIRE_DISPATCH_ENDPOINT = 'https://nfds.go.kr/dashboard/monitorData.do';
 const REQUEST_TIMEOUT_MS = 10000;
-const STATE_TTL_MS = 1000 * 60 * 60 * 24;
+const STATE_TTL_MS = 1000 * 60 * 60 * 6;
+const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 const schemaFireDispatchMapItem = z.object({
@@ -86,6 +87,11 @@ export class NfdsFireDispatchSource implements Source {
     const events: SourceEvent[] = [];
 
     for (const item of parsed.data.defail) {
+      const occurredAt = parseOccurredAt(item.overDate, nowDate);
+      if (isTooOld(occurredAt, nowMs)) {
+        continue;
+      }
+
       const key = buildUniqueKey(item);
       const lastSeen = seen.get(key);
       if (shouldEmitEvent(lastSeen, nowMs)) {
@@ -93,7 +99,7 @@ export class NfdsFireDispatchSource implements Source {
         const isFirstIncident = !hasSeenIncident(seen, item.sidoOvrNum);
         const isProgressNotable = isNotableProgress(item.progressStat);
         if (isFirstIncident && isProgressNotable) {
-          events.push(buildEvent(item, mapCodes, nowDate, rawNowDate));
+          events.push(buildEvent(item, mapCodes, occurredAt, rawNowDate));
         }
       }
       seen.set(key, nowIso);
@@ -109,12 +115,11 @@ export class NfdsFireDispatchSource implements Source {
 const buildEvent = (
   item: FireDispatchDetailItem,
   mapCodes: MapCodes | null,
-  nowDate: Date | null,
+  occurredAt: string | null,
   rawNowDate: string | null,
 ): SourceEvent => {
   const title = buildTitle(item.cntrNm, item.sidoNm, item.progressNm, item.frfalTypeCd);
   const regionText = buildRegionText(item.addr, item.sidoNm);
-  const occurredAt = parseOccurredAt(item.overDate, nowDate);
 
   return {
     kind: EventKinds.Fire,
@@ -390,6 +395,19 @@ const shouldEmitEvent = (lastSeen: string | undefined, nowMs: number): boolean =
   }
 
   return nowMs - parsed > STATE_TTL_MS;
+};
+
+const isTooOld = (occurredAt: string | null, nowMs: number): boolean => {
+  if (!occurredAt) {
+    return false;
+  }
+
+  const parsed = Date.parse(occurredAt);
+  if (!Number.isFinite(parsed)) {
+    return false;
+  }
+
+  return nowMs - parsed > EVENT_MAX_AGE_MS;
 };
 
 const pruneSeen = (seen: Map<string, string>, nowMs: number): void => {
