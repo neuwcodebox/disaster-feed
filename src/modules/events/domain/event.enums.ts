@@ -39,6 +39,7 @@ export enum EventKinds {
   Fire = 33, // 화재
   Pollution = 34, // 환경오염사고
   YellowDust = 35, // 황사
+  O3 = 36, // 오존
 }
 
 export enum EventLevels {
@@ -57,4 +58,5 @@ export enum EventSources {
   KmaWeatherWarning = 5,
   UticTrafficIncident = 6,
   AirkoreaPmWarning = 7,
+  AirkoreaO3Warning = 8,
 }
