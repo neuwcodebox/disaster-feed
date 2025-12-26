@@ -53,4 +53,5 @@ export enum EventSources {
   SafekoreaSms = 1,
   KmaMicroEarthquake = 2,
   KmaPewsEarthquake = 3,
+  NfdsFireDispatch = 4,
 }
