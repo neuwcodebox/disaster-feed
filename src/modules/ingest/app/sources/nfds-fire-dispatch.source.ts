@@ -91,7 +91,10 @@ export class NfdsFireDispatchSource implements Source {
       if (shouldEmitEvent(lastSeen, nowMs)) {
         const mapCodes = mapIndex.get(item.sidoOvrNum) ?? null;
         const isFirstIncident = !hasSeenIncident(seen, item.sidoOvrNum);
-        events.push(buildEvent(item, mapCodes, nowDate, rawNowDate, isFirstIncident));
+        const isProgressNotable = isNotableProgress(item.progressStat);
+        if (isFirstIncident && isProgressNotable) {
+          events.push(buildEvent(item, mapCodes, nowDate, rawNowDate));
+        }
       }
       seen.set(key, nowIso);
     }
@@ -108,7 +111,6 @@ const buildEvent = (
   mapCodes: MapCodes | null,
   nowDate: Date | null,
   rawNowDate: string | null,
-  isFirstIncident: boolean,
 ): SourceEvent => {
   const title = buildTitle(item.cntrNm, item.sidoNm, item.progressNm, item.frfalTypeCd);
   const regionText = buildRegionText(item.addr, item.sidoNm);
@@ -120,7 +122,7 @@ const buildEvent = (
     body: buildBody(item, regionText),
     occurredAt,
     regionText,
-    level: mapProgressToLevel(item.progressStat, isFirstIncident),
+    level: EventLevels.Info,
     payload: buildPayload(item, mapCodes, rawNowDate),
   };
 };
@@ -261,17 +263,9 @@ const buildRegionText = (addr: string, sidoNm: string): string | null => {
   return sido ?? null;
 };
 
-const mapProgressToLevel = (progressStat: string, isFirstIncident: boolean): EventLevels => {
-  if (!isFirstIncident) {
-    return EventLevels.Info;
-  }
-
+const isNotableProgress = (progressStat: string): boolean => {
   const normalized = progressStat.trim().toUpperCase();
-  if (normalized === 'A' || normalized === 'B') {
-    return EventLevels.Minor;
-  }
-
-  return EventLevels.Info;
+  return normalized === 'A' || normalized === 'B';
 };
 
 const buildUniqueKey = (item: FireDispatchDetailItem): string => {
