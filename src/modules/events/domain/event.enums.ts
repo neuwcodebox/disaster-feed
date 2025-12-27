@@ -59,4 +59,5 @@ export enum EventSources {
   UticTrafficIncident = 6,
   AirkoreaPmWarning = 7,
   AirkoreaO3Warning = 8,
+  ForestFireInfo = 9,
 }
