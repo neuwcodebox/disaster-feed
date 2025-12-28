@@ -4,7 +4,13 @@ import { DbDeps } from '@/infra/db/db.dep';
 import type { DatabaseScheme } from '@/infra/db/db-scheme';
 import type { EventRow, NewEventRow } from '@/infra/db/events.table';
 import type { Event, NewEvent } from '../domain/entity/event.entity';
-import type { IEventRepository, ListEventsParams, ListEventsSinceParams } from '../domain/port/event-repo.interface';
+import type { EventSources } from '../domain/event.enums';
+import type {
+  IEventRepository,
+  LatestFetchedAtBySource,
+  ListEventsParams,
+  ListEventsSinceParams,
+} from '../domain/port/event-repo.interface';
 
 @injectable()
 export class EventRepository implements IEventRepository {
@@ -55,6 +61,33 @@ export class EventRepository implements IEventRepository {
       .execute();
 
     return rows.map((row) => toEvent(row));
+  }
+
+  public async listLatestFetchedAtBySources(sourceIds: EventSources[]): Promise<LatestFetchedAtBySource[]> {
+    if (sourceIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.db
+      .selectFrom('events')
+      .select(['source', this.db.fn.max('fetched_at').as('latest_fetched_at')])
+      .where('source', 'in', sourceIds)
+      .groupBy('source')
+      .execute();
+
+    const results: LatestFetchedAtBySource[] = [];
+    for (const row of rows) {
+      if (!row.latest_fetched_at) {
+        continue;
+      }
+
+      results.push({
+        sourceId: row.source as EventSources,
+        fetchedAt: row.latest_fetched_at,
+      });
+    }
+
+    return results;
   }
 }
 

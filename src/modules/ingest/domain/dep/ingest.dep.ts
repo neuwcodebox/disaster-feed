@@ -3,4 +3,6 @@ export const IngestDeps = {
   IngestSchedulerService: Symbol('IngestSchedulerService'),
   IngestWorkerService: Symbol('IngestWorkerService'),
   IngestCheckpointRepository: Symbol('IngestCheckpointRepository'),
+  IngestStatusService: Symbol('IngestStatusService'),
+  IngestRoute: Symbol('IngestRoute'),
 };

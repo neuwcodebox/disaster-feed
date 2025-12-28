@@ -27,6 +27,17 @@ export class IngestCheckpointRepository implements IIngestCheckpointRepository {
     return toCheckpoint(row);
   }
 
+  public async listCheckpoints(): Promise<IngestCheckpoint[]> {
+    const rows = await this.db.selectFrom('ingest_checkpoints').selectAll().execute();
+    const checkpoints: IngestCheckpoint[] = [];
+
+    for (const row of rows) {
+      checkpoints.push(toCheckpoint(row));
+    }
+
+    return checkpoints;
+  }
+
   public async upsertCheckpoint(sourceId: EventSources, state: string | null): Promise<void> {
     const updatedAt = new Date().toISOString();
 

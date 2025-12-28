@@ -1,17 +1,27 @@
+import type { OpenAPIHono } from '@hono/zod-openapi';
 import type { DependencyContainer } from '@/core/dep';
 import { env } from '@/core/env';
 import { logger } from '@/core/logger';
+import type { IRoute } from '@/view/route.interface';
 import { IngestSchedulerService } from './app/ingest-scheduler.service';
+import { IngestStatusService } from './app/ingest-status.service';
 import { IngestWorkerService } from './app/ingest-worker.service';
 import { SourceRegistry } from './app/source.registry';
 import { IngestDeps } from './domain/dep/ingest.dep';
 import { IngestCheckpointRepository } from './infra/ingest-checkpoint.repo';
+import { IngestRoute } from './view/ingest.route';
 
 export function registerIngestDeps(dep: DependencyContainer) {
   dep.add(IngestDeps.SourceRegistry, SourceRegistry);
   dep.add(IngestDeps.IngestSchedulerService, IngestSchedulerService);
   dep.add(IngestDeps.IngestWorkerService, IngestWorkerService);
   dep.add(IngestDeps.IngestCheckpointRepository, IngestCheckpointRepository);
+  dep.add(IngestDeps.IngestStatusService, IngestStatusService);
+  dep.add(IngestDeps.IngestRoute, IngestRoute);
+}
+
+export function registerIngestRoutes(app: OpenAPIHono, dep: DependencyContainer) {
+  app.route('/api/ingest', dep.get<IRoute>(IngestDeps.IngestRoute).getApp());
 }
 
 export async function startIngest(dep: DependencyContainer): Promise<void> {

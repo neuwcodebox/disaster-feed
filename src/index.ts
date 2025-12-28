@@ -20,7 +20,7 @@ import {
   stopEventStream,
 } from './modules/events/events.registry';
 import { registerHealthDeps, registerHealthRoutes } from './modules/health/health.registry';
-import { registerIngestDeps, startIngest, stopIngest } from './modules/ingest/ingest.registry';
+import { registerIngestDeps, registerIngestRoutes, startIngest, stopIngest } from './modules/ingest/ingest.registry';
 import { setSecuritySchemes } from './view/docs/security-schemes';
 import { corsMiddleware } from './view/middleware/cors.middleware';
 
@@ -61,6 +61,7 @@ if (env.CORS === 1) {
 app.get('/', (c) => c.text('Running'));
 registerHealthRoutes(app, dep);
 registerEventRoutes(app, dep);
+registerIngestRoutes(app, dep);
 
 // Swagger
 //

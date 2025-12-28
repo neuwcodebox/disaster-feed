@@ -12,9 +12,15 @@ export type ListEventsSinceParams = {
   limit?: number;
 };
 
+export type LatestFetchedAtBySource = {
+  sourceId: EventSources;
+  fetchedAt: string;
+};
+
 export interface IEventRepository {
   insertEvent(data: NewEvent): Promise<Event>;
   getEventById(id: string): Promise<Event | undefined>;
   listEvents(params: ListEventsParams): Promise<Event[]>;
   listEventsSince(params: ListEventsSinceParams): Promise<Event[]>;
+  listLatestFetchedAtBySources(sourceIds: EventSources[]): Promise<LatestFetchedAtBySource[]>;
 }
