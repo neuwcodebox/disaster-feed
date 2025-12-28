@@ -71,12 +71,12 @@ export class KmaWeatherWarningSource implements Source {
     const authKey = env.KMA_API_KEY;
     if (!authKey) {
       logger.error('KMA weather warning auth key is missing');
-      return { events: [], nextState: state };
+      throw new Error('KMA weather warning auth key is missing');
     }
 
     const response = await fetchWithTimeout(buildRequestUrl(authKey));
     if (!response) {
-      return { events: [], nextState: state };
+      throw new Error('KMA weather warning request failed');
     }
 
     const text = await decodeEucKrResponse(response);

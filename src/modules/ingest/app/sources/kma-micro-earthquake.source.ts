@@ -29,20 +29,20 @@ export class KmaMicroEarthquakeSource implements Source {
   public async run(state: string | null): Promise<SourceRunResult> {
     const response = await fetchWithTimeout(KMA_MICRO_EARTHQUAKE_ENDPOINT);
     if (!response) {
-      return { events: [], nextState: state };
+      throw new Error('KMA micro earthquake request failed');
     }
 
     const html = await response.text();
     const extracted = extractMicroEarthquakeText(html);
     if (!extracted) {
       logger.warn('Failed to extract micro earthquake text');
-      return { events: [], nextState: state };
+      throw new Error('Failed to extract micro earthquake text');
     }
 
     const normalized = normalizeMicroText(extracted);
     if (!normalized) {
       logger.warn('Micro earthquake text is empty after normalization');
-      return { events: [], nextState: state };
+      throw new Error('Micro earthquake text is empty after normalization');
     }
 
     if (state && normalized === state) {

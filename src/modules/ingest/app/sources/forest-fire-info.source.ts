@@ -66,18 +66,18 @@ export class ForestFireInfoSource implements Source {
     });
 
     if (!response) {
-      return { events: [], nextState: state };
+      throw new Error('Forest fire info request failed');
     }
 
     const data = await parseJsonResponse(response, this.sourceId);
     if (!data) {
-      return { events: [], nextState: state };
+      throw new Error('Failed to decode forest fire info response');
     }
 
     const parsed = schemaForestFireResponse.safeParse(data);
     if (!parsed.success) {
       logger.warn({ error: parsed.error }, 'Failed to parse forest fire info response');
-      return { events: [], nextState: state };
+      throw new Error('Failed to parse forest fire info response');
     }
 
     const previousState = parseState(state);

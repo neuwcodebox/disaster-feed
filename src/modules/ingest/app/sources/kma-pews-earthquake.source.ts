@@ -84,7 +84,7 @@ export class KmaPewsEarthquakeSource implements Source {
 
     const response = await fetchWithTimeout(`${this.baseUrl}/${binTimeStr}.b`);
     if (!response) {
-      return { events: [], nextState: state };
+      throw new Error('PEWS request failed');
     }
 
     if (!this.simMode) {
@@ -93,13 +93,13 @@ export class KmaPewsEarthquakeSource implements Source {
 
     if (!response.ok) {
       logger.warn({ status: response.status }, 'PEWS binary request failed');
-      return { events: [], nextState: state };
+      throw new Error('PEWS binary request failed');
     }
 
     const bytes = new Uint8Array(await response.arrayBuffer());
     if (bytes.length < this.headerLengthBytes + INFO_BLOCK_BYTES) {
       logger.warn({ size: bytes.length }, 'PEWS binary payload too small');
-      return { events: [], nextState: state };
+      throw new Error('PEWS binary payload too small');
     }
 
     const phase = parsePhase(bytes, this.headerLengthBytes);
@@ -110,7 +110,7 @@ export class KmaPewsEarthquakeSource implements Source {
     const info = parseEarthquakeInfo(bytes);
     if (!info) {
       logger.warn('Failed to parse PEWS earthquake info');
-      return { events: [], nextState: state };
+      throw new Error('Failed to parse PEWS earthquake info');
     }
 
     const previousAlarmId = buildAlarmId(parsedState.lastEqkId, parsedState.lastPhase);

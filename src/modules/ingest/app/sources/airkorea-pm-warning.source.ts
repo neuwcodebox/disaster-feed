@@ -50,7 +50,7 @@ export class AirkoreaPmWarningSource implements Source {
     while (page <= MAX_PAGE) {
       const response = await fetchWithTimeout(page);
       if (!response) {
-        break;
+        throw new Error(`AirKorea PM warning request failed: page ${page}`);
       }
 
       const html = await response.text();
@@ -164,7 +164,7 @@ const parseWarningRows = (html: string): PmWarningRow[] => {
   const table = primaryTable.length > 0 ? primaryTable : $('#dataSearch .contSub .tblList table').first();
   if (table.length === 0) {
     logger.warn('Failed to find AirKorea PM warning table');
-    return [];
+    throw new Error('Failed to find AirKorea PM warning table');
   }
 
   const rows: PmWarningRow[] = [];

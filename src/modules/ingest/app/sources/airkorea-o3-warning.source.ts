@@ -39,7 +39,7 @@ export class AirkoreaO3WarningSource implements Source {
   public async run(state: string | null): Promise<SourceRunResult> {
     const response = await fetchWithTimeout();
     if (!response) {
-      return { events: [], nextState: state };
+      throw new Error('AirKorea O3 warning request failed');
     }
 
     const html = await response.text();
@@ -126,7 +126,7 @@ const parseWarningRows = (html: string): O3WarningRow[] => {
   const table = $('table').first();
   if (table.length === 0) {
     logger.warn('Failed to find AirKorea O3 warning table');
-    return [];
+    throw new Error('Failed to find AirKorea O3 warning table');
   }
 
   const rows: O3WarningRow[] = [];

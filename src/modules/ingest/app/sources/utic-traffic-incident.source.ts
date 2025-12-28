@@ -67,12 +67,12 @@ export class UticTrafficIncidentSource implements Source {
     for (const grade of grades) {
       const response = await fetchWithTimeout(buildRequestUrl(grade));
       if (!response) {
-        continue;
+        throw new Error(`UTIC traffic incident request failed: ${grade}`);
       }
 
       const html = await decodeHtmlResponse(response);
       if (!html) {
-        continue;
+        throw new Error(`Failed to decode UTIC traffic incident response: ${grade}`);
       }
 
       const items = parseIncidentItems(html);

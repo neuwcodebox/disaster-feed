@@ -84,18 +84,18 @@ export class DisasterSmsSource implements Source {
     });
 
     if (!response) {
-      return { events: [], nextState: state };
+      throw new Error('Disaster SMS request failed');
     }
 
     const data = await parseJsonResponse(response, this.sourceId);
     if (!data) {
-      return { events: [], nextState: state };
+      throw new Error('Failed to decode disaster SMS response');
     }
 
     const parsed = schemaDisasterSmsResponse.safeParse(data);
     if (!parsed.success) {
       logger.warn({ error: parsed.error }, 'Failed to parse disaster SMS response');
-      return { events: [], nextState: state };
+      throw new Error('Failed to parse disaster SMS response');
     }
 
     const lastSeenSerial = parseSerial(state);
