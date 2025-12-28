@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/index.ts | pino-pretty",
-    "build": "tsup --format esm",
+    "build": "tsup-node --format esm",
     "start": "node dist/index.js",
     "clean": "rimraf dist coverage",
     "lint": "biome check src/",
@@ -57,12 +57,13 @@
   },
   "tsup": {
     "entry": [
-      "src",
-      "!src/**/__tests__/**",
-      "!src/**/*.test.*"
+      "src/index.ts",
+      "src/infra/db/migrations/*.ts"
     ],
     "splitting": false,
     "sourcemap": true,
-    "clean": true
+    "clean": true,
+    "platform": "node",
+    "target": "node24"
   }
 }

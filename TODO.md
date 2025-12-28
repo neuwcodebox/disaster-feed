@@ -103,6 +103,8 @@
 ## 7. 운영 최소
 
 - [ ] /healthz, /readyz
+- [x] k8s 배포용 빌드에서 node_modules 번들 스킵(tsup-node) 적용
+- [x] k8s 배포 빌드 산출물에 DB migrations 포함
 - [x] Dockerfile 멀티스테이지 빌드로 런타임 이미지 최소화
 - [x] graceful shutdown(서버/redis/worker/db)
   - [x] BullMQ worker/queue 종료 훅 추가
