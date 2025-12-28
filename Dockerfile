@@ -20,9 +20,10 @@ FROM node:24.11.1-slim AS runner
 WORKDIR /usr/src/app
 
 ENV NODE_ENV=production
+ENV HUSKY=0
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=builder /usr/src/app/dist ./dist
 
