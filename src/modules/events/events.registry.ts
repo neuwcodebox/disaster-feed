@@ -17,7 +17,7 @@ export function registerEventDeps(dep: DependencyContainer) {
 }
 
 export function registerEventRoutes(app: OpenAPIHono, dep: DependencyContainer) {
-  app.route('/events', dep.get<IRoute>(EventDeps.EventRoute).getApp());
+  app.route('/api/events', dep.get<IRoute>(EventDeps.EventRoute).getApp());
 }
 
 export function startEventStream(dep: DependencyContainer) {
