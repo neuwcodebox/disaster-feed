@@ -75,19 +75,11 @@ export class IngestWorkerService {
       logger.debug({ sourceId, jobId: job.id }, 'Running ingest job');
       const fetchedAt = new Date().toISOString();
       const { events, nextState } = await source.run(checkpointState);
-      let allInserted = true;
+
+      await this.ingestCheckpointRepository.upsertCheckpoint(sourceId, nextState);
 
       for (const event of events) {
-        const inserted = await this.insertEvent(source.sourceId, fetchedAt, event);
-        if (!inserted) {
-          allInserted = false;
-        }
-      }
-
-      if (allInserted) {
-        await this.ingestCheckpointRepository.upsertCheckpoint(sourceId, nextState);
-      } else {
-        logger.warn({ sourceId, jobId: job.id }, 'Skipping checkpoint update due to insert failures');
+        await this.insertEvent(source.sourceId, fetchedAt, event);
       }
 
       logger.debug({ sourceId, jobId: job.id, eventCount: events.length }, 'Completed ingest job');
