@@ -8,6 +8,7 @@ import { logger } from '@/core/logger';
 import { DependencyContainer } from './core/dep';
 import { DbDeps } from './infra/db/db.dep';
 import { registerDbDeps } from './infra/db/db-conn';
+import { runDbMigrations } from './infra/db/db-migrator';
 import type { DatabaseScheme } from './infra/db/db-scheme';
 import { registerQueueDeps } from './infra/queue/queue';
 import { RedisDeps } from './infra/redis/redis.dep';
@@ -40,6 +41,9 @@ registerQueueDeps(dep);
 registerHealthDeps(dep);
 registerEventDeps(dep);
 registerIngestDeps(dep);
+
+const db = dep.get<Kysely<DatabaseScheme>>(DbDeps.Database);
+await runDbMigrations(db);
 
 // Middleware
 //

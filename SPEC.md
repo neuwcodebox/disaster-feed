@@ -39,8 +39,9 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
 
 ## 5. DB 스키마(최소)
 
-- 마이그레이션 도구는 쓰지 않는다.
-- init-sql.db(또는 init SQL 파일)에 "최신 전체 스키마"를 유지한다.
+- Kysely Migrator로 마이그레이션을 실행한다.
+- init-db.sql(또는 init SQL 파일)은 최신 전체 스키마를 확인하기 위한 문서로 유지한다.
+- init-db.sql은 마이그레이션 실행에 사용하지 않는다.
 
 예시(대략):
 

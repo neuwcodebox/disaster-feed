@@ -14,6 +14,9 @@
 - [x] Redis 연결 세팅
 - [x] BullMQ queue/worker 세팅(단일 앱 내에서 같이 구동)
 - [x] Redis Pub/Sub publish/subscribe 세팅
+- [x] Kysely 마이그레이션 실행기 추가
+- [x] 초기 마이그레이션 추가(스키마 빌더)
+- [x] 초기 마이그레이션을 Kysely 스키마 빌더로 정리
 
 ## 2. 이벤트 저장/조회
 
