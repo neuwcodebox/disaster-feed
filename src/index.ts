@@ -42,6 +42,9 @@ registerHealthDeps(dep);
 registerEventDeps(dep);
 registerIngestDeps(dep);
 
+// Migrations
+//
+
 const db = dep.get<Kysely<DatabaseScheme>>(DbDeps.Database);
 await runDbMigrations(db);
 
