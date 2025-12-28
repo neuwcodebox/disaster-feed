@@ -34,6 +34,7 @@
 - [x] 새 이벤트 fanout:
   - [x] 이벤트 insert 성공 후 Pub/Sub로 eventId publish
   - [x] subscribe 측에서 eventId 수신 → DB 조회 → 로컬 SSE broadcast
+- [x] SSE 응답 charset=utf-8 명시 및 인코딩 점검
 
 ## 4. Ingest(소스 실행)
 

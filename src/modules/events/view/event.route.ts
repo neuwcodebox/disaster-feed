@@ -66,7 +66,7 @@ export class EventRoute implements IRoute {
       }),
       async (c) => {
         const query = c.req.valid('query');
-        return streamSSE(c, async (stream) => {
+        const response = streamSSE(c, async (stream) => {
           eventStreamService.addClient(stream);
           await eventStreamService.sendCatchUp(stream, query.since);
           while (!stream.aborted && !stream.closed) {
@@ -74,6 +74,8 @@ export class EventRoute implements IRoute {
             await stream.sleep(15000);
           }
         });
+        response.headers.set('Content-Type', 'text/event-stream; charset=utf-8');
+        return response;
       },
     );
   }
