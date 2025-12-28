@@ -1,4 +1,4 @@
-FROM node:24.11.1-slim
+FROM node:24.11.1-slim AS builder
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -15,6 +15,16 @@ COPY . .
 # Build the TypeScript files
 RUN npm run build
 
-# Start the app
+FROM node:24.11.1-slim AS runner
+
+WORKDIR /usr/src/app
+
 ENV NODE_ENV=production
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY --from=builder /usr/src/app/dist ./dist
+
+# Start the app
 ENTRYPOINT [ "node", "dist/index.js" ]

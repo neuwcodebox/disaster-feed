@@ -100,6 +100,7 @@
 ## 7. 운영 최소
 
 - [ ] /healthz, /readyz
+- [x] Dockerfile 멀티스테이지 빌드로 런타임 이미지 최소화
 - [x] graceful shutdown(서버/redis/worker/db)
   - [x] BullMQ worker/queue 종료 훅 추가
   - [x] Redis pubsub 구독 해제 및 클라이언트 종료
