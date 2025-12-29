@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LlmLabelClassifier } from '@/core/llm/llm-label-classifier';
 import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
@@ -66,6 +67,9 @@ const DISASTER_KIND_BY_NAME: Record<string, EventKinds> = {
   황사: EventKinds.YellowDust,
 };
 
+const DISASTER_KIND_LABELS = Object.keys(DISASTER_KIND_BY_NAME) as [string, ...string[]];
+const DISASTER_SMS_CLASSIFIER = new LlmLabelClassifier();
+
 export class DisasterSmsSource implements Source {
   public readonly sourceId = EventSources.SafekoreaSms;
   public readonly pollIntervalSec = 60;
@@ -101,33 +105,36 @@ export class DisasterSmsSource implements Source {
     const lastSeenSerial = parseSerial(state);
     const items = filterNewItems(parsed.data.disasterSmsList, lastSeenSerial);
     const nextState = getNextSerialState(items, lastSeenSerial);
+    const resolvedKinds = await resolveDisasterKinds(items);
+
+    const events: SourceEvent[] = [];
+    for (const item of items) {
+      const resolvedKind = resolvedKinds.get(item.MD101_SN) ?? EventKinds.Other;
+      events.push(toSourceEvent(item, resolvedKind));
+    }
 
     return {
-      events: items.map((item) => toSourceEvent(item)),
+      events,
       nextState,
     };
   }
 }
 
-const toSourceEvent = (item: DisasterSmsItem): SourceEvent => {
+function toSourceEvent(item: DisasterSmsItem, resolvedKind: EventKinds): SourceEvent {
   const region = item.RCV_AREA_NM.replace(/\s*,\s*/g, ', ').trim();
   const sender = extractSenderName(item.MSG_CN);
   const titlePrefix = sender ?? pickRegionPrefix(region) ?? '';
+  const disasterLabel = item.DSSTR_SE_NM.trim() || '기타';
   return {
-    kind: mapDisasterKind(item.DSSTR_SE_NM),
-    title: `${titlePrefix} ${item.DSSTR_SE_NM} ${item.EMRGNCY_STEP_NM}`.trim(),
+    kind: resolvedKind,
+    title: `${titlePrefix} ${disasterLabel} ${item.EMRGNCY_STEP_NM}`.trim(),
     body: item.MSG_CN.trim(),
     occurredAt: parseKstDateTime(item.CREAT_DT),
     regionText: region || null,
     level: mapEmergencyLevel(item.EMRGNCY_STEP_NM),
     payload: buildPayload(item),
   };
-};
-
-const mapDisasterKind = (value: string): EventKinds => {
-  const normalized = value.trim();
-  return DISASTER_KIND_BY_NAME[normalized] ?? EventKinds.Other;
-};
+}
 
 const extractSenderName = (message: string): string | null => {
   const matched = message.match(/\[([^[\]]+)\]\s*$/);
@@ -138,6 +145,53 @@ const extractSenderName = (message: string): string | null => {
   const sender = matched[1].trim();
   return sender.length > 0 ? sender : null;
 };
+
+async function resolveDisasterKinds(items: DisasterSmsItem[]): Promise<Map<number, EventKinds>> {
+  const resolved = new Map<number, EventKinds>();
+  const pending: Array<{ id: string; serial: number; text: string }> = [];
+  const isClassifierEnabled = DISASTER_SMS_CLASSIFIER.isEnabled();
+
+  for (const item of items) {
+    const normalized = item.DSSTR_SE_NM.trim();
+    const directKind = DISASTER_KIND_BY_NAME[normalized];
+    if (directKind && directKind !== EventKinds.Other) {
+      resolved.set(item.MD101_SN, directKind);
+      continue;
+    }
+
+    if (!isClassifierEnabled) {
+      resolved.set(item.MD101_SN, EventKinds.Other);
+      continue;
+    }
+
+    const text = item.MSG_CN.trim();
+    if (!text) {
+      resolved.set(item.MD101_SN, EventKinds.Other);
+      continue;
+    }
+
+    pending.push({ id: String(item.MD101_SN), serial: item.MD101_SN, text });
+  }
+
+  if (!isClassifierEnabled || pending.length === 0) {
+    return resolved;
+  }
+
+  const classified = await DISASTER_SMS_CLASSIFIER.classifyBatch({
+    labels: DISASTER_KIND_LABELS,
+    items: pending.map((item) => ({
+      id: item.id,
+      text: item.text,
+    })),
+  });
+
+  for (const item of pending) {
+    const label = classified?.get(item.id) ?? '기타';
+    resolved.set(item.serial, DISASTER_KIND_BY_NAME[label] ?? EventKinds.Other);
+  }
+
+  return resolved;
+}
 
 const pickRegionPrefix = (region: string): string | null => {
   const trimmed = region.trim();
