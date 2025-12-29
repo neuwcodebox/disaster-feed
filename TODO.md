@@ -120,23 +120,3 @@
 ## 8. 문서
 
 - [x] README 프로젝트 소개 문서 작성
-
-## 9. 소스 리팩토링
-
-- [x] 소스 공통 중복 조사(유틸/상태/네트워크)
-- [ ] 공통 유틸 후보 목록 확정(텍스트/시간/상태/네트워크/JSON 파싱)
-- [ ] 유틸 위치 및 공개 API 설계(예: sources/_shared)
-- [ ] 이름은 같지만 동작 다른 함수 차이 정리 및 네이밍 확정(normalizeOptionalText, parseKstCompactTimestamp 등)
-- [ ] 상태/TTL/중복 방지 유틸 추출(parseState/buildState/pruneSeen/shouldEmitEvent/isTooOld)
-- [x] shouldEmitEvent 공통 함수 추출
-- [x] pruneTimedMap 공통 함수 추출
-- [x] pruneSeen 공통 함수로 대체
-- [x] isTooOld 공통 함수 추출
-- [x] fetchWithTimeout 공통화(옵션/헤더/dispatcher/POST 지원)
-- [x] JSON 파싱 간소화(response.json 사용)
-- [ ] 텍스트 정규화/키 생성 유틸 통합(normalizeText/normalizeOptionalText/normalizeKeyPart)
-- [x] normalize 유틸 차이 정리 및 공통 함수 적용
-- [ ] KST 시간 파싱/포맷 유틸 통합(날짜 포맷별 함수 분리)
-- [ ] 에어코리아 PM/O3 소스 공통 로직 묶기(테이블 파싱/그룹화)
-- [ ] 소스별 리팩토링 적용 순서 정의 및 단계별 적용
-- [ ] 영향 소스별 회귀 확인 및 테스트 보강
