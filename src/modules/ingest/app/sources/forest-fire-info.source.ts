@@ -5,6 +5,7 @@ import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/e
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { normalizeText } from './_shared/normalize';
+import { shouldEmitEvent } from './_shared/should-emit-event';
 
 const FOREST_FIRE_INFO_ENDPOINT = 'https://fd.forest.go.kr/ffas/pubConn/occur/getPublicShowFireInfoList.do';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -111,7 +112,7 @@ export class ForestFireInfoSource implements Source {
       const shouldBoost = baseLevel !== EventLevels.Info && (lastHighLevel === null || baseLevel > lastHighLevel);
       const level = shouldBoost ? baseLevel : EventLevels.Info;
 
-      if (shouldEmitEvent(seen.get(uniqueKey), nowMs)) {
+      if (shouldEmitEvent(seen.get(uniqueKey), nowMs, STATE_TTL_MS)) {
         events.push(buildEvent(item, occurredAt, progressLabel, progressStatus, stepLabel, level));
       }
 
@@ -367,19 +368,6 @@ const parseKstDate = (value: string | null | undefined): string | null => {
   }
 
   return parsed.toISOString();
-};
-
-const shouldEmitEvent = (lastSeen: string | undefined, nowMs: number): boolean => {
-  if (!lastSeen) {
-    return true;
-  }
-
-  const parsed = Date.parse(lastSeen);
-  if (!Number.isFinite(parsed)) {
-    return true;
-  }
-
-  return nowMs - parsed > STATE_TTL_MS;
 };
 
 const isTooOld = (occurredAt: string | null, nowMs: number): boolean => {

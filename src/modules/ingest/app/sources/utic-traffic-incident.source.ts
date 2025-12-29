@@ -7,6 +7,7 @@ import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { normalizeText } from './_shared/normalize';
+import { shouldEmitEvent } from './_shared/should-emit-event';
 
 const UTIC_INCIDENT_ENDPOINT = 'https://www.utic.go.kr/tsdms/incident.do';
 const REQUEST_TIMEOUT_MS = 20000;
@@ -81,7 +82,7 @@ export class UticTrafficIncidentSource implements Source {
           continue;
         }
         const key = buildUniqueKey(item, grade);
-        if (shouldEmitEvent(seen.get(key), nowMs)) {
+        if (shouldEmitEvent(seen.get(key), nowMs, STATE_TTL_MS)) {
           events.push(buildEvent(item, grade));
         }
         seen.set(key, nowIso);
@@ -332,19 +333,6 @@ const buildState = (seen: Map<string, string>): string | null => {
   }
 
   return JSON.stringify({ seen: payload });
-};
-
-const shouldEmitEvent = (lastSeen: string | undefined, nowMs: number): boolean => {
-  if (!lastSeen) {
-    return true;
-  }
-
-  const parsed = Date.parse(lastSeen);
-  if (!Number.isFinite(parsed)) {
-    return true;
-  }
-
-  return nowMs - parsed > STATE_TTL_MS;
 };
 
 const pruneSeen = (seen: Map<string, string>, nowMs: number): void => {

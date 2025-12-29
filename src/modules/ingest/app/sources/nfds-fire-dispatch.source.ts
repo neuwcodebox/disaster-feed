@@ -4,7 +4,8 @@ import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
-import { normalizeText } from './_shared/normalize';
+import { normalizeNumber, normalizeText } from './_shared/normalize';
+import { shouldEmitEvent } from './_shared/should-emit-event';
 
 const NFDS_FIRE_DISPATCH_ENDPOINT = 'https://nfds.go.kr/dashboard/monitorData.do';
 const STATE_TTL_MS = 1000 * 60 * 60 * 6;
@@ -99,7 +100,7 @@ export class NfdsFireDispatchSource implements Source {
 
       const key = buildUniqueKey(item);
       const lastSeen = seen.get(key);
-      if (shouldEmitEvent(lastSeen, nowMs)) {
+      if (shouldEmitEvent(lastSeen, nowMs, STATE_TTL_MS)) {
         const mapCodes = mapIndex.get(item.sidoOvrNum) ?? null;
         const isFirstIncident = !hasSeenIncident(seen, item.sidoOvrNum);
         const isProgressNotable = isNotableProgress(item.progressStat);
@@ -366,27 +367,6 @@ const getKstDateParts = (date: Date): { year: number; month: string; day: string
   const month = String(kst.getUTCMonth() + 1).padStart(2, '0');
   const day = String(kst.getUTCDate()).padStart(2, '0');
   return { year, month, day };
-};
-
-const normalizeNumber = (value: number | undefined): number | null => {
-  if (value === undefined) {
-    return null;
-  }
-
-  return Number.isFinite(value) ? value : null;
-};
-
-const shouldEmitEvent = (lastSeen: string | undefined, nowMs: number): boolean => {
-  if (!lastSeen) {
-    return true;
-  }
-
-  const parsed = Date.parse(lastSeen);
-  if (!Number.isFinite(parsed)) {
-    return true;
-  }
-
-  return nowMs - parsed > STATE_TTL_MS;
 };
 
 const isTooOld = (occurredAt: string | null, nowMs: number): boolean => {

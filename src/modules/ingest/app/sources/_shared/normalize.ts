@@ -9,3 +9,11 @@ export function normalizeText(value: string | null | undefined): string | null {
   }
   return normalized;
 }
+
+export function normalizeNumber(value: number | undefined): number | null {
+  if (value === undefined) {
+    return null;
+  }
+
+  return Number.isFinite(value) ? value : null;
+}
