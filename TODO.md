@@ -129,7 +129,7 @@
 - [ ] 이름은 같지만 동작 다른 함수 차이 정리 및 네이밍 확정(normalizeOptionalText, parseKstCompactTimestamp 등)
 - [ ] 상태/TTL/중복 방지 유틸 추출(parseState/buildState/pruneSeen/shouldEmitEvent/isTooOld)
 - [x] fetchWithTimeout 공통화(옵션/헤더/dispatcher/POST 지원)
-- [ ] JSON 파서 공통화
+- [x] JSON 파싱 간소화(response.json 사용)
 - [ ] 텍스트 정규화/키 생성 유틸 통합(normalizeText/normalizeOptionalText/normalizeKeyPart)
 - [ ] KST 시간 파싱/포맷 유틸 통합(날짜 포맷별 함수 분리)
 - [ ] 에어코리아 PM/O3 소스 공통 로직 묶기(테이블 파싱/그룹화)

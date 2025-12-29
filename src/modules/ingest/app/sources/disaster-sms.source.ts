@@ -90,10 +90,7 @@ export class DisasterSmsSource implements Source {
       throw new Error('Disaster SMS request failed');
     }
 
-    const data = await parseJsonResponse(response, this.sourceId);
-    if (!data) {
-      throw new Error('Failed to decode disaster SMS response');
-    }
+    const data = await response.json();
 
     const parsed = schemaDisasterSmsResponse.safeParse(data);
     if (!parsed.success) {
@@ -234,16 +231,6 @@ const buildRequestBody = (startDate: string, endDate: string) => {
       sbLawArea3: '',
     },
   };
-};
-
-const parseJsonResponse = async (response: Response, sourceId: EventSources): Promise<unknown | null> => {
-  try {
-    const text = await response.text();
-    return JSON.parse(text) as unknown;
-  } catch (error) {
-    logger.warn({ error, sourceId }, 'Failed to decode disaster SMS response');
-    return null;
-  }
 };
 
 const parseKstDateTime = (value: string): string | null => {

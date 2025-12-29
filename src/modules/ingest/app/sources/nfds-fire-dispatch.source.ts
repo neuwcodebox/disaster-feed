@@ -72,10 +72,7 @@ export class NfdsFireDispatchSource implements Source {
       throw new Error('NFDS fire dispatch request failed');
     }
 
-    const data = await parseJsonResponse(response, this.sourceId);
-    if (!data) {
-      throw new Error('Failed to decode NFDS fire dispatch response');
-    }
+    const data = await response.json();
 
     const parsed = schemaFireDispatchResponse.safeParse(data);
     if (!parsed.success) {
@@ -468,14 +465,4 @@ const buildState = (seen: Map<string, string>): string | null => {
   }
 
   return JSON.stringify({ seen: payload });
-};
-
-const parseJsonResponse = async (response: Response, sourceId: EventSources): Promise<unknown | null> => {
-  try {
-    const text = await response.text();
-    return JSON.parse(text) as unknown;
-  } catch (error) {
-    logger.warn({ error, sourceId }, 'Failed to decode NFDS fire dispatch response');
-    return null;
-  }
 };

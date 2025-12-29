@@ -72,10 +72,7 @@ export class ForestFireInfoSource implements Source {
       throw new Error('Forest fire info request failed');
     }
 
-    const data = await parseJsonResponse(response, this.sourceId);
-    if (!data) {
-      throw new Error('Failed to decode forest fire info response');
-    }
+    const data = await response.json();
 
     const parsed = schemaForestFireResponse.safeParse(data);
     if (!parsed.success) {
@@ -594,14 +591,4 @@ const buildRequestBody = (startDate: string, endDate: string) => {
       last_page: 0,
     },
   };
-};
-
-const parseJsonResponse = async (response: Response, sourceId: EventSources): Promise<unknown | null> => {
-  try {
-    const text = await response.text();
-    return JSON.parse(text) as unknown;
-  } catch (error) {
-    logger.warn({ error, sourceId }, 'Failed to decode forest fire info response');
-    return null;
-  }
 };
