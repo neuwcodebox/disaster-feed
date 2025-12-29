@@ -52,10 +52,33 @@ export class EventRepository implements IEventRepository {
   public async listEventsAfterId(params: ListEventsAfterIdParams): Promise<Event[]> {
     const limit = params.limit ?? 500;
 
+    const baseRow = await this.db
+      .selectFrom('events')
+      .select('fetched_at')
+      .where('id', '=', params.afterId)
+      .executeTakeFirst();
+
+    if (!baseRow) {
+      return [];
+    }
+
+    if (!baseRow.fetched_at) {
+      const rows = await this.db
+        .selectFrom('events')
+        .selectAll()
+        .where('id', '>', params.afterId)
+        .orderBy('id', 'asc')
+        .limit(limit)
+        .execute();
+
+      return rows.map((row) => toEvent(row));
+    }
+
     const rows = await this.db
       .selectFrom('events')
       .selectAll()
-      .where('id', '>', params.afterId)
+      .where('fetched_at', '>=', baseRow.fetched_at)
+      .orderBy('fetched_at', 'asc')
       .orderBy('id', 'asc')
       .limit(limit)
       .execute();
