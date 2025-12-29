@@ -117,9 +117,9 @@ export class KmaWeatherWarningSource implements Source {
 
 const buildWarningEvent = (group: WarningGroup, occurredAt: string | null): SourceEvent => {
   const regUpKo = normalizeText(group.regUpKo) ?? '';
-  const kindLabel = normalizeWarningKindLabel(group.wrn);
-  const levelLabel = normalizeWarningLevelLabel(group.lvl);
-  const commandLabel = normalizeWarningCommandLabel(group.cmd);
+  const kindLabel = group.wrn.trim();
+  const levelLabel = group.lvl.trim();
+  const commandLabel = group.cmd?.trim() ?? null;
 
   return {
     kind: mapWarningKind(kindLabel),
@@ -185,25 +185,13 @@ const buildPayload = (
 };
 
 const mapWarningKind = (value: string): EventKinds => {
-  const normalized = normalizeWarningKindLabel(value);
+  const normalized = value.trim();
   return WARNING_KIND_BY_NAME[normalized] ?? EventKinds.Other;
 };
 
 const mapWarningLevel = (value: string): EventLevels => {
-  const normalized = normalizeWarningLevelLabel(value);
+  const normalized = value.trim();
   return WARNING_LEVEL_BY_NAME[normalized] ?? EventLevels.Info;
-};
-
-const normalizeWarningKindLabel = (value: string): string => {
-  return normalizeText(value) ?? '';
-};
-
-const normalizeWarningLevelLabel = (value: string): string => {
-  return normalizeText(value) ?? '';
-};
-
-const normalizeWarningCommandLabel = (value: string | null): string | null => {
-  return normalizeText(value);
 };
 
 const buildRegionText = (regUpKo: string, regKos: string[]): string | null => {
