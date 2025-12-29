@@ -5,7 +5,9 @@ import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
+import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
+import { pruneTimedMap } from './_shared/prune-timed-map';
 
 const AIRKOREA_PM_WARNING_ENDPOINT = 'https://www.airkorea.or.kr/web/pmWarning?pMENU_NO=115';
 const MAX_PAGE = 3;
@@ -96,7 +98,7 @@ export class AirkoreaPmWarningSource implements Source {
 
     const events: SourceEvent[] = [];
     for (const group of groups) {
-      if (isTooOld(group.issuedAt, nowMs)) {
+      if (isTooOld(group.issuedAt, nowMs, EVENT_MAX_AGE_MS)) {
         continue;
       }
 
@@ -107,7 +109,7 @@ export class AirkoreaPmWarningSource implements Source {
       seen.set(key, nowIso);
     }
 
-    pruneSeen(seen, nowMs);
+    pruneTimedMap(seen, nowMs, STATE_TTL_MS);
     const nextState = buildState(seen);
 
     return { events, nextState };
@@ -295,28 +297,6 @@ const buildState = (seen: Map<string, string>): string | null => {
   }
 
   return JSON.stringify({ seen: payload });
-};
-
-const pruneSeen = (seen: Map<string, string>, nowMs: number): void => {
-  for (const [key, value] of seen) {
-    const parsed = Date.parse(value);
-    if (!Number.isFinite(parsed) || nowMs - parsed > STATE_TTL_MS) {
-      seen.delete(key);
-    }
-  }
-};
-
-const isTooOld = (occurredAt: string | null, nowMs: number): boolean => {
-  if (!occurredAt) {
-    return false;
-  }
-
-  const parsed = Date.parse(occurredAt);
-  if (!Number.isFinite(parsed)) {
-    return false;
-  }
-
-  return nowMs - parsed > EVENT_MAX_AGE_MS;
 };
 
 const isRecentIssuedAt = (value: string, nowMs: number): boolean => {

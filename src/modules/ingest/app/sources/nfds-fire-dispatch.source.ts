@@ -4,7 +4,9 @@ import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
+import { isTooOld } from './_shared/is-too-old';
 import { normalizeNumber, normalizeText } from './_shared/normalize';
+import { pruneTimedMap } from './_shared/prune-timed-map';
 import { shouldEmitEvent } from './_shared/should-emit-event';
 
 const NFDS_FIRE_DISPATCH_ENDPOINT = 'https://nfds.go.kr/dashboard/monitorData.do';
@@ -94,7 +96,7 @@ export class NfdsFireDispatchSource implements Source {
 
     for (const item of parsed.data.defail) {
       const occurredAt = parseOccurredAt(item.overDate, nowDate);
-      if (isTooOld(occurredAt, nowMs)) {
+      if (isTooOld(occurredAt, nowMs, EVENT_MAX_AGE_MS)) {
         continue;
       }
 
@@ -111,7 +113,7 @@ export class NfdsFireDispatchSource implements Source {
       seen.set(key, nowIso);
     }
 
-    pruneSeen(seen, nowMs);
+    pruneTimedMap(seen, nowMs, STATE_TTL_MS);
     const nextState = buildState(seen);
 
     return { events, nextState };
@@ -367,28 +369,6 @@ const getKstDateParts = (date: Date): { year: number; month: string; day: string
   const month = String(kst.getUTCMonth() + 1).padStart(2, '0');
   const day = String(kst.getUTCDate()).padStart(2, '0');
   return { year, month, day };
-};
-
-const isTooOld = (occurredAt: string | null, nowMs: number): boolean => {
-  if (!occurredAt) {
-    return false;
-  }
-
-  const parsed = Date.parse(occurredAt);
-  if (!Number.isFinite(parsed)) {
-    return false;
-  }
-
-  return nowMs - parsed > EVENT_MAX_AGE_MS;
-};
-
-const pruneSeen = (seen: Map<string, string>, nowMs: number): void => {
-  for (const [key, value] of seen) {
-    const parsed = Date.parse(value);
-    if (!Number.isFinite(parsed) || nowMs - parsed > STATE_TTL_MS) {
-      seen.delete(key);
-    }
-  }
 };
 
 const parseState = (state: string | null): FireDispatchState => {

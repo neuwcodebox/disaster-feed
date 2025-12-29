@@ -6,7 +6,9 @@ import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
+import { pruneTimedMap } from './_shared/prune-timed-map';
 import { shouldEmitEvent } from './_shared/should-emit-event';
 
 const UTIC_INCIDENT_ENDPOINT = 'https://www.utic.go.kr/tsdms/incident.do';
@@ -78,7 +80,7 @@ export class UticTrafficIncidentSource implements Source {
 
       const items = parseIncidentItems(html);
       for (const item of items) {
-        if (isTooOld(item.occurredAt, nowMs)) {
+        if (isTooOld(item.occurredAt, nowMs, EVENT_MAX_AGE_MS)) {
           continue;
         }
         const key = buildUniqueKey(item, grade);
@@ -89,7 +91,7 @@ export class UticTrafficIncidentSource implements Source {
       }
     }
 
-    pruneSeen(seen, nowMs);
+    pruneTimedMap(seen, nowMs, STATE_TTL_MS);
     const nextState = buildState(seen);
 
     return { events, nextState };
@@ -333,28 +335,6 @@ const buildState = (seen: Map<string, string>): string | null => {
   }
 
   return JSON.stringify({ seen: payload });
-};
-
-const pruneSeen = (seen: Map<string, string>, nowMs: number): void => {
-  for (const [key, value] of seen) {
-    const parsed = Date.parse(value);
-    if (!Number.isFinite(parsed) || nowMs - parsed > STATE_TTL_MS) {
-      seen.delete(key);
-    }
-  }
-};
-
-const isTooOld = (occurredAt: string | null, nowMs: number): boolean => {
-  if (!occurredAt) {
-    return false;
-  }
-
-  const parsed = Date.parse(occurredAt);
-  if (!Number.isFinite(parsed)) {
-    return false;
-  }
-
-  return nowMs - parsed > EVENT_MAX_AGE_MS;
 };
 
 const buildRequestUrl = (grade: IncidentGrade): string => {
