@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const schemaGetEventsStreamQuery = z.object({
-  since: z.iso.datetime().optional(),
+  afterId: z.uuid().optional(),
 });
 
 export type GetEventsStreamQueryDto = z.infer<typeof schemaGetEventsStreamQuery>;

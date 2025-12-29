@@ -66,9 +66,10 @@ export class EventRoute implements IRoute {
       }),
       async (c) => {
         const query = c.req.valid('query');
+        const afterId = query.afterId ?? c.req.header('last-event-id') ?? undefined;
         const response = streamSSE(c, async (stream) => {
           eventStreamService.addClient(stream);
-          await eventStreamService.sendCatchUp(stream, query.since);
+          await eventStreamService.sendCatchUp(stream, afterId);
           while (!stream.aborted && !stream.closed) {
             await stream.writeSSE({ event: 'ping', data: 'keep-alive' });
             await stream.sleep(15000);

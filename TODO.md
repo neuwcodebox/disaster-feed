@@ -31,6 +31,8 @@
 - [x] 로컬 SSE 클라이언트 관리(Set 등) 구현
 - [x] GET /events/stream 구현
   - [x] (선택) since 파라미터로 DB에서 먼저 보내고 live 전환
+- [x] SSE Last-Event-ID 헤더 기반 catch-up 전환
+- [x] SSE afterId 쿼리 파라미터 지원(헤더보다 우선)
 - [x] 새 이벤트 fanout:
   - [x] 이벤트 insert 성공 후 Pub/Sub로 eventId publish
   - [x] subscribe 측에서 eventId 수신 → DB 조회 → 로컬 SSE broadcast

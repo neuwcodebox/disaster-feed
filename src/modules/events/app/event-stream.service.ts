@@ -73,17 +73,17 @@ export class EventStreamService {
     });
   }
 
-  public async sendCatchUp(stream: SSEStreamingApi, since?: string): Promise<void> {
-    if (!since) {
+  public async sendCatchUp(stream: SSEStreamingApi, afterId?: string): Promise<void> {
+    if (!afterId) {
       return;
     }
 
-    logger.debug({ since }, 'Sending SSE catch-up events');
-    const events = await this.eventRepository.listEventsSince({ since });
+    logger.debug({ afterId }, 'Sending SSE catch-up events');
+    const events = await this.eventRepository.listEventsAfterId({ afterId });
     for (const event of events) {
-      await stream.writeSSE({ data: JSON.stringify(toEventDto(event)) });
+      await stream.writeSSE({ data: JSON.stringify(toEventDto(event)), id: event.id });
     }
-    logger.debug({ count: events.length, since }, 'Completed SSE catch-up events');
+    logger.debug({ count: events.length, afterId }, 'Completed SSE catch-up events');
   }
 
   private async handleNewEvent(eventId: string): Promise<void> {

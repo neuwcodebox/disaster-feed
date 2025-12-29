@@ -7,8 +7,8 @@ export type ListEventsParams = {
   source?: EventSources;
 };
 
-export type ListEventsSinceParams = {
-  since: string;
+export type ListEventsAfterIdParams = {
+  afterId: string;
   limit?: number;
 };
 
@@ -21,6 +21,6 @@ export interface IEventRepository {
   insertEvent(data: NewEvent): Promise<Event>;
   getEventById(id: string): Promise<Event | undefined>;
   listEvents(params: ListEventsParams): Promise<Event[]>;
-  listEventsSince(params: ListEventsSinceParams): Promise<Event[]>;
+  listEventsAfterId(params: ListEventsAfterIdParams): Promise<Event[]>;
   listLatestFetchedAtBySources(sourceIds: EventSources[]): Promise<LatestFetchedAtBySource[]>;
 }

@@ -91,7 +91,8 @@ create table if not exists ingest_checkpoints (
 
 ### GET /events/stream (SSE)
 
-- 연결 시 (옵션) since 파라미터로 DB catch-up 후 live
+- 연결 시 (옵션) afterId 쿼리 파라미터 또는 Last-Event-ID 헤더로 DB catch-up 후 live
+- 둘 다 있으면 afterId가 우선한다.
 - live 전송은 event(JSON)을 SSE data로 보낸다.
 
 ## 9. 소스 구현(클래스 단위)

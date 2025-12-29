@@ -8,8 +8,8 @@ import type { EventSources } from '../domain/event.enums';
 import type {
   IEventRepository,
   LatestFetchedAtBySource,
+  ListEventsAfterIdParams,
   ListEventsParams,
-  ListEventsSinceParams,
 } from '../domain/port/event-repo.interface';
 
 @injectable()
@@ -49,14 +49,14 @@ export class EventRepository implements IEventRepository {
     return rows.map((row) => toEvent(row));
   }
 
-  public async listEventsSince(params: ListEventsSinceParams): Promise<Event[]> {
+  public async listEventsAfterId(params: ListEventsAfterIdParams): Promise<Event[]> {
     const limit = params.limit ?? 500;
 
     const rows = await this.db
       .selectFrom('events')
       .selectAll()
-      .where('fetched_at', '>', params.since)
-      .orderBy('fetched_at', 'asc')
+      .where('id', '>', params.afterId)
+      .orderBy('id', 'asc')
       .limit(limit)
       .execute();
 
