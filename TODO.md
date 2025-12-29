@@ -131,6 +131,7 @@
 - [x] fetchWithTimeout 공통화(옵션/헤더/dispatcher/POST 지원)
 - [x] JSON 파싱 간소화(response.json 사용)
 - [ ] 텍스트 정규화/키 생성 유틸 통합(normalizeText/normalizeOptionalText/normalizeKeyPart)
+- [x] normalize 유틸 차이 정리 및 공통 함수 적용
 - [ ] KST 시간 파싱/포맷 유틸 통합(날짜 포맷별 함수 분리)
 - [ ] 에어코리아 PM/O3 소스 공통 로직 묶기(테이블 파싱/그룹화)
 - [ ] 소스별 리팩토링 적용 순서 정의 및 단계별 적용

@@ -4,6 +4,7 @@ import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
+import { normalizeText } from './_shared/normalize';
 
 const FOREST_FIRE_INFO_ENDPOINT = 'https://fd.forest.go.kr/ffas/pubConn/occur/getPublicShowFireInfoList.do';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -90,14 +91,14 @@ export class ForestFireInfoSource implements Source {
     const events: SourceEvent[] = [];
 
     for (const item of parsed.data.frfrInfoList) {
-      const fireId = normalizeOptionalText(item.frfr_info_id);
+      const fireId = normalizeText(item.frfr_info_id);
       if (!fireId) {
         continue;
       }
 
       const progressLabel = resolveProgressLabel(item);
       const progressStatus = resolveProgressStatus(progressLabel);
-      const stepLabel = normalizeOptionalText(item.frfr_step_issu_cd);
+      const stepLabel = normalizeText(item.frfr_step_issu_cd);
       const baseLevel = isStepLevelEnabled(progressStatus) ? mapStepLevel(stepLabel) : EventLevels.Info;
       const uniqueKey = buildUniqueKey(fireId, progressStatus, stepLabel);
 
@@ -138,7 +139,7 @@ const buildEvent = (
   stepLabel: string | null,
   level: EventLevels,
 ): SourceEvent => {
-  const regionText = normalizeOptionalText(item.frfr_sttmn_addr);
+  const regionText = normalizeText(item.frfr_sttmn_addr);
   const title = buildTitle(regionText, progressLabel, stepLabel);
 
   return {
@@ -185,12 +186,12 @@ const buildBody = (
     lines.push(`대응 단계: ${stepLabel}`);
   }
 
-  const fireAt = normalizeOptionalText(item.frfr_frng_dtm);
+  const fireAt = normalizeText(item.frfr_frng_dtm);
   if (fireAt) {
     lines.push(`발생 시각: ${fireAt}`);
   }
 
-  const endAt = normalizeOptionalText(item.potfr_end_dtm);
+  const endAt = normalizeText(item.potfr_end_dtm);
   if (endAt) {
     lines.push(`진화 시각: ${endAt}`);
   }
@@ -205,15 +206,15 @@ const buildPayload = (
   stepLabel: string | null,
 ): EventPayload => {
   return {
-    fireInfoId: normalizeOptionalText(item.frfr_info_id),
-    progressCode: normalizeOptionalText(item.frfr_prgrs_stcd),
+    fireInfoId: normalizeText(item.frfr_info_id),
+    progressCode: normalizeText(item.frfr_prgrs_stcd),
     progressLabel,
     progressStatus,
     stepLabel,
-    statementDate: normalizeOptionalText(item.frfr_sttmn_dt),
-    fireAt: normalizeOptionalText(item.frfr_frng_dtm),
-    endAt: normalizeOptionalText(item.potfr_end_dtm),
-    address: normalizeOptionalText(item.frfr_sttmn_addr),
+    statementDate: normalizeText(item.frfr_sttmn_dt),
+    fireAt: normalizeText(item.frfr_frng_dtm),
+    endAt: normalizeText(item.potfr_end_dtm),
+    address: normalizeText(item.frfr_sttmn_addr),
     coordX: parseCoordinate(item.frfr_lctn_xcrd),
     coordY: parseCoordinate(item.frfr_lctn_ycrd),
   };
@@ -236,11 +237,11 @@ const resolveOccurredAt = (item: ForestFireItem): string | null => {
 };
 
 const resolveProgressLabel = (item: ForestFireItem): string | null => {
-  return normalizeOptionalText(item.frfr_prgrs_stcd_str) ?? normalizeOptionalText(item.frfr_prgrs_stcd);
+  return normalizeText(item.frfr_prgrs_stcd_str) ?? normalizeText(item.frfr_prgrs_stcd);
 };
 
 const resolveProgressStatus = (progressLabel: string | null): ProgressStatus => {
-  const normalized = normalizeOptionalText(progressLabel);
+  const normalized = normalizeText(progressLabel);
   if (!normalized) {
     return 'unknown';
   }
@@ -266,7 +267,7 @@ const isStepLevelEnabled = (progressStatus: ProgressStatus): boolean => {
 };
 
 const mapStepLevel = (stepLabel: string | null): EventLevels => {
-  const normalized = normalizeOptionalText(stepLabel);
+  const normalized = normalizeText(stepLabel);
   if (!normalized) {
     return EventLevels.Info;
   }
@@ -326,21 +327,8 @@ const parseCoordinate = (value: string | null | undefined): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const normalizeOptionalText = (value: string | null | undefined): string | null => {
-  if (!value) {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === '-') {
-    return null;
-  }
-
-  return trimmed;
-};
-
 const parseKstDateTime = (value: string | null | undefined): string | null => {
-  const normalized = normalizeOptionalText(value);
+  const normalized = normalizeText(value);
   if (!normalized) {
     return null;
   }
@@ -361,7 +349,7 @@ const parseKstDateTime = (value: string | null | undefined): string | null => {
 };
 
 const parseKstDate = (value: string | null | undefined): string | null => {
-  const normalized = normalizeOptionalText(value);
+  const normalized = normalizeText(value);
   if (!normalized) {
     return null;
   }

@@ -5,6 +5,7 @@ import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
+import { normalizeText } from './_shared/normalize';
 
 const KMA_WARNING_ENDPOINT = 'https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php';
 const STATE_TTL_MS = 1000 * 60 * 60 * 24 * 6;
@@ -113,7 +114,7 @@ export class KmaWeatherWarningSource implements Source {
 }
 
 const buildWarningEvent = (group: WarningGroup, occurredAt: string | null): SourceEvent => {
-  const regUpKo = normalizeOptionalText(group.regUpKo) ?? '';
+  const regUpKo = normalizeText(group.regUpKo) ?? '';
   const kindLabel = normalizeWarningKindLabel(group.wrn);
   const levelLabel = normalizeWarningLevelLabel(group.lvl);
   const commandLabel = normalizeWarningCommandLabel(group.cmd);
@@ -130,7 +131,7 @@ const buildWarningEvent = (group: WarningGroup, occurredAt: string | null): Sour
 };
 
 const buildTitle = (regUpKo: string, kind: string, level: string, command: string | null): string => {
-  const parts = [normalizeOptionalText(regUpKo), normalizeOptionalText(kind), normalizeOptionalText(level), command]
+  const parts = [normalizeText(regUpKo), normalizeText(kind), normalizeText(level), command]
     .filter((value): value is string => Boolean(value))
     .map((value) => value.trim());
 
@@ -145,14 +146,12 @@ const buildBody = (regKos: string[], tmEf: string, edTm: string | null): string 
     lines.push(`발효 시각: ${effectiveAt}`);
   }
 
-  const normalized = normalizeOptionalText(edTm);
+  const normalized = normalizeText(edTm);
   if (normalized) {
     lines.push(`해제예고: ${normalized}`);
   }
 
-  const regions = regKos
-    .map((region) => normalizeOptionalText(region))
-    .filter((region): region is string => Boolean(region));
+  const regions = regKos.map((region) => normalizeText(region)).filter((region): region is string => Boolean(region));
   if (regions.length > 0) {
     lines.push(`상세 지역: ${regions.join(', ')}`);
   }
@@ -194,23 +193,23 @@ const mapWarningLevel = (value: string): EventLevels => {
 };
 
 const normalizeWarningKindLabel = (value: string): string => {
-  return normalizeText(value);
+  return normalizeText(value) ?? '';
 };
 
 const normalizeWarningLevelLabel = (value: string): string => {
-  return normalizeText(value);
+  return normalizeText(value) ?? '';
 };
 
 const normalizeWarningCommandLabel = (value: string | null): string | null => {
-  return normalizeOptionalText(value);
+  return normalizeText(value);
 };
 
 const buildRegionText = (regUpKo: string, regKos: string[]): string | null => {
-  const base = normalizeOptionalText(regUpKo);
+  const base = normalizeText(regUpKo);
   const uniqueRegions: string[] = [];
 
   for (const item of regKos) {
-    const normalized = normalizeOptionalText(item);
+    const normalized = normalizeText(item);
     if (!normalized) {
       continue;
     }
@@ -238,7 +237,7 @@ const parseWarningRows = (text: string): WarningRow[] => {
       continue;
     }
 
-    const cells = line.split(',').map((cell) => normalizeText(cell));
+    const cells = line.split(',').map((cell) => normalizeText(cell) ?? '');
     const trimmedCells = trimTrailingCells(cells);
 
     if (trimmedCells.length < 9) {
@@ -288,36 +287,36 @@ const groupWarningRows = (rows: WarningRow[]): WarningGroup[] => {
     let group = groups.get(key);
     if (!group) {
       group = {
-        regUp: normalizeText(row.regUp),
-        regUpKo: normalizeOptionalText(row.regUpKo),
+        regUp: normalizeText(row.regUp) ?? '',
+        regUpKo: normalizeText(row.regUpKo),
         regIds: [],
         regKos: [],
-        tmFc: normalizeText(row.tmFc),
-        tmEf: normalizeText(row.tmEf),
-        wrn: normalizeText(row.wrn),
-        lvl: normalizeText(row.lvl),
-        cmd: normalizeOptionalText(row.cmd),
-        edTm: normalizeOptionalText(row.edTm),
+        tmFc: normalizeText(row.tmFc) ?? '',
+        tmEf: normalizeText(row.tmEf) ?? '',
+        wrn: normalizeText(row.wrn) ?? '',
+        lvl: normalizeText(row.lvl) ?? '',
+        cmd: normalizeText(row.cmd),
+        edTm: normalizeText(row.edTm),
       };
       groups.set(key, group);
     }
 
     if (!group.regUpKo) {
-      group.regUpKo = normalizeOptionalText(row.regUpKo);
+      group.regUpKo = normalizeText(row.regUpKo);
     }
     if (!group.cmd) {
-      group.cmd = normalizeOptionalText(row.cmd);
+      group.cmd = normalizeText(row.cmd);
     }
     if (!group.edTm) {
-      group.edTm = normalizeOptionalText(row.edTm);
+      group.edTm = normalizeText(row.edTm);
     }
 
-    const regId = normalizeOptionalText(row.regId);
+    const regId = normalizeText(row.regId);
     if (regId && !group.regIds.includes(regId)) {
       group.regIds.push(regId);
     }
 
-    const regKo = normalizeOptionalText(row.regKo);
+    const regKo = normalizeText(row.regKo);
     if (regKo && !group.regKos.includes(regKo)) {
       group.regKos.push(regKo);
     }
@@ -335,17 +334,13 @@ const buildGroupKey = (
   cmd: string | null,
 ): string => {
   return [
-    normalizeKeyPart(regUp),
-    normalizeKeyPart(tmFc),
-    normalizeKeyPart(tmEf),
-    normalizeKeyPart(wrn),
-    normalizeKeyPart(lvl),
-    normalizeKeyPart(cmd ?? ''),
+    normalizeText(regUp) ?? '',
+    normalizeText(tmFc) ?? '',
+    normalizeText(tmEf) ?? '',
+    normalizeText(wrn) ?? '',
+    normalizeText(lvl) ?? '',
+    normalizeText(cmd ?? '') ?? '',
   ].join('|');
-};
-
-const normalizeKeyPart = (value: string): string => {
-  return normalizeText(value).toUpperCase();
 };
 
 const parseState = (state: string | null): WarningState => {
@@ -408,18 +403,6 @@ const isTooOld = (occurredAt: string | null, nowMs: number): boolean => {
   return nowMs - parsed > EVENT_MAX_AGE_MS;
 };
 
-const normalizeText = (value: string): string => {
-  return value.replace(/\s+/g, ' ').trim();
-};
-
-const normalizeOptionalText = (value: string | null | undefined): string | null => {
-  if (!value) {
-    return null;
-  }
-  const normalized = normalizeText(value);
-  return normalized.length > 0 ? normalized : null;
-};
-
 const parseKstCompactTimestamp = (value: string): string | null => {
   const matched = value.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/);
   if (!matched) {
@@ -435,7 +418,7 @@ const parseKstCompactTimestamp = (value: string): string | null => {
 const formatKstCompactTimestamp = (value: string): string | null => {
   const matched = value.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})$/);
   if (!matched) {
-    return normalizeOptionalText(value);
+    return normalizeText(value);
   }
 
   const [, year, month, day, hour, minute] = matched;

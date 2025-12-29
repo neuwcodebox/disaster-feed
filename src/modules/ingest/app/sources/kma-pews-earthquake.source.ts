@@ -145,7 +145,7 @@ export class KmaPewsEarthquakeSource implements Source {
       return;
     }
 
-    const eqkId = normalizeEqkId(config.eqkId);
+    const eqkId = config.eqkId.trim();
     if (!eqkId) {
       logger.warn({ eqkId: config.eqkId }, 'Invalid PEWS simulation earthquake id');
       return;
@@ -213,10 +213,6 @@ const parseKstCompactTimestamp = (value: string): Date | null => {
   );
   const date = new Date(utcMs);
   return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const normalizeEqkId = (value: string): string => {
-  return value.trim();
 };
 
 const parseState = (state: string | null): PewsState => {

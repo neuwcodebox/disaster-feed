@@ -6,6 +6,7 @@ import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { normalizeText } from './_shared/normalize';
 
 const UTIC_INCIDENT_ENDPOINT = 'https://www.utic.go.kr/tsdms/incident.do';
 const REQUEST_TIMEOUT_MS = 20000;
@@ -194,10 +195,10 @@ const parseMapLink = (
 
   const [, incidentId, mapType, coordX, coordY] = matched;
   return {
-    incidentId: normalizeOptionalText(incidentId),
-    mapType: normalizeOptionalText(mapType),
-    coordX: normalizeOptionalText(coordX),
-    coordY: normalizeOptionalText(coordY),
+    incidentId: normalizeText(incidentId),
+    mapType: normalizeText(mapType),
+    coordX: normalizeText(coordX),
+    coordY: normalizeText(coordY),
   };
 };
 
@@ -279,31 +280,14 @@ const parseKstDateText = (value: string | null): string | null => {
   return parsed.toISOString();
 };
 
-const normalizeText = (value: string): string => {
-  return value.replace(/\s+/g, ' ').trim();
-};
-
-const normalizeOptionalText = (value: string | null | undefined): string | null => {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = normalizeText(value);
-  return normalized.length > 0 ? normalized : null;
-};
-
 const buildUniqueKey = (item: IncidentItem, grade: IncidentGrade): string => {
   if (item.incidentId) {
     return `${item.incidentId}:${grade}`;
   }
 
-  const titleKey = normalizeKeyPart(item.title);
-  const timeKey = normalizeKeyPart(item.occurredAt ?? '');
+  const titleKey = normalizeText(item.title) ?? '';
+  const timeKey = normalizeText(item.occurredAt) ?? '';
   return `${grade}:${titleKey}:${timeKey}`;
-};
-
-const normalizeKeyPart = (value: string): string => {
-  return normalizeText(value).toUpperCase();
 };
 
 const parseState = (state: string | null): TrafficIncidentState => {

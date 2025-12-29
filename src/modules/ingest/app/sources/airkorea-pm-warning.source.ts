@@ -5,6 +5,7 @@ import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
+import { normalizeText } from './_shared/normalize';
 
 const AIRKOREA_PM_WARNING_ENDPOINT = 'https://www.airkorea.or.kr/web/pmWarning?pMENU_NO=115';
 const MAX_PAGE = 3;
@@ -119,15 +120,15 @@ const buildWarningEvent = (group: PmWarningGroup): SourceEvent => {
     title: buildTitle(group.region, group.item, group.level),
     body: buildBody(group.zones),
     occurredAt: group.issuedAt,
-    regionText: normalizeOptionalText(group.region),
+    regionText: normalizeText(group.region),
     level: mapWarningLevel(group.level),
     payload: buildPayload(group),
   };
 };
 
 const buildTitle = (region: string, item: string, level: string): string => {
-  const parts = [normalizeOptionalText(region), normalizeOptionalText(item), normalizeOptionalText(level)].filter(
-    (value): value is string => Boolean(value),
+  const parts = [normalizeText(region), normalizeText(item), normalizeText(level)].filter((value): value is string =>
+    Boolean(value),
   );
   return parts.length > 0 ? parts.join(' ') : '미세먼지 경보';
 };
@@ -153,10 +154,10 @@ const buildPayload = (group: PmWarningGroup): EventPayload => {
 
 const mapWarningLevel = (value: string): EventLevels => {
   const normalized = normalizeText(value);
-  if (normalized.includes('경보')) {
+  if (normalized?.includes('경보')) {
     return EventLevels.Severe;
   }
-  if (normalized.includes('주의')) {
+  if (normalized?.includes('주의')) {
     return EventLevels.Moderate;
   }
   return EventLevels.Info;
@@ -177,21 +178,21 @@ const parseWarningRows = (html: string): PmWarningRow[] => {
   for (const element of elements) {
     const cells = $(element).find('td').toArray();
     if (cells.length < 7) {
-      const text = normalizeText($(element).text());
+      const text = normalizeText($(element).text()) ?? '';
       if (text.includes('자료') || text.includes('없')) {
         continue;
       }
       continue;
     }
 
-    const values = cells.map((cell) => normalizeText($(cell).text()));
+    const values = cells.map((cell) => normalizeText($(cell).text()) ?? '');
     const row = {
       region: values[1] ?? '',
-      area: normalizeOptionalText(values[2]),
+      area: normalizeText(values[2]),
       item: values[3] ?? '',
       level: values[4] ?? '',
       issuedAt: values[5] ?? '',
-      clearedAt: normalizeOptionalText(values[6]),
+      clearedAt: normalizeText(values[6]),
     };
 
     const parsed = schemaPmWarningRow.safeParse(row);
@@ -224,7 +225,7 @@ const groupWarningRows = (rows: PmWarningRow[]): PmWarningGroup[] => {
       groups.set(key, group);
     }
 
-    const area = normalizeOptionalText(row.area);
+    const area = normalizeText(row.area);
     if (area && !group.zones.includes(area)) {
       group.zones.push(area);
     }
@@ -235,22 +236,21 @@ const groupWarningRows = (rows: PmWarningRow[]): PmWarningGroup[] => {
 
 const buildRowKey = (row: PmWarningRow): string => {
   return [
-    normalizeKeyPart(row.region),
-    normalizeKeyPart(row.area ?? ''),
-    normalizeKeyPart(row.item),
-    normalizeKeyPart(row.level),
-    normalizeKeyPart(row.issuedAt),
+    normalizeText(row.region) ?? '',
+    normalizeText(row.area ?? '') ?? '',
+    normalizeText(row.item) ?? '',
+    normalizeText(row.level) ?? '',
+    normalizeText(row.issuedAt) ?? '',
   ].join('|');
 };
 
 const buildGroupKey = (region: string, item: string, level: string, issuedAt: string): string => {
-  return [normalizeKeyPart(region), normalizeKeyPart(item), normalizeKeyPart(level), normalizeKeyPart(issuedAt)].join(
-    '|',
-  );
-};
-
-const normalizeKeyPart = (value: string): string => {
-  return normalizeText(value).toUpperCase();
+  return [
+    normalizeText(region) ?? '',
+    normalizeText(item) ?? '',
+    normalizeText(level) ?? '',
+    normalizeText(issuedAt) ?? '',
+  ].join('|');
 };
 
 const parseState = (state: string | null): PmWarningState => {
@@ -319,18 +319,6 @@ const isTooOld = (occurredAt: string | null, nowMs: number): boolean => {
   return nowMs - parsed > EVENT_MAX_AGE_MS;
 };
 
-const normalizeText = (value: string): string => {
-  return value.replace(/\s+/g, ' ').trim();
-};
-
-const normalizeOptionalText = (value: string | null | undefined): string | null => {
-  if (!value) {
-    return null;
-  }
-  const normalized = normalizeText(value);
-  return normalized.length > 0 ? normalized : null;
-};
-
 const isRecentIssuedAt = (value: string, nowMs: number): boolean => {
   const issuedAt = parseKstHourTimestamp(value);
   if (!issuedAt) {
@@ -346,7 +334,7 @@ const isRecentIssuedAt = (value: string, nowMs: number): boolean => {
 };
 
 const parseKstHourTimestamp = (value: string): string | null => {
-  const normalized = normalizeOptionalText(value);
+  const normalized = normalizeText(value);
   if (!normalized) {
     return null;
   }

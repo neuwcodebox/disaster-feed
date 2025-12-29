@@ -4,6 +4,7 @@ import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
+import { normalizeText } from './_shared/normalize';
 
 const NFDS_FIRE_DISPATCH_ENDPOINT = 'https://nfds.go.kr/dashboard/monitorData.do';
 const STATE_TTL_MS = 1000 * 60 * 60 * 6;
@@ -142,8 +143,8 @@ const buildTitle = (
   progressName: string | null | undefined,
   frfalTypeCd: string | null | undefined,
 ): string => {
-  const center = normalizeOptionalString(centerName) ?? buildFallbackCenterName(sidoName);
-  const progress = normalizeOptionalString(progressName) ?? normalizeOptionalString(frfalTypeCd);
+  const center = normalizeText(centerName) ?? buildFallbackCenterName(sidoName);
+  const progress = normalizeText(progressName) ?? normalizeText(frfalTypeCd);
 
   if (center && progress) {
     return `${center} ${progress}`;
@@ -161,7 +162,7 @@ const buildTitle = (
 };
 
 const buildFallbackCenterName = (sidoName: string | null | undefined): string | null => {
-  const sido = normalizeOptionalString(sidoName);
+  const sido = normalizeText(sidoName);
   if (!sido) {
     return null;
   }
@@ -171,17 +172,17 @@ const buildFallbackCenterName = (sidoName: string | null | undefined): string | 
 
 const buildBody = (item: FireDispatchDetailItem, regionText: string | null): string | null => {
   const lines: string[] = [];
-  const address = regionText ?? normalizeOptionalString(item.addr);
+  const address = regionText ?? normalizeText(item.addr);
   if (address) {
     lines.push(`주소: ${address}`);
   }
 
-  const overDate = normalizeOptionalString(item.overDate);
+  const overDate = normalizeText(item.overDate);
   if (overDate) {
     lines.push(`접수 시각: ${overDate}`);
   }
 
-  const type = normalizeOptionalString(item.frfalTypeCd);
+  const type = normalizeText(item.frfalTypeCd);
   if (type) {
     lines.push(`처리: ${type}`);
   }
@@ -191,7 +192,7 @@ const buildBody = (item: FireDispatchDetailItem, regionText: string | null): str
     lines.push(`인명피해: ${casualties}`);
   }
 
-  const expMount = normalizeOptionalString(item.expMount);
+  const expMount = normalizeText(item.expMount);
   if (expMount) {
     lines.push(`재산피해: ${expMount}`);
   }
@@ -226,23 +227,23 @@ const buildPayload = (
 
   return {
     sidoOvrNum: item.sidoOvrNum,
-    investNo: normalizeOptionalString(item.investNo),
-    cntrId: normalizeOptionalString(item.cntrId),
+    investNo: normalizeText(item.investNo),
+    cntrId: normalizeText(item.cntrId),
     sidoNm: item.sidoNm.trim(),
-    cntrNm: normalizeOptionalString(item.cntrNm),
-    overDate: normalizeOptionalString(item.overDate),
+    cntrNm: normalizeText(item.cntrNm),
+    overDate: normalizeText(item.overDate),
     progressStat: item.progressStat,
-    progressNm: normalizeOptionalString(item.progressNm),
-    frfalTypeCd: normalizeOptionalString(item.frfalTypeCd),
-    addr: normalizeOptionalString(item.addr),
-    marker: normalizeOptionalString(item.marker),
+    progressNm: normalizeText(item.progressNm),
+    frfalTypeCd: normalizeText(item.frfalTypeCd),
+    addr: normalizeText(item.addr),
+    marker: normalizeText(item.marker),
     dethNum: normalizeNumber(item.dethNum),
     injuNum: normalizeNumber(item.injuNum),
-    expMount: normalizeOptionalString(item.expMount),
+    expMount: normalizeText(item.expMount),
     lawSidoCd,
     lawGunguCd,
-    lawDongCd: normalizeOptionalString(item.lawDongCd),
-    lawRiCd: normalizeOptionalString(item.lawRiCd),
+    lawDongCd: normalizeText(item.lawDongCd),
+    lawRiCd: normalizeText(item.lawRiCd),
     nowDate: rawNowDate,
   };
 };
@@ -251,10 +252,10 @@ const resolveLawCodes = (
   item: FireDispatchDetailItem,
   mapCodes: MapCodes | null,
 ): { lawSidoCd: string | null; lawGunguCd: string | null } => {
-  const detailSido = normalizeOptionalString(item.lawSidoCd);
-  const detailGungu = normalizeOptionalString(item.lawGunguCd);
-  const mapSido = mapCodes ? normalizeOptionalString(mapCodes.lawSidoCd) : null;
-  const mapGungu = mapCodes ? normalizeOptionalString(mapCodes.lawGunguCd) : null;
+  const detailSido = normalizeText(item.lawSidoCd);
+  const detailGungu = normalizeText(item.lawGunguCd);
+  const mapSido = mapCodes ? normalizeText(mapCodes.lawSidoCd) : null;
+  const mapGungu = mapCodes ? normalizeText(mapCodes.lawGunguCd) : null;
 
   return {
     lawSidoCd: detailSido ?? mapSido,
@@ -263,12 +264,12 @@ const resolveLawCodes = (
 };
 
 const buildRegionText = (addr: string, sidoNm: string): string | null => {
-  const address = normalizeOptionalString(addr);
+  const address = normalizeText(addr);
   if (address) {
     return address;
   }
 
-  const sido = normalizeOptionalString(sidoNm);
+  const sido = normalizeText(sidoNm);
   return sido ?? null;
 };
 
@@ -365,19 +366,6 @@ const getKstDateParts = (date: Date): { year: number; month: string; day: string
   const month = String(kst.getUTCMonth() + 1).padStart(2, '0');
   const day = String(kst.getUTCDate()).padStart(2, '0');
   return { year, month, day };
-};
-
-const normalizeOptionalString = (value: string | null | undefined): string | null => {
-  if (!value) {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === '-') {
-    return null;
-  }
-
-  return trimmed;
 };
 
 const normalizeNumber = (value: number | undefined): number | null => {

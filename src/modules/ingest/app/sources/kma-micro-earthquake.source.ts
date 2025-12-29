@@ -39,19 +39,13 @@ export class KmaMicroEarthquakeSource implements Source {
       throw new Error('Failed to extract micro earthquake text');
     }
 
-    const normalized = normalizeMicroText(extracted);
-    if (!normalized) {
-      logger.warn('Micro earthquake text is empty after normalization');
-      throw new Error('Micro earthquake text is empty after normalization');
-    }
-
-    if (state && normalized === state) {
+    if (state && extracted === state) {
       return { events: [], nextState: state };
     }
 
     return {
-      events: [buildMicroEarthquakeEvent(normalized)],
-      nextState: normalized,
+      events: [buildMicroEarthquakeEvent(extracted)],
+      nextState: extracted,
     };
   }
 }
@@ -196,30 +190,7 @@ const sanitizeHtmlFragment = (fragment: string): string => {
   let text = fragment.replace(/<br\s*\/?>/gi, '\n');
   text = text.replace(/<[^>]+>/g, '');
   text = decodeHtmlEntities(text);
-  return normalizeMicroText(text);
-};
-
-const normalizeMicroText = (text: string): string => {
-  const rawLines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-  const lines: string[] = [];
-
-  for (const line of rawLines) {
-    const normalizedLine = line.replace(/\s+/g, ' ').trim();
-    if (normalizedLine.length === 0) {
-      if (lines.length > 0 && lines[lines.length - 1] !== '') {
-        lines.push('');
-      }
-      continue;
-    }
-
-    lines.push(normalizedLine);
-  }
-
-  while (lines.length > 0 && lines[lines.length - 1] === '') {
-    lines.pop();
-  }
-
-  return lines.join('\n').trim();
+  return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
 };
 
 const decodeHtmlEntities = (text: string): string => {
