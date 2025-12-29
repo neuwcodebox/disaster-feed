@@ -3,9 +3,9 @@ import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 
 const FOREST_FIRE_INFO_ENDPOINT = 'https://fd.forest.go.kr/ffas/pubConn/occur/getPublicShowFireInfoList.do';
-const REQUEST_TIMEOUT_MS = 10000;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const STATE_RANGE_DAYS = 7;
 const STATE_TTL_MS = 1000 * 60 * 60 * 24 * STATE_RANGE_DAYS;
@@ -56,13 +56,16 @@ export class ForestFireInfoSource implements Source {
     const { startDate, endDate } = getKstDateRange(STATE_RANGE_DAYS);
     const payload = buildRequestBody(startDate, endDate);
 
-    const response = await fetchWithTimeout(FOREST_FIRE_INFO_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json;charset=UTF-8',
-        Accept: 'application/json',
+    const response = await fetchWithTimeout({
+      url: FOREST_FIRE_INFO_ENDPOINT,
+      init: {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json;charset=UTF-8',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
     });
 
     if (!response) {
@@ -600,25 +603,5 @@ const parseJsonResponse = async (response: Response, sourceId: EventSources): Pr
   } catch (error) {
     logger.warn({ error, sourceId }, 'Failed to decode forest fire info response');
     return null;
-  }
-};
-
-const fetchWithTimeout = async (url: string, init: RequestInit): Promise<Response | null> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, { ...init, signal: controller.signal });
-    if (!response.ok) {
-      logger.warn({ status: response.status }, 'Forest fire info request failed');
-      return null;
-    }
-
-    return response;
-  } catch (error) {
-    logger.warn(error, 'Forest fire info request error');
-    return null;
-  } finally {
-    clearTimeout(timeout);
   }
 };

@@ -2,9 +2,9 @@ import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 
 const KMA_PEWS_ENDPOINT = 'https://www.weather.go.kr/pews/data';
-const REQUEST_TIMEOUT_MS = 10000;
 const DEFAULT_HEADER_LENGTH_BYTES = 4;
 const SIMULATION_HEADER_LENGTH_BYTES = 1;
 const INFO_TEXT_BYTES = 60;
@@ -82,7 +82,9 @@ export class KmaPewsEarthquakeSource implements Source {
     const binTime = new Date(Date.now() - this.timeOffsetMs);
     const binTimeStr = formatUtcTimestamp(binTime);
 
-    const response = await fetchWithTimeout(`${this.baseUrl}/${binTimeStr}.b`);
+    const response = await fetchWithTimeout({
+      url: `${this.baseUrl}/${binTimeStr}.b`,
+    });
     if (!response) {
       throw new Error('PEWS request failed');
     }
@@ -593,23 +595,4 @@ const updateOffsetFromHeaders = (headers: Headers, fallbackOffsetMs: number): nu
   }
 
   return fallbackOffsetMs;
-};
-
-const fetchWithTimeout = async (url: string): Promise<Response | null> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    return await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-      },
-    });
-  } catch (error) {
-    logger.warn(error, 'PEWS request error');
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
 };

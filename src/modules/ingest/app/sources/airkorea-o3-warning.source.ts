@@ -4,9 +4,9 @@ import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 
 const AIRKOREA_O3_WARNING_ENDPOINT = 'https://www.airkorea.or.kr/web/o3WarningSubTab1?lastymd=today';
-const REQUEST_TIMEOUT_MS = 15000;
 const STATE_TTL_MS = 1000 * 60 * 60 * 24;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 
@@ -37,7 +37,11 @@ export class AirkoreaO3WarningSource implements Source {
   public readonly pollIntervalSec = 60 * 5;
 
   public async run(state: string | null): Promise<SourceRunResult> {
-    const response = await fetchWithTimeout();
+    const response = await fetchWithTimeout({
+      url: AIRKOREA_O3_WARNING_ENDPOINT,
+      init: { method: 'POST' },
+      timeoutMs: 15000,
+    });
     if (!response) {
       throw new Error('AirKorea O3 warning request failed');
     }
@@ -312,24 +316,4 @@ const parseKstHourTimestamp = (value: string): string | null => {
   const utcMs = Date.UTC(Number(yearText), Number(monthText) - 1, Number(dayText), hour - 9, minute, 0);
   const date = new Date(utcMs);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
-};
-
-const fetchWithTimeout = async (): Promise<Response | null> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(AIRKOREA_O3_WARNING_ENDPOINT, { method: 'POST', signal: controller.signal });
-    if (!response.ok) {
-      logger.warn({ status: response.status }, 'AirKorea O3 warning request failed');
-      return null;
-    }
-
-    return response;
-  } catch (error) {
-    logger.warn(error, 'AirKorea O3 warning request error');
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
 };

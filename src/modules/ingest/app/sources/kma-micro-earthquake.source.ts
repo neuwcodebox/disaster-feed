@@ -2,9 +2,9 @@ import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 
 const KMA_MICRO_EARTHQUAKE_ENDPOINT = 'https://www.weather.go.kr/w/wnuri-eqk-vol/eqk/eqk-micro.do';
-const REQUEST_TIMEOUT_MS = 10000;
 
 const NAMED_ENTITIES = new Map<string, string>([
   ['nbsp', ' '],
@@ -27,7 +27,7 @@ export class KmaMicroEarthquakeSource implements Source {
   public readonly pollIntervalSec = 10;
 
   public async run(state: string | null): Promise<SourceRunResult> {
-    const response = await fetchWithTimeout(KMA_MICRO_EARTHQUAKE_ENDPOINT);
+    const response = await fetchWithTimeout({ url: KMA_MICRO_EARTHQUAKE_ENDPOINT });
     if (!response) {
       throw new Error('KMA micro earthquake request failed');
     }
@@ -233,26 +233,6 @@ const decodeHtmlEntities = (text: string): string => {
       return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : _;
     })
     .replace(/&([a-zA-Z]+);/g, (full, name: string) => NAMED_ENTITIES.get(name) ?? full);
-};
-
-const fetchWithTimeout = async (url: string): Promise<Response | null> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) {
-      logger.warn({ status: response.status }, 'Micro earthquake request failed');
-      return null;
-    }
-
-    return response;
-  } catch (error) {
-    logger.warn(error, 'Micro earthquake request error');
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
 };
 
 const parseKstDateTime = (value: string): string | null => {

@@ -4,9 +4,9 @@ import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 
 const KMA_WARNING_ENDPOINT = 'https://apihub.kma.go.kr/api/typ01/url/wrn_now_data_new.php';
-const REQUEST_TIMEOUT_MS = 30000;
 const STATE_TTL_MS = 1000 * 60 * 60 * 24 * 6;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 
@@ -74,7 +74,10 @@ export class KmaWeatherWarningSource implements Source {
       throw new Error('KMA weather warning auth key is missing');
     }
 
-    const response = await fetchWithTimeout(buildRequestUrl(authKey));
+    const response = await fetchWithTimeout({
+      url: buildRequestUrl(authKey),
+      timeoutMs: 30000,
+    });
     if (!response) {
       throw new Error('KMA weather warning request failed');
     }
@@ -449,26 +452,6 @@ const buildRequestUrl = (authKey: string): string => {
     authKey,
   }).toString();
   return url.toString();
-};
-
-const fetchWithTimeout = async (url: string): Promise<Response | null> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) {
-      logger.warn({ status: response.status }, 'KMA weather warning request failed');
-      return null;
-    }
-
-    return response;
-  } catch (error) {
-    logger.warn(error, 'KMA weather warning request error');
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
 };
 
 const decodeEucKrResponse = async (response: Response): Promise<string> => {

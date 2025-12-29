@@ -4,9 +4,9 @@ import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 
 const AIRKOREA_PM_WARNING_ENDPOINT = 'https://www.airkorea.or.kr/web/pmWarning?pMENU_NO=115';
-const REQUEST_TIMEOUT_MS = 15000;
 const MAX_PAGE = 3;
 const STATE_TTL_MS = 1000 * 60 * 60 * 24;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
@@ -48,7 +48,11 @@ export class AirkoreaPmWarningSource implements Source {
     let page = 1;
 
     while (page <= MAX_PAGE) {
-      const response = await fetchWithTimeout(page);
+      const response = await fetchWithTimeout({
+        url: buildRequestUrl(page),
+        init: { method: 'POST' },
+        timeoutMs: 15000,
+      });
       if (!response) {
         throw new Error(`AirKorea PM warning request failed: page ${page}`);
       }
@@ -378,24 +382,4 @@ const buildRequestUrl = (page: number): string => {
   const url = new URL(AIRKOREA_PM_WARNING_ENDPOINT);
   url.searchParams.set('page', String(page));
   return url.toString();
-};
-
-const fetchWithTimeout = async (page: number): Promise<Response | null> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(buildRequestUrl(page), { method: 'POST', signal: controller.signal });
-    if (!response.ok) {
-      logger.warn({ status: response.status }, 'AirKorea PM warning request failed');
-      return null;
-    }
-
-    return response;
-  } catch (error) {
-    logger.warn(error, 'AirKorea PM warning request error');
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
 };

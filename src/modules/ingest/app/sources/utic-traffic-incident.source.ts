@@ -12,7 +12,6 @@ const REQUEST_TIMEOUT_MS = 20000;
 const STATE_TTL_MS = 1000 * 60 * 60 * 6;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 const INSECURE_DISPATCHER = new Agent({ connect: { rejectUnauthorized: false } });
-let loggedInsecure = false;
 
 const COMMON_INCIDENT_TYPE = '{"사고":"","공사":"none","행사":"none","기상":"","통제":"","재난":"","기타":"none"}';
 
@@ -421,11 +420,6 @@ const fetchWithTimeout = async (url: string): Promise<Response | null> => {
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    if (!loggedInsecure) {
-      logger.warn('UTIC TLS certificate verification disabled for UTIC source');
-      loggedInsecure = true;
-    }
-
     const response = await fetch(url, {
       signal: controller.signal,
       dispatcher: INSECURE_DISPATCHER,

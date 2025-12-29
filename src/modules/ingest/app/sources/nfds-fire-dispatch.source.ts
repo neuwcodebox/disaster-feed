@@ -3,9 +3,9 @@ import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 
 const NFDS_FIRE_DISPATCH_ENDPOINT = 'https://nfds.go.kr/dashboard/monitorData.do';
-const REQUEST_TIMEOUT_MS = 10000;
 const STATE_TTL_MS = 1000 * 60 * 60 * 6;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -60,7 +60,14 @@ export class NfdsFireDispatchSource implements Source {
   public readonly pollIntervalSec = 60;
 
   public async run(state: string | null): Promise<SourceRunResult> {
-    const response = await fetchWithTimeout(NFDS_FIRE_DISPATCH_ENDPOINT);
+    const response = await fetchWithTimeout({
+      url: NFDS_FIRE_DISPATCH_ENDPOINT,
+      init: {
+        headers: {
+          Accept: 'application/json',
+        },
+      },
+    });
     if (!response) {
       throw new Error('NFDS fire dispatch request failed');
     }
@@ -470,31 +477,5 @@ const parseJsonResponse = async (response: Response, sourceId: EventSources): Pr
   } catch (error) {
     logger.warn({ error, sourceId }, 'Failed to decode NFDS fire dispatch response');
     return null;
-  }
-};
-
-const fetchWithTimeout = async (url: string): Promise<Response | null> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        Accept: 'application/json',
-        'User-Agent': 'Mozilla/5.0',
-      },
-    });
-    if (!response.ok) {
-      logger.warn({ status: response.status }, 'NFDS fire dispatch request failed');
-      return null;
-    }
-
-    return response;
-  } catch (error) {
-    logger.warn(error, 'NFDS fire dispatch request error');
-    return null;
-  } finally {
-    clearTimeout(timeout);
   }
 };

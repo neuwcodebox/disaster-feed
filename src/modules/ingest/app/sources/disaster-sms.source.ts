@@ -3,10 +3,10 @@ import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 
 const DISASTER_SMS_ENDPOINT = 'https://www.safekorea.go.kr/idsiSFK/sfk/cs/sua/web/DisasterSmsList.do';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-const REQUEST_TIMEOUT_MS = 10000;
 const PAGE_SIZE = 50;
 
 const schemaDisasterSmsItem = z.object({
@@ -74,13 +74,16 @@ export class DisasterSmsSource implements Source {
     const { startDate, endDate } = getKstDateRange(1);
     const payload = buildRequestBody(startDate, endDate);
 
-    const response = await fetchWithTimeout(DISASTER_SMS_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json;charset=UTF-8',
-        Accept: 'application/json',
+    const response = await fetchWithTimeout({
+      url: DISASTER_SMS_ENDPOINT,
+      init: {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json;charset=UTF-8',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
     });
 
     if (!response) {
@@ -231,26 +234,6 @@ const buildRequestBody = (startDate: string, endDate: string) => {
       sbLawArea3: '',
     },
   };
-};
-
-const fetchWithTimeout = async (url: string, init: RequestInit): Promise<Response | null> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, { ...init, signal: controller.signal });
-    if (!response.ok) {
-      logger.warn({ status: response.status }, 'Disaster SMS request failed');
-      return null;
-    }
-
-    return response;
-  } catch (error) {
-    logger.warn(error, 'Disaster SMS request error');
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
 };
 
 const parseJsonResponse = async (response: Response, sourceId: EventSources): Promise<unknown | null> => {
