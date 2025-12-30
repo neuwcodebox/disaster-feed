@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { LlmLabelClassifier } from '@/core/llm/llm-label-classifier';
 import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import type { LlmLabelClassifierService } from '../llm-label-classifier.service';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 
 const DISASTER_SMS_ENDPOINT = 'https://www.safekorea.go.kr/idsiSFK/sfk/cs/sua/web/DisasterSmsList.do';
@@ -68,11 +68,12 @@ const DISASTER_KIND_BY_NAME: Record<string, EventKinds> = {
 };
 
 const DISASTER_KIND_LABELS = Object.keys(DISASTER_KIND_BY_NAME) as [string, ...string[]];
-const DISASTER_SMS_CLASSIFIER = new LlmLabelClassifier();
 
 export class DisasterSmsSource implements Source {
   public readonly sourceId = EventSources.SafekoreaSms;
   public readonly pollIntervalSec = 60;
+
+  constructor(private readonly labelClassifier: LlmLabelClassifierService) {}
 
   public async run(state: string | null): Promise<SourceRunResult> {
     const { startDate, endDate } = getKstDateRange(1);
@@ -105,7 +106,7 @@ export class DisasterSmsSource implements Source {
     const lastSeenSerial = parseSerial(state);
     const items = filterNewItems(parsed.data.disasterSmsList, lastSeenSerial);
     const nextState = getNextSerialState(items, lastSeenSerial);
-    const resolvedKinds = await resolveDisasterKinds(items);
+    const resolvedKinds = await resolveDisasterKinds(items, this.labelClassifier);
 
     const events: SourceEvent[] = [];
     for (const item of items) {
@@ -146,10 +147,13 @@ const extractSenderName = (message: string): string | null => {
   return sender.length > 0 ? sender : null;
 };
 
-async function resolveDisasterKinds(items: DisasterSmsItem[]): Promise<Map<number, EventKinds>> {
+async function resolveDisasterKinds(
+  items: DisasterSmsItem[],
+  labelClassifier: LlmLabelClassifierService,
+): Promise<Map<number, EventKinds>> {
   const resolved = new Map<number, EventKinds>();
   const pending: Array<{ id: string; serial: number; text: string }> = [];
-  const isClassifierEnabled = DISASTER_SMS_CLASSIFIER.isEnabled();
+  const isClassifierEnabled = labelClassifier.isEnabled();
 
   for (const item of items) {
     const normalized = item.DSSTR_SE_NM.trim();
@@ -177,7 +181,7 @@ async function resolveDisasterKinds(items: DisasterSmsItem[]): Promise<Map<numbe
     return resolved;
   }
 
-  const classified = await DISASTER_SMS_CLASSIFIER.classifyBatch({
+  const classified = await labelClassifier.classifyBatch({
     labels: DISASTER_KIND_LABELS,
     items: pending.map((item) => ({
       id: item.id,

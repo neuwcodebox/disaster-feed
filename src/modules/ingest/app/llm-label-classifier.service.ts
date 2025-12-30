@@ -1,8 +1,7 @@
-import OpenAI from 'openai';
-import { zodResponseFormat } from 'openai/helpers/zod';
 import { z } from 'zod';
-import { env } from '@/core/env';
 import { logger } from '@/core/logger';
+import type { LlmChatMessage, LlmJsonClient } from '@/infra/llm/llm-client.interface';
+import { OpenAiLlmClient } from '@/infra/llm/openai-llm-client';
 
 const DEFAULT_MODEL = 'gpt-5-mini';
 const DEFAULT_SYSTEM_PROMPT = [
@@ -47,23 +46,23 @@ export type LlmLabelClassifierOptions = {
   systemPrompt?: string;
 };
 
-export class LlmLabelClassifier {
-  private readonly client: OpenAI | null;
+export class LlmLabelClassifierService {
+  private readonly llmClient: LlmJsonClient;
   private readonly model: string;
   private readonly systemPrompt: string;
 
   constructor(options: LlmLabelClassifierOptions = {}) {
-    this.client = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
+    this.llmClient = new OpenAiLlmClient();
     this.model = options.model ?? DEFAULT_MODEL;
     this.systemPrompt = options.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
   }
 
   public isEnabled(): boolean {
-    return this.client !== null;
+    return this.llmClient.isEnabled();
   }
 
   public async classifyBatch(input: LlmLabelClassifierBatchInput): Promise<Map<string, string> | null> {
-    if (!this.client) {
+    if (!this.llmClient.isEnabled()) {
       return null;
     }
 
@@ -81,28 +80,26 @@ export class LlmLabelClassifier {
     });
 
     try {
-      const completion = await this.client.chat.completions.parse(
-        {
-          model: this.model,
-          messages: buildMessages(this.systemPrompt, input.labels, input.items),
-          response_format: zodResponseFormat(schemaClassified, 'labels'),
-        },
-        { timeout: 30000 },
-      );
+      const result = await this.llmClient.parseJson({
+        model: this.model,
+        messages: buildMessages(this.systemPrompt, input.labels, input.items),
+        schema: schemaClassified,
+        schemaName: 'labels',
+        timeoutMs: 30000,
+      });
 
-      const message = completion.choices[0]?.message;
-      if (!message?.parsed) {
-        if (message?.refusal) {
-          logger.warn({ reason: message.refusal }, 'LLM label classification refused');
+      if (!result.parsed) {
+        if (result.refusal) {
+          logger.warn({ reason: result.refusal }, 'LLM label classification refused');
         }
         return null;
       }
 
-      const result = new Map<string, string>();
-      for (const item of message.parsed.items) {
-        result.set(item.id, item.label);
+      const resolved = new Map<string, string>();
+      for (const item of result.parsed.items) {
+        resolved.set(item.id, item.label);
       }
-      return result;
+      return resolved;
     } catch (error) {
       logger.warn({ error }, 'LLM label classification failed');
       return null;
@@ -114,7 +111,7 @@ function buildMessages(
   systemPrompt: string,
   labels: readonly [string, ...string[]],
   items: LlmLabelClassifierBatchItem[],
-): Array<{ role: 'system' | 'user'; content: string }> {
+): LlmChatMessage[] {
   const payload = {
     labels,
     items: items.map((item) => ({

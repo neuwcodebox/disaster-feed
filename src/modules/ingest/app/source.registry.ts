@@ -1,13 +1,18 @@
-import { injectable } from 'inversify';
+import { inject, injectable } from 'inversify';
+import { IngestDeps } from '../domain/dep/ingest.dep';
 import type { Source } from '../domain/port/source.interface';
-import { sourceList } from './source.list';
+import type { LlmLabelClassifierService } from './llm-label-classifier.service';
+import { buildSourceList } from './source.list';
 
 @injectable()
 export class SourceRegistry {
   private readonly sources = new Map<EventSources, Source>();
 
-  constructor() {
-    for (const source of sourceList) {
+  constructor(
+    @inject(IngestDeps.LlmLabelClassifierService)
+    private readonly llmLabelClassifier: LlmLabelClassifierService,
+  ) {
+    for (const source of buildSourceList(this.llmLabelClassifier)) {
       this.sources.set(source.sourceId, source);
     }
   }

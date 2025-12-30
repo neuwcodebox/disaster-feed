@@ -5,4 +5,5 @@ export const IngestDeps = {
   IngestCheckpointRepository: Symbol('IngestCheckpointRepository'),
   IngestStatusService: Symbol('IngestStatusService'),
   IngestRoute: Symbol('IngestRoute'),
+  LlmLabelClassifierService: Symbol('LlmLabelClassifierService'),
 };

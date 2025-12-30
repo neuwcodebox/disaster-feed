@@ -6,12 +6,14 @@ import type { IRoute } from '@/view/route.interface';
 import { IngestSchedulerService } from './app/ingest-scheduler.service';
 import { IngestStatusService } from './app/ingest-status.service';
 import { IngestWorkerService } from './app/ingest-worker.service';
+import { LlmLabelClassifierService } from './app/llm-label-classifier.service';
 import { SourceRegistry } from './app/source.registry';
 import { IngestDeps } from './domain/dep/ingest.dep';
 import { IngestCheckpointRepository } from './infra/ingest-checkpoint.repo';
 import { IngestRoute } from './view/ingest.route';
 
 export function registerIngestDeps(dep: DependencyContainer) {
+  dep.add(IngestDeps.LlmLabelClassifierService, LlmLabelClassifierService);
   dep.add(IngestDeps.SourceRegistry, SourceRegistry);
   dep.add(IngestDeps.IngestSchedulerService, IngestSchedulerService);
   dep.add(IngestDeps.IngestWorkerService, IngestWorkerService);

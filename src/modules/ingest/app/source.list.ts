@@ -1,4 +1,5 @@
 import type { Source } from '../domain/port/source.interface';
+import type { LlmLabelClassifierService } from './llm-label-classifier.service';
 import { AirkoreaO3WarningSource } from './sources/airkorea-o3-warning.source';
 import { AirkoreaPmWarningSource } from './sources/airkorea-pm-warning.source';
 import { DisasterSmsSource } from './sources/disaster-sms.source';
@@ -9,14 +10,16 @@ import { KmaWeatherWarningSource } from './sources/kma-weather-warning.source';
 import { NfdsFireDispatchSource } from './sources/nfds-fire-dispatch.source';
 import { UticTrafficIncidentSource } from './sources/utic-traffic-incident.source';
 
-export const sourceList: Source[] = [
-  new DisasterSmsSource(),
-  new KmaWeatherWarningSource(),
-  new KmaMicroEarthquakeSource(),
-  new KmaPewsEarthquakeSource(),
-  new NfdsFireDispatchSource(),
-  new ForestFireInfoSource(),
-  new UticTrafficIncidentSource(),
-  new AirkoreaPmWarningSource(),
-  new AirkoreaO3WarningSource(),
-];
+export function buildSourceList(llmLabelClassifier: LlmLabelClassifierService): Source[] {
+  return [
+    new DisasterSmsSource(llmLabelClassifier),
+    new KmaWeatherWarningSource(),
+    new KmaMicroEarthquakeSource(),
+    new KmaPewsEarthquakeSource(),
+    new NfdsFireDispatchSource(),
+    new ForestFireInfoSource(),
+    new UticTrafficIncidentSource(),
+    new AirkoreaPmWarningSource(),
+    new AirkoreaO3WarningSource(),
+  ];
+}
