@@ -9,6 +9,7 @@ import { KmaPewsEarthquakeSource } from './sources/kma-pews-earthquake.source';
 import { KmaWeatherWarningSource } from './sources/kma-weather-warning.source';
 import { NfdsFireDispatchSource } from './sources/nfds-fire-dispatch.source';
 import { UticTrafficIncidentSource } from './sources/utic-traffic-incident.source';
+import { YnaNewsSource } from './sources/yna-news.source';
 
 export function buildSourceList(llmLabelClassifier: LlmLabelClassifierService): Source[] {
   return [
@@ -19,6 +20,7 @@ export function buildSourceList(llmLabelClassifier: LlmLabelClassifierService): 
     new NfdsFireDispatchSource(),
     new ForestFireInfoSource(),
     new UticTrafficIncidentSource(),
+    new YnaNewsSource(llmLabelClassifier),
     new AirkoreaPmWarningSource(),
     new AirkoreaO3WarningSource(),
   ];

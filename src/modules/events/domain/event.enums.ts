@@ -60,4 +60,5 @@ export enum EventSources {
   AirkoreaPmWarning = 7,
   AirkoreaO3Warning = 8,
   ForestFireInfo = 9,
+  YnaNews = 10,
 }

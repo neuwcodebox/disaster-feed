@@ -21,6 +21,7 @@ export const env = z
     DATABASE_URL: z.url(),
     REDIS_URL: z.url(),
     KMA_API_KEY: z.string().optional(),
+    YNA_SERVICE_KEY: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),
   })
   .parse(process.env);
