@@ -101,7 +101,7 @@ export class LlmLabelClassifierService {
       }
       return resolved;
     } catch (error) {
-      logger.warn({ error }, 'LLM label classification failed');
+      logger.warn(error, 'LLM label classification failed');
       return null;
     }
   }
