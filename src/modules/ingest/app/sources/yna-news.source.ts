@@ -53,7 +53,7 @@ type ClassifiedNewsItem = {
 
 export class YnaNewsSource implements Source {
   public readonly sourceId = EventSources.YnaNews;
-  public readonly pollIntervalSec = 60 * 1; // TODO: 3분으로 변경.
+  public readonly pollIntervalSec = 60 * 3;
 
   constructor(private readonly labelClassifier: LlmLabelClassifierService) {}
 
