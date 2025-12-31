@@ -3,6 +3,7 @@ import { env } from '@/core/env';
 import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
+import { NonRetryError } from '@/modules/ingest/domain/ingest.errors';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import type { LlmLabelClassifierService } from '../llm-label-classifier.service';
 import { DISASTER_KIND_BY_NAME, DISASTER_KIND_LABELS } from './_shared/disaster-kind-labels';
@@ -197,6 +198,9 @@ export class YnaNewsSource implements Source {
     const header = parsed.data.header;
     if (header.resultCode && header.resultCode !== '00') {
       logger.warn({ header }, 'YNA news response error');
+      if (header.resultCode === '22') {
+        throw new NonRetryError('YNA news response error: resultCode=22');
+      }
       throw new Error('YNA news response error');
     }
 

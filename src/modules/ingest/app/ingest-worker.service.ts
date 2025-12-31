@@ -8,6 +8,7 @@ import type { EventSources } from '@/modules/events/domain/event.enums';
 import type { IEventWriterService } from '@/modules/events/domain/port/event-writer-service.interface';
 import { IngestDeps } from '../domain/dep/ingest.dep';
 import type { IngestJobPayload } from '../domain/dto/ingest-job.dto';
+import { NonRetryError } from '../domain/ingest.errors';
 import type { IIngestCheckpointRepository } from '../domain/port/ingest-checkpoint-repo.interface';
 import type { SourceEvent } from '../domain/port/source.interface';
 import type { SourceRegistry } from './source.registry';
@@ -83,6 +84,12 @@ export class IngestWorkerService {
       }
 
       logger.debug({ sourceId, jobId: job.id, eventCount: events.length }, 'Completed ingest job');
+    } catch (error) {
+      if (error instanceof NonRetryError) {
+        logger.warn({ error, sourceId, jobId: job.id }, 'Skipping non-retryable ingest error');
+      } else {
+        throw error;
+      }
     } finally {
       this.runningSourceIds.delete(sourceId);
     }
