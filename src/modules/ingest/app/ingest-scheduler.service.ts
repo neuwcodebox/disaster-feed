@@ -17,7 +17,7 @@ export class IngestSchedulerService {
     private readonly sourceRegistry: SourceRegistry,
   ) {}
 
-  public async scheduleRepeatableJobs(): Promise<void> {
+  public async scheduleJobs(): Promise<void> {
     const sources = this.sourceRegistry.list();
     logger.debug({ sourceCount: sources.length }, 'Scheduling ingest jobs');
     for (const source of sources) {
@@ -41,19 +41,21 @@ export class IngestSchedulerService {
     }
 
     const repeatEveryMs = source.pollIntervalSec * 1000;
-    const jobId = `${INGEST_JOB_NAME}:${source.sourceId}`;
+    const schedulerId = `${INGEST_JOB_NAME}:${source.sourceId}`;
 
-    logger.debug({ sourceId: source.sourceId, jobId }, 'Registering ingest job');
-    await this.queue.add(
-      INGEST_JOB_NAME,
-      { sourceId: source.sourceId },
+    logger.debug({ sourceId: source.sourceId, schedulerId }, 'Registering ingest scheduler');
+    await this.queue.upsertJobScheduler(
+      schedulerId,
+      { every: repeatEveryMs },
       {
-        jobId,
-        repeat: { every: repeatEveryMs },
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: true,
-        removeOnFail: false,
+        name: INGEST_JOB_NAME,
+        data: { sourceId: source.sourceId },
+        opts: {
+          attempts: 2,
+          backoff: { type: 'exponential', delay: 4000 },
+          removeOnComplete: true,
+          removeOnFail: true,
+        },
       },
     );
 

@@ -36,7 +36,7 @@ export async function startIngest(dep: DependencyContainer): Promise<void> {
   const worker = dep.get<IngestWorkerService>(IngestDeps.IngestWorkerService);
 
   try {
-    await scheduler.scheduleRepeatableJobs();
+    await scheduler.scheduleJobs();
   } catch (error) {
     logger.error({ error }, 'Failed to schedule ingest jobs');
   }

@@ -14,7 +14,7 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
 
 ## 3. 데이터 흐름(요약)
 
-1) BullMQ repeatable job으로 소스별 폴링 잡을 주기 실행
+1) BullMQ Job Scheduler로 소스별 폴링 잡을 주기 실행
 2) 잡 실행 시 해당 소스 클래스가:
    - 원본 fetch
    - 이벤트로 정형화
@@ -75,6 +75,7 @@ create table if not exists ingest_checkpoints (
 - queue: "ingest"
 - job: "poll-source"
 - payload: { sourceId: number }
+- 스케줄 등록: Job Scheduler(upsertJobScheduler)
 - 재시도/백오프는 무난한 수준으로만(에이전트가 합리적으로 선택)
 
 ## 7. Redis Pub/Sub
