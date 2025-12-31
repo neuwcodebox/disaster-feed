@@ -26,20 +26,27 @@ const schemaYnaNewsItem = z.object({
   YNA_NO: z.coerce.number().int(),
 });
 
-const schemaYnaNewsResponse = z.object({
+const schemaYnaNewsRawResponse = z.object({
   header: z.object({
     resultMsg: z.string().nullable().optional(),
     resultCode: z.string().nullable().optional(),
     errorMsg: z.string().nullable().optional(),
   }),
-  numOfRows: z.coerce.number().int().nonnegative(),
-  pageNo: z.coerce.number().int().nonnegative(),
-  totalCount: z.coerce.number().int().nonnegative(),
-  body: z.array(schemaYnaNewsItem).optional().default([]),
+  numOfRows: z.coerce.number().int().nonnegative().optional(),
+  pageNo: z.coerce.number().int().nonnegative().optional(),
+  totalCount: z.coerce.number().int().nonnegative().optional(),
+  body: z.array(schemaYnaNewsItem).nullable().optional(),
 });
 
 type YnaNewsItem = z.infer<typeof schemaYnaNewsItem>;
-type YnaNewsResponse = z.infer<typeof schemaYnaNewsResponse>;
+type YnaNewsRawResponse = z.infer<typeof schemaYnaNewsRawResponse>;
+type YnaNewsResponse = {
+  header: YnaNewsRawResponse['header'];
+  numOfRows: number;
+  pageNo: number;
+  totalCount: number;
+  body: YnaNewsItem[];
+};
 
 type YnaNewsState = {
   seen: Record<string, string>;
@@ -181,7 +188,7 @@ export class YnaNewsSource implements Source {
     }
 
     const data = await response.json();
-    const parsed = schemaYnaNewsResponse.safeParse(data);
+    const parsed = schemaYnaNewsRawResponse.safeParse(data);
     if (!parsed.success) {
       logger.warn({ error: parsed.error }, 'Failed to parse YNA news response');
       throw new Error('Failed to parse YNA news response');
@@ -193,7 +200,7 @@ export class YnaNewsSource implements Source {
       throw new Error('YNA news response error');
     }
 
-    return parsed.data;
+    return normalizeResponse(parsed.data);
   }
 
   private buildRequestUrl(serviceKey: string, inqDate: string, pageNo: number, numOfRows: number): string {
@@ -234,6 +241,16 @@ export class YnaNewsSource implements Source {
       occurredAt: normalizeText(item.YNA_YMD),
     };
   }
+}
+
+function normalizeResponse(raw: YnaNewsRawResponse): YnaNewsResponse {
+  return {
+    header: raw.header,
+    numOfRows: raw.numOfRows ?? 0,
+    pageNo: raw.pageNo ?? 0,
+    totalCount: raw.totalCount ?? 0,
+    body: raw.body ?? [],
+  };
 }
 
 function parseState(state: string | null): YnaNewsState {
