@@ -20,6 +20,7 @@ export class IngestSchedulerService {
   public async scheduleJobs(): Promise<void> {
     const sources = this.sourceRegistry.list();
     logger.debug({ sourceCount: sources.length }, 'Scheduling ingest jobs');
+    await this.removeLegacyRepeatableJobs();
     for (const source of sources) {
       await this.scheduleSource(source);
     }
@@ -60,5 +61,26 @@ export class IngestSchedulerService {
     );
 
     logger.info({ sourceId: source.sourceId, everyMs: repeatEveryMs }, 'Scheduled ingest job');
+  }
+
+  private async removeLegacyRepeatableJobs(): Promise<void> {
+    const repeatableJobs = await this.queue.getRepeatableJobs();
+    const legacyJobs = repeatableJobs.filter((job) => job.name === INGEST_JOB_NAME);
+    if (legacyJobs.length === 0) {
+      logger.debug('No legacy repeatable jobs to remove');
+      return;
+    }
+
+    let removedCount = 0;
+    for (const job of legacyJobs) {
+      const removed = await this.queue.removeRepeatableByKey(job.key);
+      if (removed) {
+        removedCount += 1;
+      } else {
+        logger.warn({ jobKey: job.key }, 'Failed to remove legacy repeatable job');
+      }
+    }
+
+    logger.info({ removedCount }, 'Removed legacy repeatable jobs');
   }
 }
