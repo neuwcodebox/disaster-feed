@@ -19,7 +19,6 @@ export const schemaEvent = z.object({
   geo: schemaGeo.nullable(),
   regionCodes: z.array(schemaRegionCode).nullable(),
   level: z.number().int(),
-  payload: z.record(z.string(), z.unknown()).nullable(),
 });
 
 export type EventDto = z.infer<typeof schemaEvent>;

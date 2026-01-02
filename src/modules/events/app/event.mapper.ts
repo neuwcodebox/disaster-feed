@@ -14,6 +14,5 @@ export function toEventDto(event: Event): EventDto {
     geo: event.geo ?? null,
     regionCodes: event.regionCodes ?? null,
     level: event.level,
-    payload: event.payload ?? null,
   };
 }
