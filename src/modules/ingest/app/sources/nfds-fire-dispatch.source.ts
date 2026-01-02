@@ -14,12 +14,6 @@ const STATE_TTL_MS = 1000 * 60 * 60 * 6;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
-const schemaFireDispatchMapItem = z.object({
-  sidoOvrNum: z.string().describe('예: "ZZ4120786230"'),
-  lawSidoCd: z.string().describe('예: "41"'),
-  lawGunguCd: z.string().describe('예: "273"'),
-});
-
 const schemaFireDispatchDetailItem = z.object({
   sidoOvrNum: z.string().describe('예: "ZZ1147349386"'),
   progressStat: z.string().describe('예: "A"'),
@@ -42,21 +36,14 @@ const schemaFireDispatchDetailItem = z.object({
 });
 
 const schemaFireDispatchResponse = z.object({
-  map: z.array(schemaFireDispatchMapItem).optional().default([]),
   defail: z.array(schemaFireDispatchDetailItem).optional().default([]),
   nowDate: z.string().optional().describe('예: "2025-12-26 11:11:31"'),
 });
 
-type FireDispatchMapItem = z.infer<typeof schemaFireDispatchMapItem>;
 type FireDispatchDetailItem = z.infer<typeof schemaFireDispatchDetailItem>;
 
 type FireDispatchState = {
   seen: Record<string, string>;
-};
-
-type MapCodes = {
-  lawSidoCd: string;
-  lawGunguCd: string;
 };
 
 export class NfdsFireDispatchSource implements Source {
@@ -84,7 +71,6 @@ export class NfdsFireDispatchSource implements Source {
       throw new Error('Failed to parse NFDS fire dispatch response');
     }
 
-    const mapIndex = buildMapIndex(parsed.data.map);
     const rawNowDate = parsed.data.nowDate ?? null;
     const nowDate = parseNowDate(rawNowDate);
     const nowMs = nowDate ? nowDate.getTime() : Date.now();
@@ -103,11 +89,10 @@ export class NfdsFireDispatchSource implements Source {
       const key = buildUniqueKey(item);
       const lastSeen = seen.get(key);
       if (shouldEmitEvent(lastSeen, nowMs, STATE_TTL_MS)) {
-        const mapCodes = mapIndex.get(item.sidoOvrNum) ?? null;
         const isFirstIncident = !hasSeenIncident(seen, item.sidoOvrNum);
         const isProgressNotable = isNotableProgress(item.progressStat);
         if (isFirstIncident && isProgressNotable) {
-          events.push(buildEvent(item, mapCodes, occurredAt, rawNowDate));
+          events.push(buildEvent(item, occurredAt, rawNowDate));
         }
       }
       seen.set(key, nowIso);
@@ -122,12 +107,12 @@ export class NfdsFireDispatchSource implements Source {
 
 const buildEvent = (
   item: FireDispatchDetailItem,
-  mapCodes: MapCodes | null,
   occurredAt: string | null,
   rawNowDate: string | null,
 ): SourceEvent => {
   const title = buildTitle(item.cntrNm, item.sidoNm, item.progressNm, item.frfalTypeCd);
   const regionText = buildRegionText(item.addr, item.sidoNm);
+  const regionCodes = buildRegionCodes(item);
 
   return {
     kind: EventKinds.Fire,
@@ -135,8 +120,9 @@ const buildEvent = (
     body: buildBody(item, regionText),
     occurredAt,
     regionText,
+    regionCodes,
     level: EventLevels.Info,
-    payload: buildPayload(item, mapCodes, rawNowDate),
+    payload: buildPayload(item, rawNowDate),
   };
 };
 
@@ -221,13 +207,7 @@ const formatCasualties = (deaths: number | null, injuries: number | null): strin
   return parts.join(', ');
 };
 
-const buildPayload = (
-  item: FireDispatchDetailItem,
-  mapCodes: MapCodes | null,
-  rawNowDate: string | null,
-): EventPayload => {
-  const { lawSidoCd, lawGunguCd } = resolveLawCodes(item, mapCodes);
-
+const buildPayload = (item: FireDispatchDetailItem, rawNowDate: string | null): EventPayload => {
   return {
     sidoOvrNum: item.sidoOvrNum,
     investNo: normalizeText(item.investNo),
@@ -243,27 +223,33 @@ const buildPayload = (
     dethNum: normalizeNumber(item.dethNum),
     injuNum: normalizeNumber(item.injuNum),
     expMount: normalizeText(item.expMount),
-    lawSidoCd,
-    lawGunguCd,
+    lawSidoCd: normalizeText(item.lawSidoCd),
+    lawGunguCd: normalizeText(item.lawGunguCd),
     lawDongCd: normalizeText(item.lawDongCd),
     lawRiCd: normalizeText(item.lawRiCd),
     nowDate: rawNowDate,
   };
 };
 
-const resolveLawCodes = (
-  item: FireDispatchDetailItem,
-  mapCodes: MapCodes | null,
-): { lawSidoCd: string | null; lawGunguCd: string | null } => {
-  const detailSido = normalizeText(item.lawSidoCd);
-  const detailGungu = normalizeText(item.lawGunguCd);
-  const mapSido = mapCodes ? normalizeText(mapCodes.lawSidoCd) : null;
-  const mapGungu = mapCodes ? normalizeText(mapCodes.lawGunguCd) : null;
+const buildRegionCodes = (item: FireDispatchDetailItem): string[] | null => {
+  const lawSidoCd = normalizeLawCodePart(item.lawSidoCd, 2);
+  const lawGunguCd = normalizeLawCodePart(item.lawGunguCd, 3);
+  const lawDongCd = normalizeLawCodePart(item.lawDongCd, 3);
+  const lawRiCd = normalizeLawCodePart(item.lawRiCd, 2);
 
-  return {
-    lawSidoCd: detailSido ?? mapSido,
-    lawGunguCd: detailGungu ?? mapGungu,
-  };
+  if (!lawSidoCd || !lawGunguCd || !lawDongCd || !lawRiCd) {
+    return null;
+  }
+
+  return [`${lawSidoCd}${lawGunguCd}${lawDongCd}${lawRiCd}`];
+};
+
+const normalizeLawCodePart = (value: string | null | undefined, length: number): string | null => {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return null;
+  }
+  return normalized.padStart(length, '0');
 };
 
 const buildRegionText = (addr: string, sidoNm: string): string | null => {
@@ -301,23 +287,6 @@ const hasSeenIncident = (seen: Map<string, string>, sidoOvrNum: string): boolean
   }
 
   return false;
-};
-
-const buildMapIndex = (items: FireDispatchMapItem[]): Map<string, MapCodes> => {
-  const index = new Map<string, MapCodes>();
-
-  for (const item of items) {
-    const key = item.sidoOvrNum.trim();
-    if (!key) {
-      continue;
-    }
-    index.set(key, {
-      lawSidoCd: item.lawSidoCd.trim(),
-      lawGunguCd: item.lawGunguCd.trim(),
-    });
-  }
-
-  return index;
 };
 
 const parseNowDate = (value: string | null): Date | null => {
