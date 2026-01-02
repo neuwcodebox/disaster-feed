@@ -17,7 +17,7 @@ export type Event = {
   occurredAt: string | null;
   regionText: string | null;
   geo: EventGeo | null;
-  region: string | null;
+  regionCodes: string[] | null;
   level: EventLevels;
   payload: EventPayload | null;
 };
@@ -32,7 +32,7 @@ export type NewEvent = {
   occurredAt?: string | null;
   regionText?: string | null;
   geo?: EventGeo | null;
-  region?: string | null;
+  regionCodes?: string[] | null;
   level: EventLevels;
   payload?: EventPayload | null;
 };

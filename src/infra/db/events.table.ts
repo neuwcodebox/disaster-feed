@@ -11,7 +11,7 @@ export interface EventsTable {
   region_text: string | null;
   geo_lat: number | null;
   geo_lng: number | null;
-  region: string | null;
+  region_codes: string[] | null;
   level: number;
   payload: Record<string, unknown> | null;
 }

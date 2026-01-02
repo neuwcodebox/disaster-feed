@@ -126,7 +126,7 @@ function toEventRow(data: NewEvent): NewEventRow {
     region_text: data.regionText ?? null,
     geo_lat: data.geo?.lat ?? null,
     geo_lng: data.geo?.lng ?? null,
-    region: data.region ?? null,
+    region_codes: data.regionCodes ?? null,
     level: data.level,
     payload: data.payload ?? null,
   };
@@ -153,7 +153,7 @@ function toEvent(row: EventRow): Event {
     occurredAt: normalizeTimestamp(row.occurred_at),
     regionText: row.region_text ?? null,
     geo: toGeo(row.geo_lat, row.geo_lng),
-    region: row.region ?? null,
+    regionCodes: row.region_codes ?? null,
     level: row.level,
     payload: row.payload ?? null,
   };

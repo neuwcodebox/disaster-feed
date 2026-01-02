@@ -100,7 +100,7 @@ const buildWarningEvent = (
     body: buildBody(group.zones),
     occurredAt: group.issuedAt,
     regionText,
-    region: regionCode,
+    regionCodes: regionCode ? [regionCode] : null,
     level: mapWarningLevel(group.level),
     payload: buildPayload(group),
   };

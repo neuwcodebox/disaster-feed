@@ -35,7 +35,7 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
 - occurred_at?: timestamptz
 - region_text?: text
 - geo?: { lat: number; lng: number }
-- region?: string(10)
+- region_codes?: string(10)[]
 - level: number
 - payload?: jsonb
 
@@ -59,7 +59,7 @@ create table if not exists events (
   region_text  text null,
   geo_lat      double precision null,
   geo_lng      double precision null,
-  region       varchar(10) null,
+  region_codes varchar(10)[] null,
   level        smallint not null,
   payload      jsonb null
 );

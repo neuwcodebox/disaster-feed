@@ -5,7 +5,7 @@ const schemaGeo = z.object({
   lng: z.number(),
 });
 
-const schemaRegion = z.string().regex(/^\d{10}$/);
+const schemaRegionCode = z.string().regex(/^\d{10}$/);
 
 export const schemaEvent = z.object({
   id: z.string(),
@@ -17,7 +17,7 @@ export const schemaEvent = z.object({
   occurredAt: z.string().nullable(),
   regionText: z.string().nullable(),
   geo: schemaGeo.nullable(),
-  region: schemaRegion.nullable(),
+  regionCodes: z.array(schemaRegionCode).nullable(),
   level: z.number().int(),
   payload: z.record(z.string(), z.unknown()).nullable(),
 });

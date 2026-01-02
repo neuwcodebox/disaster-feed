@@ -27,6 +27,7 @@
 - [x] events 스키마 본문/level 타입 변경 및 enum 정리
 - [x] events 테이블 link 컬럼 제거
 - [x] 이벤트 모델 geo/region 필드 추가
+- [x] events region -> region_codes 배열 전환
 
 ## 3. SSE(멀티 인스턴스 포함)
 
