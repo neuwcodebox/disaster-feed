@@ -25,6 +25,7 @@
 - [x] GET /events 구현(최신 목록, limit/kind/source 정도)
 - [x] events 스키마 본문/level 타입 변경 및 enum 정리
 - [x] events 테이블 link 컬럼 제거
+- [x] 이벤트 모델 geo/region 필드 추가
 
 ## 3. SSE(멀티 인스턴스 포함)
 

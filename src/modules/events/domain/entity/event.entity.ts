@@ -2,6 +2,11 @@ import type { EventKinds, EventLevels, EventSources } from '../event.enums';
 
 export type EventPayload = Record<string, unknown>;
 
+export type EventGeo = {
+  lat: number;
+  lng: number;
+};
+
 export type Event = {
   id: string;
   source: EventSources;
@@ -11,6 +16,8 @@ export type Event = {
   fetchedAt: string;
   occurredAt: string | null;
   regionText: string | null;
+  geo: EventGeo | null;
+  region: string | null;
   level: EventLevels;
   payload: EventPayload | null;
 };
@@ -24,6 +31,8 @@ export type NewEvent = {
   fetchedAt: string;
   occurredAt?: string | null;
   regionText?: string | null;
+  geo?: EventGeo | null;
+  region?: string | null;
   level: EventLevels;
   payload?: EventPayload | null;
 };

@@ -3,7 +3,7 @@ import type { Kysely } from 'kysely';
 import { DbDeps } from '@/infra/db/db.dep';
 import type { DatabaseScheme } from '@/infra/db/db-scheme';
 import type { EventRow, NewEventRow } from '@/infra/db/events.table';
-import type { Event, NewEvent } from '../domain/entity/event.entity';
+import type { Event, EventGeo, NewEvent } from '../domain/entity/event.entity';
 import type { EventSources } from '../domain/event.enums';
 import type {
   IEventRepository,
@@ -124,6 +124,9 @@ function toEventRow(data: NewEvent): NewEventRow {
     fetched_at: data.fetchedAt,
     occurred_at: data.occurredAt ?? null,
     region_text: data.regionText ?? null,
+    geo_lat: data.geo?.lat ?? null,
+    geo_lng: data.geo?.lng ?? null,
+    region: data.region ?? null,
     level: data.level,
     payload: data.payload ?? null,
   };
@@ -149,7 +152,16 @@ function toEvent(row: EventRow): Event {
     fetchedAt: normalizeTimestamp(row.fetched_at) ?? row.fetched_at,
     occurredAt: normalizeTimestamp(row.occurred_at),
     regionText: row.region_text ?? null,
+    geo: toGeo(row.geo_lat, row.geo_lng),
+    region: row.region ?? null,
     level: row.level,
     payload: row.payload ?? null,
   };
+}
+
+function toGeo(lat: number | null, lng: number | null): EventGeo | null {
+  if (lat === null || lng === null) {
+    return null;
+  }
+  return { lat, lng };
 }

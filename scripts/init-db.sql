@@ -7,6 +7,9 @@ CREATE TABLE IF NOT EXISTS events (
   fetched_at TIMESTAMPTZ NOT NULL,
   occurred_at TIMESTAMPTZ NULL,
   region_text TEXT NULL,
+  geo_lat DOUBLE PRECISION NULL,
+  geo_lng DOUBLE PRECISION NULL,
+  region VARCHAR(10) NULL,
   level SMALLINT NOT NULL,
   payload JSONB NULL
 );

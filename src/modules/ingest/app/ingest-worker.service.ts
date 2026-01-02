@@ -106,6 +106,8 @@ export class IngestWorkerService {
         fetchedAt,
         occurredAt: event.occurredAt ?? null,
         regionText: event.regionText ?? null,
+        geo: event.geo ?? null,
+        region: event.region ?? null,
         level: event.level,
         payload: event.payload ?? null,
       });

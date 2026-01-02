@@ -11,6 +11,8 @@ export function toEventDto(event: Event): EventDto {
     fetchedAt: event.fetchedAt,
     occurredAt: event.occurredAt,
     regionText: event.regionText,
+    geo: event.geo ?? null,
+    region: event.region ?? null,
     level: event.level,
     payload: event.payload ?? null,
   };

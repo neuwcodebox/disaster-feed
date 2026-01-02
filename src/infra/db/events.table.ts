@@ -9,6 +9,9 @@ export interface EventsTable {
   fetched_at: string;
   occurred_at: string | null;
   region_text: string | null;
+  geo_lat: number | null;
+  geo_lng: number | null;
+  region: string | null;
   level: number;
   payload: Record<string, unknown> | null;
 }
