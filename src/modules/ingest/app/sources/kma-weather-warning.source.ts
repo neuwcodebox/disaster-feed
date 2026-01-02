@@ -29,11 +29,11 @@ const WARNING_KIND_BY_NAME: Record<string, EventKinds> = {
 };
 
 const WARNING_LEVEL_BY_NAME: Record<string, EventLevels> = {
-  예비: EventLevels.Minor,
-  예비특보: EventLevels.Minor,
-  주의: EventLevels.Moderate,
-  주의보: EventLevels.Moderate,
-  경보: EventLevels.Severe,
+  예비: EventLevels.Info,
+  예비특보: EventLevels.Info,
+  주의: EventLevels.Minor,
+  주의보: EventLevels.Minor,
+  경보: EventLevels.Moderate,
 };
 
 type WarningRow = {
