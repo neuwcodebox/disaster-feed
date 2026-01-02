@@ -15,8 +15,8 @@ const resolveMigrationFolder = (): string => {
   }
 
   const candidates = [
-    path.join(process.cwd(), 'dist/infra/db/migrations'),
     path.join(process.cwd(), 'src/infra/db/migrations'),
+    path.join(process.cwd(), 'dist/infra/db/migrations'),
   ];
 
   for (const candidate of candidates) {
@@ -59,7 +59,7 @@ export const runDbMigrations = async (db: Kysely<DatabaseScheme>): Promise<void>
   }
 
   if (error) {
-    logger.error({ error }, 'DB migration failed');
+    logger.error(error, 'DB migration failed');
     throw error;
   }
 

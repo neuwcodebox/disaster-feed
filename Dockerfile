@@ -27,6 +27,7 @@ RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/scripts ./scripts
+COPY --from=builder /usr/src/app/data ./data
 
 # Start the app
 ENTRYPOINT [ "node", "dist/index.js" ]

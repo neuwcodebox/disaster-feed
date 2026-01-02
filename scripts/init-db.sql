@@ -23,3 +23,13 @@ CREATE TABLE IF NOT EXISTS ingest_checkpoints (
   state TEXT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE TABLE IF NOT EXISTS regions (
+  code VARCHAR(10) PRIMARY KEY,
+  name TEXT NOT NULL,
+  abolished BOOLEAN NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_regions_name_trgm ON regions USING GIN (name gin_trgm_ops);
