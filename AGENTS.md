@@ -15,7 +15,7 @@ HTTP API 및 SSE로 최신 이벤트 목록을 제공한다.
 1. 요청 사항 및 AGENTS.md, SPEC.md, TODO.md 검토
 2. 필요한 새 하위 작업들을 TODO.md에 추가
 3. 요청에 맞는 작업 수행
-4. 타입/린트 오류 검사 및 수정
+4. 타입/린트 오류 검사 및 수정 (npx tsc --noEmit, npm run lint:fix)
 5. 작업 완료 후 TODO.md 체크 업데이트
 6. 필요한 경우 AGENTS.md, SPEC.md 업데이트
 7. 결과 보고 및 커밋 메시지 추천
