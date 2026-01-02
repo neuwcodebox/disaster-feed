@@ -4,6 +4,16 @@ on:
   push:
     branches:
       - main
+    paths:
+      - .github/workflows/deploy.yml
+      - Dockerfile
+      - .dockerignore
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+      - src/**
+      - scripts/**
+      - data/**
 
 jobs:
   build-and-push:
