@@ -99,12 +99,15 @@ export class UticTrafficIncidentSource implements Source {
 }
 
 const buildEvent = (item: IncidentItem, grade: IncidentGrade): SourceEvent => {
+  const geo = resolveGeo(item);
+
   return {
     kind: mapIncidentKind(item.label),
     title: item.title,
     body: item.body,
     occurredAt: item.occurredAt,
     regionText: null,
+    geo,
     level: mapGradeLevel(grade),
     payload: buildPayload(item, grade),
   };
@@ -135,6 +138,26 @@ const buildPayload = (item: IncidentItem, grade: IncidentGrade): EventPayload =>
     label: item.label,
     rawDateText: item.rawDateText,
   };
+};
+
+const parseCoordinate = (value: string | null): number | null => {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const resolveGeo = (item: IncidentItem): { lat: number; lng: number } | null => {
+  const lng = parseCoordinate(item.coordX);
+  const lat = parseCoordinate(item.coordY);
+
+  if (lng === null || lat === null) {
+    return null;
+  }
+
+  return { lat, lng };
 };
 
 const parseIncidentItems = (html: string): IncidentItem[] => {
