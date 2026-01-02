@@ -144,6 +144,7 @@ const buildEvent = (
 ): SourceEvent => {
   const regionText = normalizeText(item.frfr_sttmn_addr);
   const title = buildTitle(regionText, progressLabel, stepLabel);
+  const geo = resolveGeo(item);
 
   return {
     kind: EventKinds.Wildfire,
@@ -151,6 +152,7 @@ const buildEvent = (
     body: buildBody(item, regionText, progressLabel, stepLabel),
     occurredAt,
     regionText,
+    geo,
     level,
     payload: buildPayload(item, progressLabel, progressStatus, stepLabel),
   };
@@ -328,6 +330,17 @@ const parseCoordinate = (value: string | null | undefined): number | null => {
 
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+};
+
+const resolveGeo = (item: ForestFireItem): { lat: number; lng: number } | null => {
+  const lng = parseCoordinate(item.frfr_lctn_xcrd);
+  const lat = parseCoordinate(item.frfr_lctn_ycrd);
+
+  if (lng === null || lat === null) {
+    return null;
+  }
+
+  return { lat, lng };
 };
 
 const parseKstDateTime = (value: string | null | undefined): string | null => {
