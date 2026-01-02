@@ -1,3 +1,4 @@
+import type { IRegionRepository } from '../domain/port/region-repo.interface';
 import type { Source } from '../domain/port/source.interface';
 import type { LlmLabelClassifierService } from './llm-label-classifier.service';
 import { AirkoreaO3WarningSource } from './sources/airkorea-o3-warning.source';
@@ -11,7 +12,10 @@ import { NfdsFireDispatchSource } from './sources/nfds-fire-dispatch.source';
 import { UticTrafficIncidentSource } from './sources/utic-traffic-incident.source';
 import { YnaNewsSource } from './sources/yna-news.source';
 
-export function buildSourceList(llmLabelClassifier: LlmLabelClassifierService): Source[] {
+export function buildSourceList(
+  llmLabelClassifier: LlmLabelClassifierService,
+  regionRepository: IRegionRepository,
+): Source[] {
   return [
     new DisasterSmsSource(llmLabelClassifier),
     new KmaWeatherWarningSource(),
@@ -21,7 +25,7 @@ export function buildSourceList(llmLabelClassifier: LlmLabelClassifierService): 
     new ForestFireInfoSource(),
     new UticTrafficIncidentSource(),
     new YnaNewsSource(llmLabelClassifier),
-    new AirkoreaPmWarningSource(),
-    new AirkoreaO3WarningSource(),
+    new AirkoreaPmWarningSource(regionRepository),
+    new AirkoreaO3WarningSource(regionRepository),
   ];
 }

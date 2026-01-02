@@ -3,11 +3,13 @@ import { z } from 'zod';
 import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
+import type { IRegionRepository } from '../../domain/port/region-repo.interface';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
 import { pruneTimedMap } from './_shared/prune-timed-map';
+import { resolveRegionCodeByPrefix } from './_shared/resolve-region-code';
 
 const AIRKOREA_PM_WARNING_ENDPOINT = 'https://www.airkorea.or.kr/web/pmWarning?pMENU_NO=115';
 const MAX_PAGE = 3;
@@ -41,6 +43,8 @@ type PmWarningState = {
 export class AirkoreaPmWarningSource implements Source {
   public readonly sourceId = EventSources.AirkoreaPmWarning;
   public readonly pollIntervalSec = 60 * 5;
+
+  constructor(private readonly regionRepository: IRegionRepository) {}
 
   public async run(state: string | null): Promise<SourceRunResult> {
     const now = new Date();
@@ -95,6 +99,7 @@ export class AirkoreaPmWarningSource implements Source {
     const groups = groupWarningRows(rows);
     const previousState = parseState(state);
     const seen = new Map<string, string>(Object.entries(previousState.seen));
+    const regionCodeCache = new Map<string, string | null>();
 
     const events: SourceEvent[] = [];
     for (const group of groups) {
@@ -104,7 +109,9 @@ export class AirkoreaPmWarningSource implements Source {
 
       const key = buildGroupKey(group.region, group.item, group.level, group.issuedAtRaw);
       if (!seen.has(key)) {
-        events.push(buildWarningEvent(group));
+        const regionText = normalizeText(group.region);
+        const regionCode = await resolveRegionCodeByPrefix(regionText, this.regionRepository, regionCodeCache);
+        events.push(buildWarningEvent(group, regionText, regionCode));
       }
       seen.set(key, nowIso);
     }
@@ -116,13 +123,18 @@ export class AirkoreaPmWarningSource implements Source {
   }
 }
 
-const buildWarningEvent = (group: PmWarningGroup): SourceEvent => {
+const buildWarningEvent = (
+  group: PmWarningGroup,
+  regionText: string | null,
+  regionCode: string | null,
+): SourceEvent => {
   return {
     kind: EventKinds.FineDust,
     title: buildTitle(group.region, group.item, group.level),
     body: buildBody(group.zones),
     occurredAt: group.issuedAt,
-    regionText: normalizeText(group.region),
+    regionText,
+    region: regionCode,
     level: mapWarningLevel(group.level),
     payload: buildPayload(group),
   };
