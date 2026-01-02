@@ -403,6 +403,7 @@ const buildEarthquakeEvent = (
   const phaseLabel = phase === 2 ? '지진 신속정보' : '지진 상세정보';
   const title = buildTitle(phaseLabel, info);
   const body = buildBody(phaseLabel, info);
+  const geo = resolveGeo(info);
 
   return {
     kind: EventKinds.Quake,
@@ -410,6 +411,7 @@ const buildEarthquakeEvent = (
     body,
     occurredAt: info.occurredAt,
     regionText: info.infoText ?? (info.maxAreas.length > 0 ? info.maxAreas.join(', ') : null),
+    geo,
     level: mapIntensityToLevel(info.intensity, phase, info.eqkId, previousPhase, previousEqkId),
     payload: buildPayload(phase, info, binTimeStr),
   };
@@ -479,6 +481,14 @@ const buildPayload = (phase: number, info: ParsedEarthquakeInfo, binTimeStr: str
     occurredAt: info.occurredAt,
     rawUnixTime: info.rawUnixTime,
   };
+};
+
+const resolveGeo = (info: ParsedEarthquakeInfo): { lat: number; lng: number } | null => {
+  if (info.latitude === null || info.longitude === null) {
+    return null;
+  }
+
+  return { lat: info.latitude, lng: info.longitude };
 };
 
 const formatMagnitude = (value: number): string => {
