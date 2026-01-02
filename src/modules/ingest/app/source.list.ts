@@ -17,7 +17,7 @@ export function buildSourceList(
   regionRepository: IRegionRepository,
 ): Source[] {
   return [
-    new DisasterSmsSource(llmLabelClassifier),
+    new DisasterSmsSource(llmLabelClassifier, regionRepository),
     new KmaWeatherWarningSource(),
     new KmaMicroEarthquakeSource(),
     new KmaPewsEarthquakeSource(),

@@ -27,4 +27,21 @@ export class RegionRepository implements IRegionRepository {
 
     return row?.code ?? null;
   }
+
+  public async findCodeByNamePostfix(namePostfix: string): Promise<string | null> {
+    if (!namePostfix) {
+      return null;
+    }
+
+    const row = await this.db
+      .selectFrom('regions')
+      .select('code')
+      .where('name', 'like', `%${namePostfix}`)
+      .where('abolished', '=', false)
+      .orderBy('code', 'asc')
+      .limit(1)
+      .executeTakeFirst();
+
+    return row?.code ?? null;
+  }
 }

@@ -2,10 +2,13 @@ import { z } from 'zod';
 import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
+import type { IRegionRepository } from '../../domain/port/region-repo.interface';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import type { LlmLabelClassifierService } from '../llm-label-classifier.service';
 import { DISASTER_KIND_BY_NAME, DISASTER_KIND_LABELS } from './_shared/disaster-kind-labels';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
+import { normalizeText } from './_shared/normalize';
+import { resolveRegionCodeByPrefix } from './_shared/resolve-region-code';
 
 const DISASTER_SMS_ENDPOINT = 'https://www.safekorea.go.kr/idsiSFK/sfk/cs/sua/web/DisasterSmsList.do';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -34,7 +37,10 @@ export class DisasterSmsSource implements Source {
   public readonly sourceId = EventSources.SafekoreaSms;
   public readonly pollIntervalSec = 60;
 
-  constructor(private readonly labelClassifier: LlmLabelClassifierService) {}
+  constructor(
+    private readonly labelClassifier: LlmLabelClassifierService,
+    private readonly regionRepository: IRegionRepository,
+  ) {}
 
   public async run(state: string | null): Promise<SourceRunResult> {
     const { startDate, endDate } = getKstDateRange(1);
@@ -68,11 +74,14 @@ export class DisasterSmsSource implements Source {
     const items = filterNewItems(parsed.data.disasterSmsList, lastSeenSerial);
     const nextState = getNextSerialState(items, lastSeenSerial);
     const resolvedKinds = await resolveDisasterKinds(items, this.labelClassifier);
+    const regionCodeCache = new Map<string, string | null>();
 
     const events: SourceEvent[] = [];
     for (const item of items) {
       const resolvedKind = resolvedKinds.get(item.MD101_SN) ?? EventKinds.Other;
-      events.push(toSourceEvent(item, resolvedKind));
+      const regionText = normalizeRegionText(item.RCV_AREA_NM);
+      const regionCodes = await resolveRegionCodes(regionText, this.regionRepository, regionCodeCache);
+      events.push(toSourceEvent(item, resolvedKind, regionText, regionCodes));
     }
 
     return {
@@ -82,17 +91,22 @@ export class DisasterSmsSource implements Source {
   }
 }
 
-function toSourceEvent(item: DisasterSmsItem, resolvedKind: EventKinds): SourceEvent {
-  const region = item.RCV_AREA_NM.replace(/\s*,\s*/g, ', ').trim();
+function toSourceEvent(
+  item: DisasterSmsItem,
+  resolvedKind: EventKinds,
+  regionText: string | null,
+  regionCodes: string[] | null,
+): SourceEvent {
   const sender = extractSenderName(item.MSG_CN);
-  const titlePrefix = sender ?? pickRegionPrefix(region) ?? '';
+  const titlePrefix = sender ?? pickRegionPrefix(regionText ?? '') ?? '';
   const disasterLabel = item.DSSTR_SE_NM.trim() || '기타';
   return {
     kind: resolvedKind,
     title: `${titlePrefix} ${disasterLabel} ${item.EMRGNCY_STEP_NM}`.trim(),
     body: item.MSG_CN.trim(),
     occurredAt: parseKstDateTime(item.CREAT_DT),
-    regionText: region || null,
+    regionText,
+    regionCodes,
     level: mapEmergencyLevel(item.EMRGNCY_STEP_NM),
     payload: buildPayload(item),
   };
@@ -167,6 +181,60 @@ const pickRegionPrefix = (region: string): string | null => {
   const [first] = trimmed.split(/\s+/);
   return first ?? null;
 };
+
+function normalizeRegionText(value: string): string | null {
+  const normalized = normalizeText(value.replace(/\s*,\s*/g, ', '));
+  return normalized ?? null;
+}
+
+async function resolveRegionCodes(
+  regionText: string | null,
+  regionRepository: IRegionRepository,
+  cache: Map<string, string | null>,
+): Promise<string[] | null> {
+  if (!regionText) {
+    return null;
+  }
+
+  const parts = regionText.split(',').map((part) => part.trim());
+  const regionCodes: string[] = [];
+  const seen = new Set<string>();
+
+  for (const part of parts) {
+    if (!part) {
+      continue;
+    }
+    if (part === '전국') {
+      if (!seen.has('0000000000')) {
+        seen.add('0000000000');
+        regionCodes.push('0000000000');
+      }
+      continue;
+    }
+
+    const searchText = normalizeRegionSearchText(part);
+    if (!searchText) {
+      continue;
+    }
+
+    const code = await resolveRegionCodeByPrefix(searchText, regionRepository, cache);
+    if (!code || seen.has(code)) {
+      continue;
+    }
+    seen.add(code);
+    regionCodes.push(code);
+  }
+
+  return regionCodes.length > 0 ? regionCodes : null;
+}
+
+function normalizeRegionSearchText(value: string): string | null {
+  if (value.endsWith(' 전체')) {
+    const trimmed = value.slice(0, -3).trimEnd();
+    return trimmed ?? null;
+  }
+  return value;
+}
 
 const buildPayload = (item: DisasterSmsItem): EventPayload => {
   return {

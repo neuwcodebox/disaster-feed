@@ -1,7 +1,6 @@
 import type { IRegionRepository } from '@/modules/ingest/domain/port/region-repo.interface';
-import { normalizeText } from './normalize';
 
-const REGION_PREFIX_ALIASES: Record<string, string> = {
+const REGION_ALIASES: Record<string, string> = {
   충북: '충청북도',
   충남: '충청남도',
   전북: '전라북도',
@@ -10,13 +9,13 @@ const REGION_PREFIX_ALIASES: Record<string, string> = {
   경남: '경상남도',
 };
 
-export const normalizeRegionNamePrefix = (regionText: string | null): string | null => {
-  const normalized = normalizeText(regionText);
+export const normalizeRegionName = (regionText: string | null): string | null => {
+  const normalized = regionText?.trim();
   if (!normalized) {
     return null;
   }
 
-  return REGION_PREFIX_ALIASES[normalized] ?? normalized;
+  return REGION_ALIASES[normalized] ?? normalized;
 };
 
 export const resolveRegionCodeByPrefix = async (
@@ -24,16 +23,22 @@ export const resolveRegionCodeByPrefix = async (
   regionRepository: IRegionRepository,
   cache: Map<string, string | null>,
 ): Promise<string | null> => {
-  const prefix = normalizeRegionNamePrefix(regionText);
-  if (!prefix) {
+  const regionName = normalizeRegionName(regionText);
+  if (!regionName) {
     return null;
   }
 
-  if (cache.has(prefix)) {
-    return cache.get(prefix) ?? null;
+  if (cache.has(regionName)) {
+    return cache.get(regionName) ?? null;
   }
 
-  const code = await regionRepository.findCodeByNamePrefix(prefix);
-  cache.set(prefix, code ?? null);
-  return code ?? null;
+  const prefixCode = await regionRepository.findCodeByNamePrefix(regionName);
+  if (prefixCode) {
+    cache.set(regionName, prefixCode);
+    return prefixCode;
+  }
+
+  const postfixCode = await regionRepository.findCodeByNamePostfix(regionName);
+  cache.set(regionName, postfixCode ?? null);
+  return postfixCode ?? null;
 };
