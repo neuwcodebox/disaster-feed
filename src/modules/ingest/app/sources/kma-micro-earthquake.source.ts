@@ -183,6 +183,9 @@ const stripBracket = (value: string): string => {
 
 const extractMicroEarthquakeText = (html: string): string | null => {
   const content = sanitizeHtmlFragment(html);
+  if (!content.includes('미소지진')) {
+    return null;
+  }
   return content.length > 0 ? content : null;
 };
 
