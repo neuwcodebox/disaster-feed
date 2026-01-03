@@ -20,6 +20,7 @@ export const DISASTER_KIND_BY_NAME: Record<string, EventKinds> = {
   수도: EventKinds.Water,
   안개: EventKinds.Fog,
   인파밀집: EventKinds.CrowdDensity,
+  사이버: EventKinds.Cyber,
   에너지: EventKinds.Energy,
   전염병: EventKinds.Epidemic,
   정전: EventKinds.Blackout,

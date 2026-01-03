@@ -42,6 +42,7 @@ export enum EventKinds {
   O3 = 36, // 오존
   CrowdDensity = 37, // 인파밀집
   WildAnimal = 38, // 야생동물 출현
+  Cyber = 39, // 사이버
 }
 
 export enum EventLevels {
@@ -63,4 +64,5 @@ export enum EventSources {
   AirkoreaO3Warning = 8,
   ForestFireInfo = 9,
   YnaNews = 10,
+  NcscCyberCrisis = 11,
 }

@@ -1,7 +1,6 @@
 # disaster-feed
 
-재난/안전 관련 여러 데이터 소스를 주기적으로 수집해 공통 형태의 "이벤트"로 정리하고,
-최신 정보를 API와 실시간 스트림(SSE)으로 제공하는 백엔드 서비스입니다.
+재난/안전 관련 여러 데이터 소스를 주기적으로 수집해 공통된 형태의 이벤트 스트림으로 제공하는 서비스입니다.
 
 ![Demo Screenshot](./docs/demo.png)
 
@@ -10,7 +9,7 @@
 - 다양한 소스에서 재난/안전 정보를 폴링 수집
 - 이벤트 형태로 정형화해 DB에 저장
 - 최신 이벤트 목록을 HTTP API로 제공
-- 실시간 UX를 위한 SSE 스트림 제공
+- 실시간 SSE 스트림 제공
 - AI 기반 분류
 
 ## 제공 데이터
@@ -24,11 +23,14 @@
 - [x] 기상 특보
 - [x] 대기질 (PM, O3)
 - [x] 교통 돌발정보
-- [ ] 산사태
+- [ ] 산사태경보
+- [x] 사이버위기경보
+- [ ] 테러경보
+- [ ] 산불경보
 - [x] 뉴스
 - [ ] SNS 이슈
 
-## 데이터 흐름(요약)
+## 데이터 흐름
 
 1) BullMQ 반복 잡으로 소스별 폴링
 2) 소스가 원본 fetch 후 이벤트로 정형화
@@ -41,26 +43,6 @@
 - Node.js / TypeScript
 - Hono, Kysely
 - Postgres, Redis, BullMQ
-
-## 로컬 실행
-
-1) Postgres/Redis 실행
-
-```bash
-docker-compose up -d
-```
-
-1) 앱 실행
-
-```bash
-npm install
-npm run dev
-```
-
-1) 주요 엔드포인트
-
-- GET /events
-- GET /events/stream
 
 ## 면책 조항
 
