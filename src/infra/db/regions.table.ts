@@ -4,6 +4,8 @@ export interface RegionsTable {
   code: string;
   name: string;
   abolished: boolean;
+  center_lat: number | null;
+  center_lng: number | null;
 }
 
 export type RegionRow = Selectable<RegionsTable>;

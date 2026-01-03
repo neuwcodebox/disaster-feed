@@ -29,7 +29,9 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE TABLE IF NOT EXISTS regions (
   code VARCHAR(10) PRIMARY KEY,
   name TEXT NOT NULL,
-  abolished BOOLEAN NOT NULL
+  abolished BOOLEAN NOT NULL,
+  center_lat DOUBLE PRECISION NULL,
+  center_lng DOUBLE PRECISION NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_regions_name_trgm ON regions USING GIN (name gin_trgm_ops);

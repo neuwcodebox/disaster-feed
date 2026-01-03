@@ -18,6 +18,8 @@
 - [x] 초기 마이그레이션 추가(스키마 빌더)
 - [x] 초기 마이그레이션을 Kysely 스키마 빌더로 정리
 - [x] regions 테이블 생성 및 regions.json 적재 마이그레이션 추가
+- [x] regions 중심 좌표 컬럼 추가(스키마/타입)
+- [x] GeoJSON 기반 regions 중심 좌표 적재(마이그레이션/init-db.sql)
 
 ## 2. 이벤트 저장/조회
 
