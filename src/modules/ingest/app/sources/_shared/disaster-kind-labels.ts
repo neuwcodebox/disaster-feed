@@ -19,6 +19,7 @@ export const DISASTER_KIND_BY_NAME: Record<string, EventKinds> = {
   산사태: EventKinds.Landslide,
   수도: EventKinds.Water,
   안개: EventKinds.Fog,
+  인파밀집: EventKinds.CrowdDensity,
   에너지: EventKinds.Energy,
   전염병: EventKinds.Epidemic,
   정전: EventKinds.Blackout,
@@ -35,6 +36,7 @@ export const DISASTER_KIND_BY_NAME: Record<string, EventKinds> = {
   홍수: EventKinds.Flood,
   화재: EventKinds.Fire,
   환경오염사고: EventKinds.Pollution,
+  야생동물출현: EventKinds.WildAnimal,
   황사: EventKinds.YellowDust,
 };
 

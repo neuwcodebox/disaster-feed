@@ -40,6 +40,8 @@ export enum EventKinds {
   Pollution = 34, // 환경오염사고
   YellowDust = 35, // 황사
   O3 = 36, // 오존
+  CrowdDensity = 37, // 인파밀집
+  WildAnimal = 38, // 야생동물 출현
 }
 
 export enum EventLevels {
