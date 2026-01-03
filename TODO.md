@@ -88,6 +88,7 @@
 - [x] NFDS 화재 출동 현황 폴링 주기 초안 결정
 - [x] NFDS 화재 출동 현황 실패 케이스 최소 대응(타임아웃/빈 데이터/포맷 변경)
 - [x] NFDS 화재 출동 현황 법정동 코드 기반 region_codes 추가
+- [x] NFDS 화재 출동 현황 region 코드 중심 좌표 geo 적용
 - [x] 기상청 기상특보(CSV) 엔드포인트 확인 및 응답 파싱 규칙 정리
 - [x] 기상청 기상특보 필드 매핑 합의(title/occurred_at/region_text/level/payload)
 - [x] 기상청 기상특보 폴링 주기 초안 결정

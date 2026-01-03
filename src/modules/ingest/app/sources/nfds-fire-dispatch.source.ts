@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { logger } from '@/core/logger';
-import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
+import type { EventGeo, EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
+import type { IRegionRepository, RegionCenter } from '../../domain/port/region-repo.interface';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { isTooOld } from './_shared/is-too-old';
@@ -50,6 +51,8 @@ export class NfdsFireDispatchSource implements Source {
   public readonly sourceId = EventSources.NfdsFireDispatch;
   public readonly pollIntervalSec = 60;
 
+  constructor(private readonly regionRepository: IRegionRepository) {}
+
   public async run(state: string | null): Promise<SourceRunResult> {
     const response = await fetchWithTimeout({
       url: NFDS_FIRE_DISPATCH_ENDPOINT,
@@ -97,6 +100,8 @@ export class NfdsFireDispatchSource implements Source {
       }
       seen.set(key, nowIso);
     }
+
+    await attachRegionGeos(events, this.regionRepository);
 
     pruneTimedMap(seen, nowMs, STATE_TTL_MS);
     const nextState = buildState(seen);
@@ -383,3 +388,144 @@ const buildState = (seen: Map<string, string>): string | null => {
 
   return JSON.stringify({ seen: payload });
 };
+
+const REGION_CODE_PATTERN = /^\d{10}$/;
+const MAX_PARENT_DEPTH = 2;
+
+type RegionCandidateResult = {
+  candidatesByCode: Map<string, string[]>;
+  allCandidates: string[];
+};
+
+async function attachRegionGeos(events: SourceEvent[], regionRepository: IRegionRepository): Promise<void> {
+  if (events.length === 0) {
+    return;
+  }
+
+  const { candidatesByCode, allCandidates } = buildRegionCodeCandidates(events);
+  if (allCandidates.length === 0) {
+    return;
+  }
+
+  const centersByCode = await regionRepository.findCentersByCodes(allCandidates);
+  for (const event of events) {
+    const geo = resolveGeoForEvent(event.regionCodes, candidatesByCode, centersByCode);
+    if (geo) {
+      event.geo = geo;
+    }
+  }
+}
+
+function buildRegionCodeCandidates(events: SourceEvent[]): RegionCandidateResult {
+  const candidatesByCode = new Map<string, string[]>();
+  const allCandidates = new Set<string>();
+
+  for (const event of events) {
+    const regionCodes = event.regionCodes;
+    if (!regionCodes) {
+      continue;
+    }
+
+    for (const code of regionCodes) {
+      if (candidatesByCode.has(code)) {
+        continue;
+      }
+
+      const candidates = buildRegionCodeCandidateList(code);
+      if (candidates.length === 0) {
+        continue;
+      }
+
+      candidatesByCode.set(code, candidates);
+      for (const candidate of candidates) {
+        allCandidates.add(candidate);
+      }
+    }
+  }
+
+  return { candidatesByCode, allCandidates: Array.from(allCandidates) };
+}
+
+function resolveGeoForEvent(
+  regionCodes: string[] | null | undefined,
+  candidatesByCode: Map<string, string[]>,
+  centersByCode: Map<string, RegionCenter>,
+): EventGeo | null {
+  if (!regionCodes) {
+    return null;
+  }
+
+  for (const code of regionCodes) {
+    const candidates = candidatesByCode.get(code);
+    if (!candidates) {
+      continue;
+    }
+
+    const geo = resolveGeoFromCandidates(candidates, centersByCode);
+    if (geo) {
+      return geo;
+    }
+  }
+
+  return null;
+}
+
+function resolveGeoFromCandidates(candidates: string[], centersByCode: Map<string, RegionCenter>): EventGeo | null {
+  for (const code of candidates) {
+    const center = centersByCode.get(code);
+    if (!center || center.centerLat === null || center.centerLng === null) {
+      continue;
+    }
+
+    return { lat: center.centerLat, lng: center.centerLng };
+  }
+
+  return null;
+}
+
+function buildRegionCodeCandidateList(code: string): string[] {
+  const normalized = normalizeRegionCode(code);
+  if (!normalized) {
+    return [];
+  }
+
+  const candidates: string[] = [normalized];
+  let current = normalized;
+  for (let depth = 0; depth < MAX_PARENT_DEPTH; depth += 1) {
+    const parent = toParentRegionCode(current);
+    if (!parent || parent === current) {
+      break;
+    }
+
+    candidates.push(parent);
+    current = parent;
+  }
+
+  return candidates;
+}
+
+function normalizeRegionCode(code: string): string | null {
+  const trimmed = code.trim();
+  if (!REGION_CODE_PATTERN.test(trimmed)) {
+    return null;
+  }
+
+  return trimmed;
+}
+
+function toParentRegionCode(normalizedCode: string): string | null {
+  const sido = normalizedCode.slice(0, 2);
+  const gungu = normalizedCode.slice(2, 5);
+  const dong = normalizedCode.slice(5, 8);
+  const ri = normalizedCode.slice(8, 10);
+
+  if (ri !== '00') {
+    return `${sido}${gungu}${dong}00`;
+  }
+
+  if (dong !== '000') {
+    return `${sido}${gungu}00000`;
+  }
+
+  return null;
+}

@@ -21,7 +21,7 @@ export function buildSourceList(
     new KmaWeatherWarningSource(),
     new KmaMicroEarthquakeSource(),
     new KmaPewsEarthquakeSource(),
-    new NfdsFireDispatchSource(),
+    new NfdsFireDispatchSource(regionRepository),
     new ForestFireInfoSource(),
     new UticTrafficIncidentSource(),
     new YnaNewsSource(llmLabelClassifier),
