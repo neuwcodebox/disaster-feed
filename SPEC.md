@@ -45,36 +45,6 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
 - init-db.sql(또는 init SQL 파일)은 최신 전체 스키마를 확인하기 위한 문서로 유지한다.
 - init-db.sql은 마이그레이션 실행에 사용하지 않는다.
 
-예시(대략):
-
-```sql
-create table if not exists events (
-  id           text primary key,
-  source       smallint not null,
-  kind         smallint not null,
-  title        text not null,
-  body         text null,
-  fetched_at   timestamptz not null,
-  occurred_at  timestamptz null,
-  region_text  text null,
-  geo_lat      double precision null,
-  geo_lng      double precision null,
-  region_codes varchar(10)[] null,
-  level        smallint not null,
-  payload      jsonb null
-);
-
-create index if not exists idx_events_fetched_at on events (fetched_at desc);
-create index if not exists idx_events_kind_fetched_at on events (kind, fetched_at desc);
-create index if not exists idx_events_source_fetched_at on events (source, fetched_at desc);
-
-create table if not exists ingest_checkpoints (
-  source_id integer primary key,
-  state text null,
-  updated_at timestamptz not null default now()
-);
-````
-
 ## 6. BullMQ
 
 - queue: "ingest"
@@ -114,3 +84,14 @@ create table if not exists ingest_checkpoints (
 - 소스 클래스 파일 추가
 - registry에 등록
   으로 끝나게 한다.
+
+## 10. 행정구역 코드 표준
+
+대한민국 행정구역 코드는 최대 10자리 숫자로 구성되며, 2자리(시/도) + 3자리(시/군/구) + 3자리(읍/면/동) + 2자리(리) 순서로 계층적인 구조를 가집니다.
+
+시/도 (2자리): 서울(11), 부산(21), 경기(31) 등 광역자치단체를 나타냅니다.
+시/군/구 (3자리): 시, 군, 구 단위의 기초자치단체를 나타냅니다.
+읍/면/동 (3자리): 읍, 면, 동 단위의 행정구역을 나타냅니다.
+리 (2자리): 리 또는 통 단위의 하위 행정구역을 나타냅니다.
+
+하위 행정구역 코드를 포함하지 않는 경우, 해당 부분은 '00'으로 채워지거나 생략될 수 있습니다.
