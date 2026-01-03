@@ -112,9 +112,9 @@ export class YnaNewsSource implements Source {
       labels: DISASTER_KIND_LABELS,
       items: batchItems,
       request: [
-        'Classify as a disaster category ONLY if the message reports an incident or hazard that is currently occurring or has just occurred and affects public safety.',
-        'If the message is about investigations, arrests, hearings, legislation, legal responsibility, or any follow-up after an incident, ALWAYS classify it as "기타".',
-        'The presence of words like death, accident, fire, or collapse alone does NOT mean it is an active disaster.',
+        'Classify as a disaster category ONLY if the message reports a concrete incident, malfunction, or hazard that is currently occurring or has just occurred and causes direct harm, disruption, or emergency response affecting public safety or daily life.',
+        'If the message is about investigations, legal or administrative processes, policy, technology adoption, system improvement, or routine management WITHOUT an active failure, outage, contamination, restriction, or emergency action, ALWAYS classify it as "기타".',
+        'Keywords alone (e.g. death, accident, fire, collapse, or infrastructure terms like water or traffic) do NOT indicate an active disaster.',
       ].join('\n'),
     });
 
