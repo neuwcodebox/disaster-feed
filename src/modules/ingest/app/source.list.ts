@@ -9,6 +9,7 @@ import { KmaMicroEarthquakeSource } from './sources/kma-micro-earthquake.source'
 import { KmaPewsEarthquakeSource } from './sources/kma-pews-earthquake.source';
 import { KmaWeatherWarningSource } from './sources/kma-weather-warning.source';
 import { NcscCyberCrisisSource } from './sources/ncsc-cyber-crisis.source';
+import { NctcTerrorAlertSource } from './sources/nctc-terror-alert.source';
 import { NfdsFireDispatchSource } from './sources/nfds-fire-dispatch.source';
 import { UticTrafficIncidentSource } from './sources/utic-traffic-incident.source';
 import { YnaNewsSource } from './sources/yna-news.source';
@@ -29,5 +30,6 @@ export function buildSourceList(
     new AirkoreaPmWarningSource(regionRepository),
     new AirkoreaO3WarningSource(regionRepository),
     new NcscCyberCrisisSource(),
+    new NctcTerrorAlertSource(),
   ];
 }
