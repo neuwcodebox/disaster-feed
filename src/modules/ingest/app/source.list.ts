@@ -8,6 +8,7 @@ import { ForestFireInfoSource } from './sources/forest-fire-info.source';
 import { KmaMicroEarthquakeSource } from './sources/kma-micro-earthquake.source';
 import { KmaPewsEarthquakeSource } from './sources/kma-pews-earthquake.source';
 import { KmaWeatherWarningSource } from './sources/kma-weather-warning.source';
+import { KpxPowerSupplySource } from './sources/kpx-power-supply.source';
 import { NcscCyberCrisisSource } from './sources/ncsc-cyber-crisis.source';
 import { NctcTerrorAlertSource } from './sources/nctc-terror-alert.source';
 import { NfdsFireDispatchSource } from './sources/nfds-fire-dispatch.source';
@@ -31,5 +32,6 @@ export function buildSourceList(
     new AirkoreaO3WarningSource(regionRepository),
     new NcscCyberCrisisSource(),
     new NctcTerrorAlertSource(),
+    new KpxPowerSupplySource(),
   ];
 }
