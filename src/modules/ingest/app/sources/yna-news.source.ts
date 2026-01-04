@@ -335,17 +335,12 @@ function buildClassifiedItems(items: YnaNewsItem[]): ClassifiedNewsItem[] {
 
 function buildClassifyText(item: YnaNewsItem): string | null {
   const title = normalizeText(item.YNA_TTL);
-  const content = normalizeText(item.YNA_CN);
 
-  if (!title && !content) {
+  if (!title) {
     return null;
   }
 
-  if (title && content) {
-    return `${title}\n${content}`;
-  }
-
-  return title ?? content ?? null;
+  return title;
 }
 
 function parseKstDateTime(value: string | null | undefined): string | null {
