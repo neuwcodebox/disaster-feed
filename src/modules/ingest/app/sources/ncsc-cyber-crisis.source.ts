@@ -55,7 +55,7 @@ export class NcscCyberCrisisSource implements Source {
 
     const events: SourceEvent[] = [];
     for (const row of rows) {
-      const occurredAt = parseKstDate(row.issuedAt);
+      const occurredAt = parseKstDate(row.issuedAt, now);
       if (isTooOld(occurredAt, nowMs, EVENT_MAX_AGE_MS)) {
         continue;
       }
@@ -192,7 +192,7 @@ function buildState(seen: Map<string, string>): string | null {
   return JSON.stringify({ seen: payload });
 }
 
-function parseKstDate(value: string): string | null {
+function parseKstDate(value: string, now: Date): string | null {
   const normalized = normalizeText(value);
   if (!normalized) {
     return null;
@@ -204,8 +204,19 @@ function parseKstDate(value: string): string | null {
   }
 
   const [, year, month, day] = matched;
-  const kstIso = `${year}-${month}-${day}T00:00:00+09:00`;
-  const parsed = new Date(kstIso);
+  const yearNum = Number(year);
+  const monthNum = Number(month);
+  const dayNum = Number(day);
+  const isSameDay = yearNum === now.getFullYear() && monthNum === now.getMonth() + 1 && dayNum === now.getDate();
+  const parsed = new Date(
+    yearNum,
+    monthNum - 1,
+    dayNum,
+    isSameDay ? now.getHours() : 0,
+    isSameDay ? now.getMinutes() : 0,
+    isSameDay ? now.getSeconds() : 0,
+    isSameDay ? now.getMilliseconds() : 0,
+  );
   if (Number.isNaN(parsed.getTime())) {
     return null;
   }
