@@ -4,6 +4,7 @@ import type { LlmLabelClassifierService } from './llm-label-classifier.service';
 import { AirkoreaO3WarningSource } from './sources/airkorea-o3-warning.source';
 import { AirkoreaPmWarningSource } from './sources/airkorea-pm-warning.source';
 import { DisasterSmsSource } from './sources/disaster-sms.source';
+import { FloodAlertSource } from './sources/flood-alert.source';
 import { ForestFireInfoSource } from './sources/forest-fire-info.source';
 import { KmaMicroEarthquakeSource } from './sources/kma-micro-earthquake.source';
 import { KmaPewsEarthquakeSource } from './sources/kma-pews-earthquake.source';
@@ -21,6 +22,7 @@ export function buildSourceList(
 ): Source[] {
   return [
     new DisasterSmsSource(llmLabelClassifier, regionRepository),
+    new FloodAlertSource(),
     new KmaWeatherWarningSource(),
     new KmaMicroEarthquakeSource(),
     new KmaPewsEarthquakeSource(),

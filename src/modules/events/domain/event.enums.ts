@@ -67,4 +67,5 @@ export enum EventSources {
   NcscCyberCrisis = 11,
   NctcTerrorAlert = 12,
   KpxPowerSupply = 13,
+  FloodAlert = 14,
 }
