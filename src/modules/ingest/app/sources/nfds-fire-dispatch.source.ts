@@ -74,17 +74,18 @@ export class NfdsFireDispatchSource implements Source {
       throw new Error('Failed to parse NFDS fire dispatch response');
     }
 
-    const rawNowDate = parsed.data.nowDate ?? null;
-    const nowDate = parseNowDate(rawNowDate);
-    const nowMs = nowDate ? nowDate.getTime() : Date.now();
-    const nowIso = (nowDate ?? new Date()).toISOString();
+    const rawNfdsDate = parsed.data.nowDate ?? null;
+    const nfdsDate = parseNowDate(rawNfdsDate);
+    const now = new Date();
+    const nowMs = now.getTime();
+    const nowIso = now.toISOString();
 
     const previousState = parseState(state);
     const seen = new Map<string, string>(Object.entries(previousState.seen));
     const events: SourceEvent[] = [];
 
     for (const item of parsed.data.defail) {
-      const occurredAt = parseOccurredAt(item.overDate, nowDate);
+      const occurredAt = parseOccurredAt(item.overDate, nfdsDate);
       if (isTooOld(occurredAt, nowMs, EVENT_MAX_AGE_MS)) {
         continue;
       }
@@ -95,7 +96,7 @@ export class NfdsFireDispatchSource implements Source {
         const isFirstIncident = !hasSeenIncident(seen, item.sidoOvrNum);
         const isProgressNotable = isNotableProgress(item.progressStat);
         if (isFirstIncident && isProgressNotable) {
-          events.push(buildEvent(item, occurredAt, rawNowDate));
+          events.push(buildEvent(item, occurredAt, rawNfdsDate));
         }
       }
       seen.set(key, nowIso);
