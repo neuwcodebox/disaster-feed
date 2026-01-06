@@ -26,6 +26,7 @@
 - [x] UUID 기반 이벤트 id 생성 유틸
 - [x] events insert/list repo(또는 서비스) 구현
 - [x] GET /events 구현(최신 목록, limit/kind/source 정도)
+- [x] GET /events since 파라미터 추가
 - [x] events 스키마 본문/level 타입 변경 및 enum 정리
 - [x] events 테이블 link 컬럼 제거
 - [x] 이벤트 모델 geo/region 필드 추가

@@ -5,6 +5,7 @@ export type ListEventsParams = {
   limit?: number;
   kind?: EventKinds;
   source?: EventSources;
+  since?: string;
 };
 
 export type ListEventsAfterIdParams = {

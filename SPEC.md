@@ -63,7 +63,7 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
 ### GET /events
 
 - 최신 이벤트 목록 반환
-- 필터(옵션): limit, kind, source
+- 필터(옵션): limit, kind, source, since
 
 ### GET /events/stream (SSE)
 

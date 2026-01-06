@@ -29,6 +29,7 @@ export class EventService implements IEventService {
       limit: dto.limit,
       kind: dto.kind,
       source: dto.source,
+      since: dto.since,
     });
 
     return events.map((event) => toEventDto(event));
