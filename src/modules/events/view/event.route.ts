@@ -5,6 +5,8 @@ import { z } from 'zod';
 import type { IRoute } from '@/view/route.interface';
 import type { EventStreamService } from '../app/event-stream.service';
 import { EventDeps } from '../domain/dep/event.dep';
+import { schemaGetEventParams } from '../domain/dto/get-event-params.dto';
+import { schemaGetEventResBody } from '../domain/dto/get-event-res-body.dto';
 import { schemaGetEventsQuery } from '../domain/dto/get-events-query.dto';
 import { schemaGetEventsResBody } from '../domain/dto/get-events-res-body.dto';
 import { schemaGetEventsStreamQuery } from '../domain/dto/get-events-stream-query.dto';
@@ -79,6 +81,45 @@ export class EventRoute implements IRoute {
         return response;
       },
     );
+
+    this.app.openapi(
+      createRoute({
+        tags: ['Events'],
+        method: 'get',
+        path: '/:id',
+        summary: 'Get an event by id',
+        request: {
+          params: schemaGetEventParams,
+        },
+        responses: {
+          200: {
+            content: {
+              'application/json': {
+                schema: schemaGetEventResBody,
+              },
+            },
+            description: 'Event detail',
+          },
+          404: {
+            content: {
+              'application/json': {
+                schema: schemaErrorResponse,
+              },
+            },
+            description: 'Event not found',
+          },
+        },
+      }),
+      async (c) => {
+        const params = c.req.valid('param');
+        const event = await eventService.getEventById(params);
+        if (!event) {
+          return c.json({ message: 'Event not found' } as const, 404);
+        }
+
+        return c.json(event, 200);
+      },
+    );
   }
 
   private readonly app = new OpenAPIHono();
@@ -87,3 +128,7 @@ export class EventRoute implements IRoute {
     return this.app;
   }
 }
+
+const schemaErrorResponse = z.object({
+  message: z.string(),
+});

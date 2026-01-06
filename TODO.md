@@ -30,6 +30,7 @@
 - [x] events 테이블 link 컬럼 제거
 - [x] 이벤트 모델 geo/region 필드 추가
 - [x] events region -> region_codes 배열 전환
+- [x] 이벤트 단건 상세 조회 API 추가(payload 포함)
 
 ## 3. SSE(멀티 인스턴스 포함)
 
