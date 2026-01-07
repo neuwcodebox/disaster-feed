@@ -131,11 +131,14 @@ const buildPayload = (group: O3WarningGroup): EventPayload => {
 
 const mapWarningLevel = (value: string): EventLevels => {
   const normalized = normalizeText(value);
-  if (normalized?.includes('경보')) {
+  if (normalized?.includes('중대')) {
     return EventLevels.Severe;
   }
-  if (normalized?.includes('주의')) {
+  if (normalized?.includes('경보')) {
     return EventLevels.Moderate;
+  }
+  if (normalized?.includes('주의')) {
+    return EventLevels.Minor;
   }
   return EventLevels.Info;
 };
