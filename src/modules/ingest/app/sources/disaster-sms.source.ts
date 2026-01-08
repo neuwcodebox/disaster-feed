@@ -38,7 +38,7 @@ export class DisasterSmsSource implements Source {
   public readonly pollIntervalSec = 60;
 
   constructor(
-    private readonly labelClassifier: LlmLabelClassifierService,
+    private readonly labelClassifier: DisasterSmsLabelClassifier,
     private readonly regionRepository: IRegionRepository,
   ) {}
 
@@ -91,6 +91,8 @@ export class DisasterSmsSource implements Source {
   }
 }
 
+type DisasterSmsLabelClassifier = Pick<LlmLabelClassifierService, 'isEnabled' | 'classifyBatch'>;
+
 function toSourceEvent(
   item: DisasterSmsItem,
   resolvedKind: EventKinds,
@@ -124,7 +126,7 @@ const extractSenderName = (message: string): string | null => {
 
 async function resolveDisasterKinds(
   items: DisasterSmsItem[],
-  labelClassifier: LlmLabelClassifierService,
+  labelClassifier: DisasterSmsLabelClassifier,
 ): Promise<Map<number, EventKinds>> {
   const resolved = new Map<number, EventKinds>();
   const pending: Array<{ id: string; serial: number; text: string }> = [];

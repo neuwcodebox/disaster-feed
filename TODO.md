@@ -149,6 +149,7 @@
 - [x] k8s 배포용 빌드에서 node_modules 번들 스킵(tsup-node) 적용
 - [x] k8s 배포 빌드 산출물에 DB migrations 포함
 - [x] Dockerfile 멀티스테이지 빌드로 런타임 이미지 최소화
+- [x] deploy 워크플로우에 테스트 실행 추가
 - [x] graceful shutdown(서버/redis/worker/db)
   - [x] BullMQ worker/queue 종료 훅 추가
   - [x] Redis pubsub 구독 해제 및 클라이언트 종료
@@ -161,3 +162,11 @@
 ## 8. 문서
 
 - [x] README 프로젝트 소개 문서 작성
+
+## 9. 테스트
+
+- [x] ingest 공통 normalize 유틸 단위 테스트 추가
+- [x] region 코드 해석 로직 단위 테스트 추가
+- [x] 주요 소스 수집 로직 단위 테스트 추가
+- [x] 추가 소스 수집 로직 단위 테스트 보강
+- [x] ingest 공통 유틸(is-too-old/prune/should-emit/fetch) 단위 테스트 추가

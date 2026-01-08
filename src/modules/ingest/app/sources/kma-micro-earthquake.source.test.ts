@@ -8,7 +8,7 @@ describe('KmaMicroEarthquakeSource', () => {
 
   it('should parse magnitude and depth and build concise title', async () => {
     const html =
-      '<p class="p_hypen"><span style="color:#0000ff; font-weight:bold;">[최근 미소지진 발생 현황(규모 2.0미만)]</span><br/> 2025/12/25 05:14:43 경남 밀양시 동쪽 15km 지역 &#40;규모:1.5 / 깊이:8km&#41;</p>';
+      '<p class="p_hypen"><span style="color:#0000ff; font-weight:bold;">[최근 미소지진 발생 현황(규모 2.0미만)]</span><br/>2025/12/25 05:14:43 경남 밀양시 동쪽 15km 지역 &#40;규모:1.5 / 깊이:8km&#41;</p>';
 
     const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(html, { status: 200 })));
     vi.stubGlobal('fetch', fetchMock);
@@ -31,7 +31,7 @@ describe('KmaMicroEarthquakeSource', () => {
   });
 
   it('should handle missing depth and whitespace variations', async () => {
-    const html = '<p class="p_hypen">2025/12/15 20:25:23 전남 신안군 북서쪽 36km 해역 (규모 : 1.5)</p>';
+    const html = '<p class="p_hypen">미소지진 안내: 2025/12/15 20:25:23 전남 신안군 북서쪽 36km 해역 (규모 : 1.5)</p>';
 
     const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(html, { status: 200 })));
     vi.stubGlobal('fetch', fetchMock);
@@ -46,7 +46,8 @@ describe('KmaMicroEarthquakeSource', () => {
   });
 
   it('should parse even with prefix or suffix text', async () => {
-    const html = '<p class="p_hypen">기상청 발표: 2025/12/15 20:25:23 전남 신안군 북서쪽 36km 해역 (규모:1.0) 참고</p>';
+    const html =
+      '<p class="p_hypen">기상청 미소지진 발표: 2025/12/15 20:25:23 전남 신안군 북서쪽 36km 해역 (규모:1.0) 참고</p>';
 
     const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(html, { status: 200 })));
     vi.stubGlobal('fetch', fetchMock);
