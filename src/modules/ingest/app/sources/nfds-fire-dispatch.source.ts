@@ -247,6 +247,10 @@ const buildRegionCodes = (item: FireDispatchDetailItem): string[] | null => {
     return null;
   }
 
+  if (lawGunguCd === '000') {
+    return null;
+  }
+
   return [`${lawSidoCd}${lawGunguCd}${lawDongCd}${lawRiCd}`];
 };
 
