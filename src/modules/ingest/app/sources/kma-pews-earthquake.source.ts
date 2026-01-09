@@ -84,6 +84,7 @@ export class KmaPewsEarthquakeSource implements Source {
 
     const response = await fetchWithTimeout({
       url: `${this.baseUrl}/${binTimeStr}.b`,
+      allowNonOk: true,
     });
     if (!response) {
       throw new Error('PEWS request failed');

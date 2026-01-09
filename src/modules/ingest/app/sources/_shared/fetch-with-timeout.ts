@@ -4,6 +4,7 @@ type FetchWithTimeoutOptions = {
   url: string;
   init?: RequestInit;
   timeoutMs?: number;
+  allowNonOk?: boolean;
 };
 
 export const fetchWithTimeout = async (options: FetchWithTimeoutOptions): Promise<Response | null> => {
@@ -17,11 +18,16 @@ export const fetchWithTimeout = async (options: FetchWithTimeoutOptions): Promis
   }
   initWithSignal.headers = headers;
 
+  const allowNonOk = options.allowNonOk ?? false;
+
   try {
     const response = await fetch(options.url, initWithSignal);
     if (!response.ok) {
-      logger.warn({ status: response.status, url: options.url }, 'Fetch request failed');
-      return null;
+      if (!allowNonOk) {
+        logger.warn({ status: response.status, url: options.url }, 'Fetch request failed');
+        return null;
+      }
+      return response;
     }
 
     return response;

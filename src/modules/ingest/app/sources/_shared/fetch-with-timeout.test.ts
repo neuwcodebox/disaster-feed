@@ -29,6 +29,16 @@ describe('fetchWithTimeout', () => {
     expect(response).toBeNull();
   });
 
+  it('should return response on non-ok responses when allowNonOk is true', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('no', { status: 404 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await fetchWithTimeout({ url: 'https://example.com', allowNonOk: true });
+
+    expect(response).not.toBeNull();
+    expect(response?.status).toBe(404);
+  });
+
   it('should return null on fetch errors', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error('network'));
     vi.stubGlobal('fetch', fetchMock);
