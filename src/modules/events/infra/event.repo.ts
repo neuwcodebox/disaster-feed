@@ -3,7 +3,7 @@ import type { Kysely } from 'kysely';
 import { DbDeps } from '@/infra/db/db.dep';
 import type { DatabaseScheme } from '@/infra/db/db-scheme';
 import type { EventRow, NewEventRow } from '@/infra/db/events.table';
-import type { Event, EventGeo, NewEvent } from '../domain/entity/event.entity';
+import type { Event, EventGeo, EventMetric, NewEvent } from '../domain/entity/event.entity';
 import type { EventSources } from '../domain/event.enums';
 import type {
   IEventRepository,
@@ -51,6 +51,31 @@ export class EventRepository implements IEventRepository {
 
     const rows = await query.execute();
     return rows.map((row) => toEvent(row));
+  }
+
+  public async listEventMetrics(params: ListEventsParams): Promise<EventMetric[]> {
+    const limit = params.limit ?? 50;
+
+    let query = this.db
+      .selectFrom('events')
+      .select(['id', 'source', 'kind', 'occurred_at', 'level'])
+      .orderBy('fetched_at', 'desc')
+      .limit(limit);
+
+    if (params.kind !== undefined) {
+      query = query.where('kind', '=', params.kind);
+    }
+
+    if (params.source) {
+      query = query.where('source', '=', params.source);
+    }
+
+    if (params.since !== undefined) {
+      query = query.where('fetched_at', '>=', params.since);
+    }
+
+    const rows = await query.execute();
+    return rows.map((row) => toEventMetric(row));
   }
 
   public async listEventsAfterId(params: ListEventsAfterIdParams): Promise<Event[]> {
@@ -160,6 +185,18 @@ function toEvent(row: EventRow): Event {
     regionCodes: row.region_codes ?? null,
     level: row.level,
     payload: row.payload ?? null,
+  };
+}
+
+type EventMetricRow = Pick<EventRow, 'id' | 'source' | 'kind' | 'occurred_at' | 'level'>;
+
+function toEventMetric(row: EventMetricRow): EventMetric {
+  return {
+    id: row.id,
+    source: row.source,
+    kind: row.kind,
+    occurredAt: normalizeTimestamp(row.occurred_at),
+    level: row.level,
   };
 }
 
