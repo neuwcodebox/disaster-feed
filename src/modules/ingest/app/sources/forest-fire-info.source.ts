@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { logger } from '@/core/logger';
-import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
@@ -86,6 +85,7 @@ export class ForestFireInfoSource implements Source {
 
     const previousState = parseState(state);
     const seen = new Map<string, string>(Object.entries(previousState.seen));
+    const seenFireIds = buildSeenFireIdSet(seen);
     const highLevelSent = new Map<string, HighLevelEntry>(Object.entries(previousState.highLevelSent));
     const now = new Date();
     const nowMs = now.getTime();
@@ -105,7 +105,8 @@ export class ForestFireInfoSource implements Source {
       const baseLevel = isStepLevelEnabled(progressStatus) ? mapStepLevel(stepLabel) : EventLevels.Info;
       const uniqueKey = buildUniqueKey(fireId, progressStatus, stepLabel);
 
-      const occurredAt = resolveOccurredAt(item);
+      const resolvedOccurredAt = resolveOccurredAt(item);
+      const occurredAt = seenFireIds.has(fireId) ? nowIso : resolvedOccurredAt;
       if (isTooOld(occurredAt, nowMs, EVENT_MAX_AGE_MS)) {
         continue;
       }
@@ -115,7 +116,7 @@ export class ForestFireInfoSource implements Source {
       const level = shouldBoost ? baseLevel : EventLevels.Info;
 
       if (shouldEmitEvent(seen.get(uniqueKey), nowMs, STATE_TTL_MS)) {
-        events.push(buildEvent(item, occurredAt, progressLabel, progressStatus, stepLabel, level));
+        events.push(buildEvent(item, occurredAt, progressLabel, stepLabel, level));
       }
 
       if (baseLevel !== EventLevels.Info) {
@@ -124,6 +125,7 @@ export class ForestFireInfoSource implements Source {
       }
 
       seen.set(uniqueKey, nowIso);
+      seenFireIds.add(fireId);
     }
 
     pruneTimedMap(seen, nowMs, STATE_TTL_MS);
@@ -138,7 +140,6 @@ const buildEvent = (
   item: ForestFireItem,
   occurredAt: string | null,
   progressLabel: string | null,
-  progressStatus: ProgressStatus,
   stepLabel: string | null,
   level: EventLevels,
 ): SourceEvent => {
@@ -154,7 +155,7 @@ const buildEvent = (
     regionText,
     geo,
     level,
-    payload: buildPayload(item, progressLabel, progressStatus, stepLabel),
+    payload: item,
   };
 };
 
@@ -204,33 +205,34 @@ const buildBody = (
   return lines.length > 0 ? lines.join('\n') : null;
 };
 
-const buildPayload = (
-  item: ForestFireItem,
-  progressLabel: string | null,
-  progressStatus: ProgressStatus,
-  stepLabel: string | null,
-): EventPayload => {
-  return {
-    fireInfoId: normalizeText(item.frfr_info_id),
-    progressCode: normalizeText(item.frfr_prgrs_stcd),
-    progressLabel,
-    progressStatus,
-    stepLabel,
-    statementDate: normalizeText(item.frfr_sttmn_dt),
-    fireAt: normalizeText(item.frfr_frng_dtm),
-    endAt: normalizeText(item.potfr_end_dtm),
-    address: normalizeText(item.frfr_sttmn_addr),
-    coordX: parseCoordinate(item.frfr_lctn_xcrd),
-    coordY: parseCoordinate(item.frfr_lctn_ycrd),
-  };
-};
-
 const buildUniqueKey = (fireId: string, progressStatus: ProgressStatus, stepLabel: string | null): string => {
   const progressKey = progressStatus;
   const stepKey = stepLabel ?? 'unknown';
 
   return `${fireId}|${progressKey}|${stepKey}`;
 };
+
+function buildSeenFireIdSet(seen: Map<string, string>): Set<string> {
+  const seenFireIds = new Set<string>();
+  for (const key of seen.keys()) {
+    const fireId = extractFireIdFromKey(key);
+    if (fireId) {
+      seenFireIds.add(fireId);
+    }
+  }
+  return seenFireIds;
+}
+
+function extractFireIdFromKey(key: string): string | null {
+  const trimmed = key.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const [fireId] = trimmed.split('|');
+  const normalized = fireId?.trim();
+  return normalized ? normalized : null;
+}
 
 const resolveOccurredAt = (item: ForestFireItem): string | null => {
   const occurredAt = parseKstDateTime(item.frfr_frng_dtm);
