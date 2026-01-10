@@ -22,7 +22,7 @@ export function normalizeRegionName(regionText: string | null): string | null {
     if (normalized === alias) {
       return fullName;
     }
-    if (normalized.startsWith(alias)) {
+    if (normalized.startsWith(`${alias} `)) {
       return `${fullName}${normalized.slice(alias.length)}`;
     }
   }

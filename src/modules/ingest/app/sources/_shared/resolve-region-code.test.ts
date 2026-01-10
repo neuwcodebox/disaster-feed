@@ -21,6 +21,10 @@ describe('normalizeRegionName', () => {
     expect(normalizeRegionName('서울특별시')).toBe('서울특별시');
   });
 
+  it('should keep full province names intact', () => {
+    expect(normalizeRegionName('전북특별자치도')).toBe('전북특별자치도');
+  });
+
   it('should return null for blank values', () => {
     expect(normalizeRegionName('   ')).toBeNull();
     expect(normalizeRegionName(null)).toBeNull();

@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { logger } from '@/core/logger';
-import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { IRegionRepository } from '../../domain/port/region-repo.interface';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
@@ -110,7 +109,7 @@ function toSourceEvent(
     regionText,
     regionCodes,
     level: mapEmergencyLevel(item.EMRGNCY_STEP_NM),
-    payload: buildPayload(item),
+    payload: item,
   };
 }
 
@@ -237,18 +236,6 @@ function normalizeRegionSearchText(value: string): string | null {
   }
   return value;
 }
-
-const buildPayload = (item: DisasterSmsItem): EventPayload => {
-  return {
-    serial: item.MD101_SN,
-    disasterTypeId: item.DSSTR_SE_ID,
-    message: item.MSG_CN,
-    emergencyStepId: item.EMRGNCY_STEP_ID ?? null,
-    messageType: item.MSG_SE_CD ?? null,
-    createdAt: item.CREAT_DT,
-    registeredAt: item.REGIST_DT ?? null,
-  };
-};
 
 const mapEmergencyLevel = (value: string): EventLevels => {
   if (value.includes('위급')) {
