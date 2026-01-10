@@ -14,18 +14,21 @@ const STATE_RANGE_DAYS = 7;
 const STATE_TTL_MS = 1000 * 60 * 60 * 24 * STATE_RANGE_DAYS;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 
-const schemaForestFireItem = z.object({
-  frfr_lctn_xcrd: z.string().nullable().optional(),
-  frfr_prgrs_stcd_str: z.string().nullable().optional(),
-  potfr_end_dtm: z.string().nullable().optional(),
-  frfr_info_id: z.string().nullable().optional(),
-  frfr_prgrs_stcd: z.string().nullable().optional(),
-  frfr_lctn_ycrd: z.string().nullable().optional(),
-  frfr_sttmn_addr: z.string().nullable().optional(),
-  frfr_step_issu_cd: z.string().nullable().optional(),
-  frfr_sttmn_dt: z.string().nullable().optional(),
-  frfr_frng_dtm: z.string().nullable().optional(),
-});
+const schemaForestFireItem = z
+  .object({
+    sttn_map_id: z.string().nullable().optional(),
+    frfr_lctn_xcrd: z.string().nullable().optional(),
+    frfr_prgrs_stcd_str: z.string().nullable().optional(),
+    potfr_end_dtm: z.string().nullable().optional(),
+    frfr_info_id: z.string().nullable().optional(),
+    frfr_prgrs_stcd: z.string().nullable().optional(),
+    frfr_lctn_ycrd: z.string().nullable().optional(),
+    frfr_sttmn_addr: z.string().nullable().optional(),
+    frfr_step_issu_cd: z.string().nullable().optional(),
+    frfr_sttmn_dt: z.string().nullable().optional(),
+    frfr_frng_dtm: z.string().nullable().optional(),
+  })
+  .loose();
 
 const schemaForestFireResponse = z.object({
   pager: z
