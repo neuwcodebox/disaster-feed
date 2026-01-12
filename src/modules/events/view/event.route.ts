@@ -11,6 +11,7 @@ import { schemaGetEventsMetricsQuery } from '../domain/dto/get-events-metrics-qu
 import { schemaGetEventsMetricsResBody } from '../domain/dto/get-events-metrics-res-body.dto';
 import { schemaGetEventsQuery } from '../domain/dto/get-events-query.dto';
 import { schemaGetEventsResBody } from '../domain/dto/get-events-res-body.dto';
+import { schemaGetEventsStreamClientsResBody } from '../domain/dto/get-events-stream-clients-res-body.dto';
 import { schemaGetEventsStreamQuery } from '../domain/dto/get-events-stream-query.dto';
 import type { IEventService } from '../domain/port/event-service.interface';
 
@@ -108,6 +109,29 @@ export class EventRoute implements IRoute {
         });
         response.headers.set('Content-Type', 'text/event-stream; charset=utf-8');
         return response;
+      },
+    );
+
+    this.app.openapi(
+      createRoute({
+        tags: ['Events'],
+        method: 'get',
+        path: '/stream/clients',
+        summary: 'Get SSE client count',
+        responses: {
+          200: {
+            content: {
+              'application/json': {
+                schema: schemaGetEventsStreamClientsResBody,
+              },
+            },
+            description: 'SSE client count',
+          },
+        },
+      }),
+      async (c) => {
+        const total = await eventStreamService.getApproxClientCount();
+        return c.json({ total });
       },
     );
 
