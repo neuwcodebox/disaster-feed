@@ -11,6 +11,7 @@ import { KmaMicroEarthquakeSource } from './sources/kma-micro-earthquake.source'
 import { KmaPewsEarthquakeSource } from './sources/kma-pews-earthquake.source';
 import { KmaWeatherWarningSource } from './sources/kma-weather-warning.source';
 import { KpxPowerSupplySource } from './sources/kpx-power-supply.source';
+import { LandslideForecastSource } from './sources/landslide-forecast.source';
 import { NcscCyberCrisisSource } from './sources/ncsc-cyber-crisis.source';
 import { NctcTerrorAlertSource } from './sources/nctc-terror-alert.source';
 import { NfdsFireDispatchSource } from './sources/nfds-fire-dispatch.source';
@@ -30,6 +31,7 @@ export function buildSourceList(
     new NfdsFireDispatchSource(regionRepository),
     new ForestFireInfoSource(),
     new ForestFireWarningSource(),
+    new LandslideForecastSource(),
     new UticTrafficIncidentSource(),
     new YnaNewsSource(llmLabelClassifier),
     new AirkoreaPmWarningSource(regionRepository),
