@@ -70,4 +70,5 @@ export enum EventSources {
   FloodAlert = 14,
   ForestFireWarning = 15,
   LandslideForecast = 16,
+  MoisPressRelease = 17,
 }
