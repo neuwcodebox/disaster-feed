@@ -93,7 +93,7 @@ describe('MsitPressReleaseSource', () => {
       buildItem({
         title: '사이버위기 경보 단계 관심 상향',
         link: 'https://www.msit.go.kr/bbs/view.do?sCode=user&bbsSeqNo=94&nttSeqNo=3186769',
-        pubDate: '2026.01.14',
+        pubDate: '2026.01.16',
       }),
     );
 
@@ -107,6 +107,6 @@ describe('MsitPressReleaseSource', () => {
     const result = await source.run(null);
 
     expect(result.events).toHaveLength(1);
-    expect(result.events[0].occurredAt).toBe('2026-01-13T15:00:00.000Z');
+    expect(result.events[0].occurredAt).toBe('2026-01-15T15:00:00.000Z');
   });
 });
