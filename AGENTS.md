@@ -82,6 +82,7 @@ HTTP API 및 SSE로 최신 이벤트 목록을 제공한다.
 
 ## Git commit style
 
+- 영어로 작성.
 - Conventional Commits 규칙을 따릅니다.
 - 서로 다른 변경을 한 커밋에 묶지 않습니다.
 
