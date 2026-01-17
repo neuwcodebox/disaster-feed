@@ -108,13 +108,16 @@ export class YnaNewsSource implements Source {
       batchItems.push({ id: entry.id, text: entry.text });
     }
 
+    const outOfScopeLabel = '범위외';
+
     const classified = await this.labelClassifier.classifyBatch({
-      labels: DISASTER_KIND_LABELS,
+      labels: [...DISASTER_KIND_LABELS, outOfScopeLabel],
       items: batchItems,
       request: [
+        'You are filtering news for display on a real-time public safety emergency dashboard.',
         'Decide classification in this order:',
-        '1) Is there an ongoing or just-occurred situation that still poses a real-time threat to public safety (e.g. active danger, evacuation, emergency response, area control)? If NO, classify as "기타".',
-        '2) If the message mainly describes legal action, arrest, warrant, investigation, trial, policy, technology, routine management, recovery life, or human-interest reporting AFTER an incident, classify as "기타".',
+        `1) Is there an ongoing or just-occurred situation that still poses a real-time threat to public safety (e.g. active danger, evacuation, emergency response, area control) in or affecting South Korea? If NO, classify as "${outOfScopeLabel}".`,
+        `2) If the message mainly describes legal action, arrest, warrant, investigation, trial, policy, technology, routine management, recovery life, or human-interest reporting AFTER an incident, classify as "${outOfScopeLabel}".`,
         '3) Only if the message clearly describes a currently unfolding emergency or immediate hazard, classify it into the appropriate disaster category. (Note: "AI" refers to avian influenza, NOT artificial intelligence.)',
         'Do NOT rely on keywords alone (e.g. death, fire, accident, traffic, water).',
       ].join('\n'),
@@ -127,7 +130,7 @@ export class YnaNewsSource implements Source {
 
     const events: SourceEvent[] = [];
     for (const entry of classifiedItems) {
-      const label = classified.get(entry.id) ?? '기타';
+      const label = classified.get(entry.id) ?? outOfScopeLabel;
       const kind = DISASTER_KIND_BY_NAME[label] ?? EventKinds.Other;
       if (kind === EventKinds.Other) {
         continue;
