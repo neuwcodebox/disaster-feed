@@ -24,6 +24,13 @@ CREATE TABLE IF NOT EXISTS ingest_checkpoints (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS outbound_channels (
+  id UUID PRIMARY KEY,
+  kind SMALLINT NOT NULL,
+  min_level SMALLINT NOT NULL,
+  target TEXT NOT NULL
+);
+
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE IF NOT EXISTS regions (

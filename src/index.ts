@@ -14,6 +14,12 @@ import { registerQueueDeps } from './infra/queue/queue';
 import { RedisDeps } from './infra/redis/redis.dep';
 import { registerRedisDeps } from './infra/redis/redis-conn';
 import {
+  registerChannelDeps,
+  registerChannelRoutes,
+  startOutboundDispatch,
+  stopOutboundDispatch,
+} from './modules/channels/channels.registry';
+import {
   registerEventDeps,
   registerEventRoutes,
   startEventStream,
@@ -38,6 +44,7 @@ const app = new OpenAPIHono();
 registerDbDeps(dep);
 registerRedisDeps(dep);
 registerQueueDeps(dep);
+registerChannelDeps(dep);
 registerHealthDeps(dep);
 registerEventDeps(dep);
 registerIngestDeps(dep);
@@ -62,6 +69,7 @@ app.get('/', (c) => c.text('Running'));
 registerHealthRoutes(app, dep);
 registerEventRoutes(app, dep);
 registerIngestRoutes(app, dep);
+registerChannelRoutes(app, dep);
 
 // Swagger
 //
@@ -96,6 +104,7 @@ const server = serve(
 //
 
 startEventStream(dep);
+startOutboundDispatch(dep);
 void startIngest(dep);
 
 // Shutdown
@@ -150,6 +159,12 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
     await stopEventStream(dep);
   } catch (error) {
     logger.warn({ error }, 'Failed to stop event stream');
+  }
+
+  try {
+    await stopOutboundDispatch(dep);
+  } catch (error) {
+    logger.warn({ error }, 'Failed to stop outbound dispatch');
   }
 
   try {

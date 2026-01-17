@@ -21,8 +21,9 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
    - DB insert(append-only)
    - 체크포인트 state 저장(소스별 문자열 상태)
 3) insert 성공 시 Redis Pub/Sub로 eventId publish
-4) 각 인스턴스는 Pub/Sub 메시지를 받아 DB 조회 후 로컬 SSE로 브로드캐스트
-5) SSE 재연결 시 DB에서 누락분 catch-up 후 live 전환
+4) 아웃바운드 큐에 eventId를 넣고 워커가 채널 송출 수행
+5) 각 인스턴스는 Pub/Sub 메시지를 받아 DB 조회 후 로컬 SSE로 브로드캐스트
+6) SSE 재연결 시 DB에서 누락분 catch-up 후 live 전환
 
 ## 4. 이벤트 스키마(논리)
 
@@ -45,6 +46,12 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
 - init-db.sql(또는 init SQL 파일)은 최신 전체 스키마를 확인하기 위한 문서로 유지한다.
 - init-db.sql은 마이그레이션 실행에 사용하지 않는다.
 
+- outbound_channels
+  - id: uuid
+  - kind: smallint
+  - min_level: smallint
+  - target: text
+
 ## 6. BullMQ
 
 - queue: "ingest"
@@ -60,16 +67,25 @@ Postgres에 저장하며, HTTP API 및 SSE로 최신 이벤트 목록을 제공�
 
 ## 8. API
 
-### GET /events
+### GET /api/events
 
 - 최신 이벤트 목록 반환
 - 필터(옵션): limit, kind, source, since
 
-### GET /events/stream (SSE)
+### GET /api/events/stream (SSE)
 
 - 연결 시 (옵션) afterId 쿼리 파라미터 또는 Last-Event-ID 헤더로 DB catch-up 후 live
 - 둘 다 있으면 afterId가 우선한다.
 - live 전송은 event(JSON)을 SSE data로 보낸다.
+
+### Admin: /api/admin/channels
+
+- Authorization: `Bearer ${ADMIN_API_KEY}`
+- GET /api/admin/channels: 채널 목록
+- POST /api/admin/channels: 채널 생성
+- GET /api/admin/channels/:id: 채널 상세
+- PUT /api/admin/channels/:id: 채널 수정
+- DELETE /api/admin/channels/:id: 채널 삭제
 
 ## 9. 소스 구현(클래스 단위)
 

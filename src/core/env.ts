@@ -20,6 +20,7 @@ export const env = z
     MIGRATIONS_DIR: z.string().optional(),
     DATABASE_URL: z.url(),
     REDIS_URL: z.url(),
+    ADMIN_API_KEY: z.string().min(1),
     KMA_API_KEY: z.string().optional(),
     YNA_SERVICE_KEY: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),
