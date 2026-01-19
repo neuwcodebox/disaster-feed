@@ -22,6 +22,7 @@ export const env = z
     REDIS_URL: z.url(),
     ADMIN_API_KEY: z.string().min(1),
     KMA_API_KEY: z.string().optional(),
+    UTIC_API_KEY: z.string().optional(),
     YNA_SERVICE_KEY: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),
   })

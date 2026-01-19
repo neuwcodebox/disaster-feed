@@ -1,9 +1,8 @@
 import { type Cheerio, load } from 'cheerio';
 import type { AnyNode } from 'domhandler';
-import iconv from 'iconv-lite';
 import { Agent, fetch, type Response } from 'undici';
+import { env } from '@/core/env';
 import { logger } from '@/core/logger';
-import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { isTooOld } from './_shared/is-too-old';
@@ -11,42 +10,40 @@ import { normalizeText } from './_shared/normalize';
 import { pruneTimedMap } from './_shared/prune-timed-map';
 import { shouldEmitEvent } from './_shared/should-emit-event';
 
-const UTIC_INCIDENT_ENDPOINT = 'https://www.utic.go.kr/tsdms/incident.do';
-const REQUEST_TIMEOUT_MS = 20000;
+const UTIC_INCIDENT_ENDPOINT = 'https://www.utic.go.kr/guide/imsOpenData.do';
+const REQUEST_TIMEOUT_MS = 30000;
 const STATE_TTL_MS = 1000 * 60 * 60 * 6;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 const INSECURE_DISPATCHER = new Agent({ connect: { rejectUnauthorized: false } });
 
-const COMMON_INCIDENT_TYPE = '{"사고":"","공사":"none","행사":"none","기상":"","통제":"","재난":"","기타":"none"}';
+const ALLOWED_INCIDENT_TYPE_CODES = new Set(['1', '4', '5', '6']);
 
-const GRADE_QUERY: Record<IncidentGrade, string> = {
-  A: '{"사고":"A0401","기상":"A0401","통제":"A0401","재난":"A0401"}',
-  B: '{"사고":"A0402","기상":"A0402","통제":"A0402","재난":"A0402"}',
-  C: '{"사고":"A0403","기상":"A0403","통제":"A0403","재난":"A0403"}',
-};
-
-const KIND_BY_LABEL: Record<string, EventKinds> = {
-  사고: EventKinds.Transport,
-  통제: EventKinds.Transport,
-  공사: EventKinds.Transport,
-  행사: EventKinds.Transport,
-  기상: EventKinds.Transport,
-  재난: EventKinds.Transport,
-  기타: EventKinds.Transport,
-};
-
-type IncidentGrade = 'A' | 'B' | 'C';
-
-type IncidentItem = {
-  title: string;
-  body: string | null;
-  occurredAt: string | null;
-  rawDateText: string | null;
-  label: string | null;
+type UticIncidentItem = {
   incidentId: string | null;
-  mapType: string | null;
-  coordX: string | null;
-  coordY: string | null;
+  incidenteTypeCd: string | null;
+  incidenteSubTypeCd: string | null;
+  addressJibun: string | null;
+  addressJibunCd: string | null;
+  addressNew: string | null;
+  linkId: string | null;
+  locationDataX: string | null;
+  locationDataY: string | null;
+  locationTypeCd: string | null;
+  locationData: string | null;
+  incidenteTrafficCd: string | null;
+  incidenteGradeCd: string | null;
+  incidentTitle: string | null;
+  incTrafficCode: string | null;
+  incidentRegionCd: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  lane: string | null;
+  roadName: string | null;
+  sourceCode: string | null;
+  lineLinkId: string | null;
+  controlType: string | null;
+  important: string | null;
+  updateDate: string | null;
 };
 
 type TrafficIncidentState = {
@@ -58,37 +55,49 @@ export class UticTrafficIncidentSource implements Source {
   public readonly pollIntervalSec = 60;
 
   public async run(state: string | null): Promise<SourceRunResult> {
+    const authKey = env.UTIC_API_KEY;
+    if (!authKey) {
+      logger.error('UTIC traffic incident auth key is missing');
+      throw new Error('UTIC traffic incident auth key is missing');
+    }
+
     const previousState = parseState(state);
     const seen = new Map<string, string>(Object.entries(previousState.seen));
     const now = new Date();
     const nowMs = now.getTime();
     const nowIso = now.toISOString();
 
+    const response = await fetchWithTimeout(buildRequestUrl(authKey));
+    if (!response) {
+      throw new Error('UTIC traffic incident request failed');
+    }
+
+    const xml = await response.text();
+    if (!xml) {
+      throw new Error('Failed to decode UTIC traffic incident response');
+    }
+
+    const items = parseIncidentItems(xml);
     const events: SourceEvent[] = [];
 
-    const grades: IncidentGrade[] = ['A', 'B', 'C'];
-    for (const grade of grades) {
-      const response = await fetchWithTimeout(buildRequestUrl(grade));
-      if (!response) {
-        throw new Error(`UTIC traffic incident request failed: ${grade}`);
+    for (const item of items) {
+      if (!item.incidenteTypeCd || !ALLOWED_INCIDENT_TYPE_CODES.has(item.incidenteTypeCd)) {
+        continue;
+      }
+      if (!item.incidentTitle) {
+        continue;
       }
 
-      const html = await decodeHtmlResponse(response);
-      if (!html) {
-        throw new Error(`Failed to decode UTIC traffic incident response: ${grade}`);
+      const occurredAt = parseKstDateText(item.startDate);
+      if (isTooOld(occurredAt, nowMs, EVENT_MAX_AGE_MS)) {
+        continue;
       }
 
-      const items = parseIncidentItems(html);
-      for (const item of items) {
-        if (isTooOld(item.occurredAt, nowMs, EVENT_MAX_AGE_MS)) {
-          continue;
-        }
-        const key = buildUniqueKey(item, grade);
-        if (shouldEmitEvent(seen.get(key), nowMs, STATE_TTL_MS)) {
-          events.push(buildEvent(item, grade));
-        }
-        seen.set(key, nowIso);
+      const key = buildUniqueKey(item);
+      if (shouldEmitEvent(seen.get(key), nowMs, STATE_TTL_MS)) {
+        events.push(buildEvent(item, occurredAt));
       }
+      seen.set(key, nowIso);
     }
 
     pruneTimedMap(seen, nowMs, STATE_TTL_MS);
@@ -98,46 +107,36 @@ export class UticTrafficIncidentSource implements Source {
   }
 }
 
-const buildEvent = (item: IncidentItem, grade: IncidentGrade): SourceEvent => {
+const buildEvent = (item: UticIncidentItem, occurredAt: string | null): SourceEvent => {
   const geo = resolveGeo(item);
+  const titleText = item.incidentTitle ?? '';
+  const { title, body } = splitTitleBody(titleText);
+  const regionText = resolveRegionText(item);
+  const regionCodes = buildRegionCodes(item.addressJibunCd);
 
   return {
-    kind: mapIncidentKind(item.label),
-    title: item.title,
-    body: item.body,
-    occurredAt: item.occurredAt,
-    regionText: null,
+    kind: EventKinds.Transport,
+    title,
+    body,
+    occurredAt,
+    regionText,
     geo,
-    level: mapGradeLevel(grade),
-    payload: buildPayload(item, grade),
+    regionCodes,
+    level: mapGradeLevel(item.incidenteGradeCd),
+    payload: item,
   };
 };
 
-const mapIncidentKind = (label: string | null): EventKinds => {
-  if (!label) {
-    return EventKinds.Transport;
+const mapGradeLevel = (gradeCode: string | null): EventLevels => {
+  if (!gradeCode) {
+    return EventLevels.Info;
   }
 
-  return KIND_BY_LABEL[label] ?? EventKinds.Transport;
-};
-
-const mapGradeLevel = (grade: IncidentGrade): EventLevels => {
-  if (grade === 'A') {
+  if (gradeCode === 'A0401') {
     return EventLevels.Minor;
   }
-  return EventLevels.Info;
-};
 
-const buildPayload = (item: IncidentItem, grade: IncidentGrade): EventPayload => {
-  return {
-    incidentId: item.incidentId,
-    mapType: item.mapType,
-    coordX: item.coordX,
-    coordY: item.coordY,
-    grade,
-    label: item.label,
-    rawDateText: item.rawDateText,
-  };
+  return EventLevels.Info;
 };
 
 const parseCoordinate = (value: string | null): number | null => {
@@ -149,9 +148,9 @@ const parseCoordinate = (value: string | null): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const resolveGeo = (item: IncidentItem): { lat: number; lng: number } | null => {
-  const lng = parseCoordinate(item.coordX);
-  const lat = parseCoordinate(item.coordY);
+const resolveGeo = (item: UticIncidentItem): { lat: number; lng: number } | null => {
+  const lng = parseCoordinate(item.locationDataX);
+  const lat = parseCoordinate(item.locationDataY);
 
   if (lng === null || lat === null) {
     return null;
@@ -160,82 +159,80 @@ const resolveGeo = (item: IncidentItem): { lat: number; lng: number } | null => 
   return { lat, lng };
 };
 
-const parseIncidentItems = (html: string): IncidentItem[] => {
-  const $ = load(html);
-  const items: IncidentItem[] = [];
-  const listItems = $('.data-box > ul > li').toArray();
+const resolveRegionText = (item: UticIncidentItem): string | null => {
+  return normalizeText(item.addressNew) ?? normalizeText(item.addressJibun);
+};
 
-  for (const element of listItems) {
-    const container = $(element).find('.result_box');
-    const dateNode = container.find('p.date').first();
-    const dateText = extractDateText(dateNode);
-    const { incidentId, mapType, coordX, coordY } = parseMapLink(dateNode);
+const buildRegionCodes = (addressJibunCd: string | null): string[] | null => {
+  const code = normalizeRegionCode(addressJibunCd);
+  if (!code) {
+    return null;
+  }
 
-    const bodyText = normalizeText(container.find('p').not('.date').first().text());
-    if (!bodyText) {
-      continue;
-    }
+  return [code];
+};
 
-    const { title, body } = splitTitleBody(bodyText);
+const normalizeRegionCode = (value: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
 
+  const digits = value.replace(/\D/g, '');
+  if (digits.length !== 10) {
+    return null;
+  }
+
+  return digits;
+};
+
+const parseIncidentItems = (xml: string): UticIncidentItem[] => {
+  const $ = load(xml, { xmlMode: true });
+  const items: UticIncidentItem[] = [];
+  const records = $('record').toArray();
+
+  for (const record of records) {
+    const node = $(record);
     items.push({
-      title,
-      body,
-      occurredAt: parseKstDateText(dateText),
-      rawDateText: dateText,
-      label: extractIncidentLabel(bodyText),
-      incidentId,
-      mapType,
-      coordX,
-      coordY,
+      incidentId: getRecordText(node, ['incidentId']),
+      incidenteTypeCd: getRecordText(node, ['incidenteTypeCd', 'incidentTypeCd']),
+      incidenteSubTypeCd: getRecordText(node, ['incidenteSubTypeCd', 'incidentSubTypeCd']),
+      addressJibun: getRecordText(node, ['addressJibun']),
+      addressJibunCd: getRecordText(node, ['addressJibunCd']),
+      addressNew: getRecordText(node, ['addressNew']),
+      linkId: getRecordText(node, ['linkId']),
+      locationDataX: getRecordText(node, ['locationDataX']),
+      locationDataY: getRecordText(node, ['locationDataY']),
+      locationTypeCd: getRecordText(node, ['locationTypeCd']),
+      locationData: getRecordText(node, ['locationData']),
+      incidenteTrafficCd: getRecordText(node, ['incidenteTrafficCd']),
+      incidenteGradeCd: getRecordText(node, ['incidenteGradeCd']),
+      incidentTitle: getRecordText(node, ['incidentTitle']),
+      incTrafficCode: getRecordText(node, ['incTrafficCode']),
+      incidentRegionCd: getRecordText(node, ['incidentRegionCd']),
+      startDate: getRecordText(node, ['startDate']),
+      endDate: getRecordText(node, ['endDate']),
+      lane: getRecordText(node, ['lane']),
+      roadName: getRecordText(node, ['roadName']),
+      sourceCode: getRecordText(node, ['sourceCode']),
+      lineLinkId: getRecordText(node, ['lineLinkId']),
+      controlType: getRecordText(node, ['controlType']),
+      important: getRecordText(node, ['important']),
+      updateDate: getRecordText(node, ['updateDate']),
     });
   }
 
   return items;
 };
 
-const extractDateText = (node: Cheerio<AnyNode>): string | null => {
-  if (node.length === 0) {
-    return null;
+const getRecordText = (node: Cheerio<AnyNode>, tags: string[]): string | null => {
+  for (const tag of tags) {
+    const text = normalizeText(node.find(tag).first().text());
+    if (text) {
+      return text;
+    }
   }
 
-  const cloned = node.clone();
-  cloned.find('a').remove();
-  const text = normalizeText(cloned.text());
-  return text || null;
-};
-
-const parseMapLink = (
-  node: Cheerio<AnyNode>,
-): { incidentId: string | null; mapType: string | null; coordX: string | null; coordY: string | null } => {
-  const href = node.find('a').attr('href') ?? '';
-  const matched = href.match(/gotoMapIncident\('([^']*)','([^']*)','([^']*)','([^']*)'\)/);
-  if (!matched) {
-    return {
-      incidentId: null,
-      mapType: null,
-      coordX: null,
-      coordY: null,
-    };
-  }
-
-  const [, incidentId, mapType, coordX, coordY] = matched;
-  return {
-    incidentId: normalizeText(incidentId),
-    mapType: normalizeText(mapType),
-    coordX: normalizeText(coordX),
-    coordY: normalizeText(coordY),
-  };
-};
-
-const extractIncidentLabel = (text: string): string | null => {
-  const matched = text.match(/^<([^>]+)>/);
-  if (!matched) {
-    return null;
-  }
-
-  const label = normalizeText(matched[1]);
-  return label || null;
+  return null;
 };
 
 const splitTitleBody = (text: string): { title: string; body: string | null } => {
@@ -244,7 +241,7 @@ const splitTitleBody = (text: string): { title: string; body: string | null } =>
     return { title: cleaned, body: null };
   }
 
-  const separator = ' - ';
+  const separator = ' / ';
   const index = cleaned.indexOf(separator);
   if (index < 0) {
     return splitBySentence(cleaned);
@@ -306,14 +303,15 @@ const parseKstDateText = (value: string | null): string | null => {
   return parsed.toISOString();
 };
 
-const buildUniqueKey = (item: IncidentItem, grade: IncidentGrade): string => {
+const buildUniqueKey = (item: UticIncidentItem): string => {
   if (item.incidentId) {
-    return `${item.incidentId}:${grade}`;
+    return item.incidentId;
   }
 
-  const titleKey = normalizeText(item.title) ?? '';
-  const timeKey = normalizeText(item.occurredAt) ?? '';
-  return `${grade}:${titleKey}:${timeKey}`;
+  const typeKey = normalizeText(item.incidenteTypeCd) ?? '';
+  const titleKey = normalizeText(item.incidentTitle) ?? '';
+  const timeKey = normalizeText(item.startDate) ?? '';
+  return `${typeKey}:${titleKey}:${timeKey}`;
 };
 
 const parseState = (state: string | null): TrafficIncidentState => {
@@ -360,34 +358,12 @@ const buildState = (seen: Map<string, string>): string | null => {
   return JSON.stringify({ seen: payload });
 };
 
-const buildRequestUrl = (grade: IncidentGrade): string => {
+const buildRequestUrl = (authKey: string): string => {
   const url = new URL(UTIC_INCIDENT_ENDPOINT);
   url.search = new URLSearchParams({
-    incident_type: COMMON_INCIDENT_TYPE,
-    accident_gubun: GRADE_QUERY[grade],
-    hideDamagedRoad: 'true',
+    key: authKey,
   }).toString();
   return url.toString();
-};
-
-const decodeHtmlResponse = async (response: Response): Promise<string | null> => {
-  try {
-    const buffer = Buffer.from(await response.arrayBuffer());
-    const contentType = response.headers.get('content-type') ?? '';
-    const encoding = resolveEncoding(contentType);
-    return iconv.decode(buffer, encoding);
-  } catch (error) {
-    logger.warn({ error }, 'Failed to decode UTIC traffic incident response');
-    return null;
-  }
-};
-
-const resolveEncoding = (contentType: string): string => {
-  const lower = contentType.toLowerCase();
-  if (lower.includes('euc-kr') || lower.includes('ks_c_5601-1987')) {
-    return 'euc-kr';
-  }
-  return 'utf-8';
 };
 
 const fetchWithTimeout = async (url: string): Promise<Response | null> => {

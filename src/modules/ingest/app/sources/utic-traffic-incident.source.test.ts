@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { EventKinds } from '@/modules/events/domain/event.enums';
+import { EventKinds, EventLevels } from '@/modules/events/domain/event.enums';
 
 vi.mock('undici', async () => {
   const actual = await vi.importActual<typeof import('undici')>('undici');
@@ -11,37 +11,54 @@ vi.mock('undici', async () => {
 
 describe('UticTrafficIncidentSource', () => {
   afterEach(() => {
+    delete process.env.UTIC_API_KEY;
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
   it('should parse incidents and emit events', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2025-01-02T00:00:00.000Z'));
+    vi.setSystemTime(new Date('2026-01-19T10:00:00.000Z'));
 
-    const html = `
-      <div class="data-box">
-        <ul>
-          <li>
-            <div class="result_box">
-              <p class="date">
-                <a href="javascript:gotoMapIncident('INC1','A','127.1','37.5')">지도</a>
-                2025/01/02 09:00
-              </p>
-              <p>&lt;사고&gt; 서초구 사고 - 1차로 통제</p>
-            </div>
-          </li>
-        </ul>
-      </div>
+    process.env.UTIC_API_KEY = 'test-key';
+    vi.resetModules();
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+      <result>
+        <record>
+          <incidentId>INC1</incidentId>
+          <incidenteTypeCd>1</incidenteTypeCd>
+          <incidenteGradeCd>A0401</incidenteGradeCd>
+          <addressJibunCd>4122037030</addressJibunCd>
+          <locationDataX>126.92354015</locationDataX>
+          <locationDataY>36.933405701001426</locationDataY>
+          <incidentTitle>[사고] 테스트 사고 - 1차로 통제</incidentTitle>
+          <startDate>2026년 01월 19일 18시 25분</startDate>
+        </record>
+        <record>
+          <incidentId>INC2</incidentId>
+          <incidenteTypeCd>5</incidenteTypeCd>
+          <incidenteGradeCd>A0402</incidenteGradeCd>
+          <addressJibun>서울특별시 중구 세종대로 110</addressJibun>
+          <incidentTitle>[통제] 테스트 통제</incidentTitle>
+          <startDate>2026년 01월 19일 18시 20분</startDate>
+        </record>
+        <record>
+          <incidentId>INC3</incidentId>
+          <incidenteTypeCd>2</incidenteTypeCd>
+          <incidentTitle>[공사] 제외 대상</incidentTitle>
+          <startDate>2026년 01월 19일 18시 15분</startDate>
+        </record>
+      </result>
     `;
 
     const { Response, fetch } = await import('undici');
     const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
     fetchMock.mockImplementation(() =>
       Promise.resolve(
-        new Response(Buffer.from(html, 'utf-8'), {
+        new Response(Buffer.from(xml, 'utf-8'), {
           status: 200,
-          headers: { 'content-type': 'text/html; charset=utf-8' },
+          headers: { 'content-type': 'application/xml; charset=utf-8' },
         }),
       ),
     );
@@ -50,9 +67,13 @@ describe('UticTrafficIncidentSource', () => {
     const source = new UticTrafficIncidentSource();
     const result = await source.run(null);
 
-    expect(result.events).toHaveLength(3);
+    expect(result.events).toHaveLength(2);
     expect(result.events[0].kind).toBe(EventKinds.Transport);
-    expect(result.events[0].title).toBe('<사고> 서초구 사고');
-    expect(result.events[0].geo).toEqual({ lat: 37.5, lng: 127.1 });
+    expect(result.events[0].level).toBe(EventLevels.Minor);
+    expect(result.events[0].title).toBe('[사고] 테스트 사고');
+    expect(result.events[0].body).toBe('1차로 통제');
+    expect(result.events[0].geo).toEqual({ lat: 36.933405701001426, lng: 126.92354015 });
+    expect(result.events[0].regionCodes).toEqual(['4122037030']);
+    expect(result.events[1].title).toBe('[통제] 테스트 통제');
   });
 });
