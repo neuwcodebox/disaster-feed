@@ -32,7 +32,7 @@ export const fetchWithTimeout = async (options: FetchWithTimeoutOptions): Promis
 
     return response;
   } catch (error) {
-    logger.warn({ error, url: options.url }, 'Fetch request error');
+    logger.warn(error, 'Fetch request error');
     return null;
   } finally {
     clearTimeout(timeout);

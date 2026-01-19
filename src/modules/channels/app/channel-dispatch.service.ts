@@ -192,6 +192,7 @@ const EVENT_SOURCE_LABELS: Record<EventSources, string> = {
   [EventSources.NcscCyberCrisis]: '국정원',
   [EventSources.NctcTerrorAlert]: '국조실',
   [EventSources.KpxPowerSupply]: '산업부',
+  [EventSources.KasaSpaceWeatherWarning]: '우주환경',
   [EventSources.YnaNews]: '연합뉴스',
 };
 
@@ -235,4 +236,5 @@ const EVENT_KIND_LABELS: Record<EventKinds, string> = {
   [EventKinds.CrowdDensity]: '인파',
   [EventKinds.WildAnimal]: '야생동물',
   [EventKinds.Cyber]: '사이버',
+  [EventKinds.SpaceWeather]: '우주환경',
 };

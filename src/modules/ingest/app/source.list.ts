@@ -7,6 +7,7 @@ import { DisasterSmsSource } from './sources/disaster-sms.source';
 import { FloodAlertSource } from './sources/flood-alert.source';
 import { ForestFireInfoSource } from './sources/forest-fire-info.source';
 import { ForestFireWarningSource } from './sources/forest-fire-warning.source';
+import { KasaSpaceWeatherWarningSource } from './sources/kasa-space-weather-warning.source';
 import { KmaMicroEarthquakeSource } from './sources/kma-micro-earthquake.source';
 import { KmaPewsEarthquakeSource } from './sources/kma-pews-earthquake.source';
 import { KmaWeatherWarningSource } from './sources/kma-weather-warning.source';
@@ -43,5 +44,6 @@ export function buildSourceList(
     new NcscCyberCrisisSource(),
     new NctcTerrorAlertSource(),
     new KpxPowerSupplySource(),
+    new KasaSpaceWeatherWarningSource(),
   ];
 }

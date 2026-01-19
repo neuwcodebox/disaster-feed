@@ -43,6 +43,7 @@ export enum EventKinds {
   CrowdDensity = 37, // 인파밀집
   WildAnimal = 38, // 야생동물 출현
   Cyber = 39, // 사이버
+  SpaceWeather = 40, // 우주환경
 }
 
 export enum EventLevels {
@@ -72,4 +73,5 @@ export enum EventSources {
   LandslideForecast = 16,
   MoisPressRelease = 17,
   MsitPressRelease = 18,
+  KasaSpaceWeatherWarning = 19,
 }
