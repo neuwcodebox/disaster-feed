@@ -193,6 +193,7 @@ const EVENT_SOURCE_LABELS: Record<EventSources, string> = {
   [EventSources.NctcTerrorAlert]: '국조실',
   [EventSources.KpxPowerSupply]: '산업부',
   [EventSources.KasaSpaceWeatherWarning]: '우주환경',
+  [EventSources.KasaSpaceWeatherCrisisAlert]: '우주환경',
   [EventSources.YnaNews]: '연합뉴스',
 };
 
