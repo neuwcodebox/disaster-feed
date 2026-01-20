@@ -89,7 +89,7 @@ describe('KasaSpaceWeatherCrisisAlertSource', () => {
 
     expect(result.events).toHaveLength(1);
     expect(result.events[0].level).toBe(EventLevels.Info);
-    const expectedOccurredAt = new Date(2026, 0, 20, 23, 59, 59, 999).toISOString();
+    const expectedOccurredAt = new Date('2026-01-20T23:59:59.999+09:00').toISOString();
     expect(result.events[0].occurredAt).toBe(expectedOccurredAt);
   });
 
