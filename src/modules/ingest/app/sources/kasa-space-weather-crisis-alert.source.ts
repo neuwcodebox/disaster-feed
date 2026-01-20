@@ -8,6 +8,7 @@ import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/sou
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
 import { pruneTimedMap } from './_shared/prune-timed-map';
+import { resolveDateOnlyWithServerTime } from './_shared/resolve-date-only-with-server-time';
 import { shouldEmitEvent } from './_shared/should-emit-event';
 
 const KASA_SPACE_WEATHER_CRISIS_ENDPOINT = 'https://spaceweather.kasa.go.kr/Alarm.do';
@@ -258,28 +259,7 @@ function parseIssuedAt(value: string, now: Date): string | null {
     return null;
   }
 
-  const dateOnly = new Date(yearNum, monthNum - 1, dayNum);
-  if (Number.isNaN(dateOnly.getTime())) {
-    return null;
-  }
-
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const isPastDay = dateOnly.getTime() < today.getTime();
-  const resolved = new Date(
-    yearNum,
-    monthNum - 1,
-    dayNum,
-    isPastDay ? 23 : now.getHours(),
-    isPastDay ? 59 : now.getMinutes(),
-    isPastDay ? 59 : now.getSeconds(),
-    isPastDay ? 999 : now.getMilliseconds(),
-  );
-
-  if (Number.isNaN(resolved.getTime())) {
-    return null;
-  }
-
-  return resolved.toISOString();
+  return resolveDateOnlyWithServerTime({ year: yearNum, month: monthNum, day: dayNum }, now);
 }
 
 type FetchInit = NonNullable<Parameters<typeof fetch>[1]>;

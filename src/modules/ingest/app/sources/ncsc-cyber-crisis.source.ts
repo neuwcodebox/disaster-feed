@@ -8,6 +8,7 @@ import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
 import { pruneTimedMap } from './_shared/prune-timed-map';
+import { resolveDateOnlyWithServerTime } from './_shared/resolve-date-only-with-server-time';
 import { shouldEmitEvent } from './_shared/should-emit-event';
 
 const NCSC_CYBER_CRISIS_ENDPOINT =
@@ -207,19 +208,5 @@ function parseKstDate(value: string, now: Date): string | null {
   const yearNum = Number(year);
   const monthNum = Number(month);
   const dayNum = Number(day);
-  const isSameDay = yearNum === now.getFullYear() && monthNum === now.getMonth() + 1 && dayNum === now.getDate();
-  const parsed = new Date(
-    yearNum,
-    monthNum - 1,
-    dayNum,
-    isSameDay ? now.getHours() : 0,
-    isSameDay ? now.getMinutes() : 0,
-    isSameDay ? now.getSeconds() : 0,
-    isSameDay ? now.getMilliseconds() : 0,
-  );
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return parsed.toISOString();
+  return resolveDateOnlyWithServerTime({ year: yearNum, month: monthNum, day: dayNum }, now);
 }

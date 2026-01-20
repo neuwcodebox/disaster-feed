@@ -9,13 +9,13 @@ import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
 import { pruneTimedMap } from './_shared/prune-timed-map';
+import { resolveDateOnlyWithServerTime } from './_shared/resolve-date-only-with-server-time';
 import { shouldEmitEvent } from './_shared/should-emit-event';
 
 const MSIT_PRESS_RSS_ENDPOINT = 'https://www.msit.go.kr/user/rss/rss.do?bbsSeqNo=94';
 const REQUEST_TIMEOUT_MS = 60000;
 const STATE_TTL_MS = 1000 * 60 * 60 * 24;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 const REQUIRED_KEYWORD = '경보';
 const ACTION_KEYWORDS = ['발령', '상향', '하향', '격상'] as const;
@@ -293,26 +293,14 @@ function parseMsitDate(value: string | null, now: Date): string | null {
   }
 
   const [, year, month, day] = matched;
-  const targetDate = `${year}-${month}-${day}`;
-  const nowKst = new Date(now.getTime() + KST_OFFSET_MS);
-  if (targetDate === formatUtcDate(nowKst)) {
-    return now.toISOString();
-  }
-
-  const kstIso = `${year}-${month}-${day}T00:00:00+09:00`;
-  const parsed = new Date(kstIso);
-  if (Number.isNaN(parsed.getTime())) {
+  const yearNum = Number(year);
+  const monthNum = Number(month);
+  const dayNum = Number(day);
+  if (!Number.isFinite(yearNum) || !Number.isFinite(monthNum) || !Number.isFinite(dayNum)) {
     return null;
   }
 
-  return parsed.toISOString();
-}
-
-function formatUtcDate(date: Date): string {
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return resolveDateOnlyWithServerTime({ year: yearNum, month: monthNum, day: dayNum }, now);
 }
 
 function parseState(state: string | null): MsitPressState {
