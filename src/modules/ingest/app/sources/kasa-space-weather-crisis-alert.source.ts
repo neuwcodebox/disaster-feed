@@ -36,6 +36,7 @@ export class KasaSpaceWeatherCrisisAlertSource implements Source {
   public readonly pollIntervalSec = 60 * 5;
 
   public async run(state: string | null): Promise<SourceRunResult> {
+    const isFirstRun = !state;
     const previousState = parseState(state);
     const seen = new Map<string, string>(Object.entries(previousState.seen));
     const now = new Date();
@@ -65,7 +66,7 @@ export class KasaSpaceWeatherCrisisAlertSource implements Source {
         continue;
       }
 
-      if (shouldEmitEvent(seen.get(row.id), nowMs, STATE_TTL_MS)) {
+      if (!isFirstRun && shouldEmitEvent(seen.get(row.id), nowMs, STATE_TTL_MS)) {
         events.push(buildEvent(row, occurredAt));
       }
       seen.set(row.id, nowIso);
