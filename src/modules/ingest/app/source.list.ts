@@ -10,6 +10,7 @@ import { ForestFireWarningSource } from './sources/forest-fire-warning.source';
 import { KasaSpaceWeatherCrisisAlertSource } from './sources/kasa-space-weather-crisis-alert.source';
 import { KasaSpaceWeatherWarningSource } from './sources/kasa-space-weather-warning.source';
 import { KmaMicroEarthquakeSource } from './sources/kma-micro-earthquake.source';
+import { KmaOverseasEarthquakeSource } from './sources/kma-overseas-earthquake.source';
 import { KmaPewsEarthquakeSource } from './sources/kma-pews-earthquake.source';
 import { KmaWeatherWarningSource } from './sources/kma-weather-warning.source';
 import { KpxPowerSupplySource } from './sources/kpx-power-supply.source';
@@ -32,6 +33,7 @@ export function buildSourceList(
     new KmaWeatherWarningSource(),
     new KmaMicroEarthquakeSource(),
     new KmaPewsEarthquakeSource(),
+    new KmaOverseasEarthquakeSource(),
     new NfdsFireDispatchSource(regionRepository),
     new ForestFireInfoSource(),
     new ForestFireWarningSource(),

@@ -180,6 +180,7 @@ const EVENT_SOURCE_LABELS: Record<EventSources, string> = {
   [EventSources.MsitPressRelease]: '과기정통부',
   [EventSources.KmaMicroEarthquake]: '기상청',
   [EventSources.KmaPewsEarthquake]: '기상청',
+  [EventSources.KmaOverseasEarthquake]: '기상청',
   [EventSources.NfdsFireDispatch]: '소방청',
   [EventSources.KmaWeatherWarning]: '기상청',
   [EventSources.UticTrafficIncident]: '경찰청',
