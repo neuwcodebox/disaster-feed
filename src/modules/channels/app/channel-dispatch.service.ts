@@ -155,15 +155,15 @@ function resolveLevelColor(level: number): number {
 function resolveLevelLabel(level: number): string {
   switch (level) {
     case 1:
-      return '정보';
+      return '참고';
     case 2:
-      return '주의';
+      return '관심';
     case 3:
-      return '경계';
+      return '우려';
     case 4:
-      return '심각';
+      return '중대';
     case 5:
-      return '위험';
+      return '치명';
     default:
       return '알 수 없음';
   }
