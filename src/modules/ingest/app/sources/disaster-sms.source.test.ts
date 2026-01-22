@@ -88,4 +88,51 @@ describe('DisasterSmsSource', () => {
     expect(result.events[0].regionCodes).toEqual(['0000000000', '1100000000']);
     expect(result.nextState).toBe('101');
   });
+
+  it('should raise safety evacuation messages to moderate', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-02-01T00:00:00.000Z'));
+
+    const responseBody = {
+      disasterSmsList: [
+        {
+          DSSTR_SE_NM: '호우',
+          CREAT_DT: '2025/02/01 10:00:00',
+          RCV_AREA_NM: '전국',
+          MD101_SN: 200,
+          DSSTR_SE_ID: '1',
+          MSG_CN: '(사전 대피권고) 하천 범람 위험 시 안전한 곳으로 이동 바랍니다.',
+          EMRGNCY_STEP_NM: '안전안내',
+        },
+        {
+          DSSTR_SE_NM: '호우',
+          CREAT_DT: '2025/02/01 11:00:00',
+          RCV_AREA_NM: '전국',
+          MD101_SN: 201,
+          DSSTR_SE_ID: '1',
+          MSG_CN: '(대피명령 해제) 하천 범람 위험 해소로 대피명령 해제되었습니다.',
+          EMRGNCY_STEP_NM: '안전안내',
+        },
+      ],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const regionRepository = createRegionRepository();
+    const labelClassifier = createLabelClassifier();
+    const source = new DisasterSmsSource(labelClassifier, regionRepository);
+    const result = await source.run(null);
+
+    expect(result.events).toHaveLength(2);
+    expect(result.events[0].level).toBe(EventLevels.Moderate);
+    expect(result.events[1].level).toBe(EventLevels.Minor);
+  });
 });

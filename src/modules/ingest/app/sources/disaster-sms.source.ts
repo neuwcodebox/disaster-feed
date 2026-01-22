@@ -108,7 +108,7 @@ function toSourceEvent(
     occurredAt: parseKstDateTime(item.CREAT_DT),
     regionText,
     regionCodes,
-    level: mapEmergencyLevel(item.EMRGNCY_STEP_NM),
+    level: mapEmergencyLevel(item.EMRGNCY_STEP_NM, item.MSG_CN),
     payload: item,
   };
 }
@@ -237,18 +237,36 @@ function normalizeRegionSearchText(value: string): string | null {
   return value;
 }
 
-const mapEmergencyLevel = (value: string): EventLevels => {
-  if (value.includes('위급')) {
+function isEvacuationOrderOrAdvisory(message: string): boolean {
+  const trimmed = message.trimStart();
+  const matched = trimmed.match(/^\(([^)]*)\)/);
+  if (!matched) {
+    return false;
+  }
+
+  const head = matched[1];
+  if (head.includes('해제')) {
+    return false;
+  }
+
+  return head.includes('대피명령') || head.includes('대피권고');
+}
+
+function mapEmergencyLevel(emergencyStep: string, message: string): EventLevels {
+  if (emergencyStep.includes('위급')) {
     return EventLevels.Critical;
   }
-  if (value.includes('긴급')) {
+  if (emergencyStep.includes('긴급')) {
     return EventLevels.Severe;
   }
-  if (value.includes('안전')) {
+  if (emergencyStep.includes('안전')) {
+    if (isEvacuationOrderOrAdvisory(message)) {
+      return EventLevels.Moderate;
+    }
     return EventLevels.Minor;
   }
   return EventLevels.Info;
-};
+}
 
 const filterNewItems = (items: DisasterSmsItem[], lastSeenSerial: number | null): DisasterSmsItem[] => {
   if (lastSeenSerial === null) {
