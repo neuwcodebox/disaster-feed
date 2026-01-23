@@ -221,4 +221,61 @@ describe('DisasterSmsSource', () => {
     expect(result.events[0].kind).toBe(EventKinds.Other);
     expect(result.events[0].title).toBe('전국 기타 안전안내');
   });
+
+  it('should classify multiple other events with distinct kinds in one batch', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-03-03T00:00:00.000Z'));
+
+    const responseBody = {
+      disasterSmsList: [
+        {
+          DSSTR_SE_NM: null,
+          CREAT_DT: '2025/03/03 08:00:00',
+          RCV_AREA_NM: '전국',
+          MD101_SN: 310,
+          DSSTR_SE_ID: '1',
+          MSG_CN: '호우 대비 안내입니다.',
+          EMRGNCY_STEP_NM: '안전안내',
+        },
+        {
+          DSSTR_SE_NM: null,
+          CREAT_DT: '2025/03/03 09:00:00',
+          RCV_AREA_NM: '전국',
+          MD101_SN: 311,
+          DSSTR_SE_ID: '1',
+          MSG_CN: '한파 대비 안내입니다.',
+          EMRGNCY_STEP_NM: '안전안내',
+        },
+      ],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const regionRepository = createRegionRepository();
+    const labelClassifier = createLabelClassifier();
+    labelClassifier.isEnabled.mockReturnValue(true);
+    labelClassifier.classifyBatch.mockResolvedValue(
+      new Map([
+        ['310', '호우'],
+        ['311', '한파'],
+      ]),
+    );
+
+    const source = new DisasterSmsSource(labelClassifier, regionRepository);
+    const result = await source.run(null);
+
+    expect(labelClassifier.isEnabled).toHaveBeenCalled();
+    expect(labelClassifier.classifyBatch).toHaveBeenCalled();
+    expect(result.events).toHaveLength(2);
+    expect(result.events[0].kind).toBe(EventKinds.Rain);
+    expect(result.events[1].kind).toBe(EventKinds.Cold);
+  });
 });
