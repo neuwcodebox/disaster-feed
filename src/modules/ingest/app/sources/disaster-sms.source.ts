@@ -14,7 +14,7 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const PAGE_SIZE = 50;
 
 const schemaDisasterSmsItem = z.object({
-  DSSTR_SE_NM: z.string(), // 예: "한파"
+  DSSTR_SE_NM: z.string().nullable().optional(), // 예: "한파"
   CREAT_DT: z.string(), // 예: "2025/12/25 15:31:33"
   RCV_AREA_NM: z.string(), // 예: "전라남도 곡성군 "
   MD101_SN: z.coerce.number().int(), // 예: 251341
@@ -100,7 +100,7 @@ function toSourceEvent(
 ): SourceEvent {
   const sender = extractSenderName(item.MSG_CN);
   const titlePrefix = sender ?? pickRegionPrefix(regionText ?? '') ?? '';
-  const disasterLabel = item.DSSTR_SE_NM.trim() || '기타';
+  const disasterLabel = normalizeText(item.DSSTR_SE_NM) ?? '기타';
   return {
     kind: resolvedKind,
     title: `${titlePrefix} ${disasterLabel} ${item.EMRGNCY_STEP_NM}`.trim(),
@@ -132,10 +132,9 @@ async function resolveDisasterKinds(
   const isClassifierEnabled = labelClassifier.isEnabled();
 
   for (const item of items) {
-    const normalized = item.DSSTR_SE_NM.trim();
-    const directKind = DISASTER_KIND_BY_NAME[normalized];
-    if (directKind && directKind !== EventKinds.Other) {
-      resolved.set(item.MD101_SN, directKind);
+    const nameKind = resolveKindByName(item.DSSTR_SE_NM);
+    if (nameKind) {
+      resolved.set(item.MD101_SN, nameKind);
       continue;
     }
 
@@ -144,7 +143,7 @@ async function resolveDisasterKinds(
       continue;
     }
 
-    const text = item.MSG_CN.trim();
+    const text = normalizeText(item.MSG_CN);
     if (!text) {
       resolved.set(item.MD101_SN, EventKinds.Other);
       continue;
@@ -171,6 +170,20 @@ async function resolveDisasterKinds(
   }
 
   return resolved;
+}
+
+function resolveKindByName(value: string | null | undefined): EventKinds | null {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const kind = DISASTER_KIND_BY_NAME[normalized];
+  if (!kind || kind === EventKinds.Other) {
+    return null;
+  }
+
+  return kind;
 }
 
 const pickRegionPrefix = (region: string): string | null => {

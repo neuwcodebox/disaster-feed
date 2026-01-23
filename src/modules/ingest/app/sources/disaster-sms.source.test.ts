@@ -135,4 +135,90 @@ describe('DisasterSmsSource', () => {
     expect(result.events[0].level).toBe(EventLevels.Moderate);
     expect(result.events[1].level).toBe(EventLevels.Minor);
   });
+
+  it('should classify when DSSTR_SE_NM is null and classifier is enabled', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-03-01T00:00:00.000Z'));
+
+    const responseBody = {
+      disasterSmsList: [
+        {
+          DSSTR_SE_NM: null,
+          CREAT_DT: '2025/03/01 09:30:00',
+          RCV_AREA_NM: '서울특별시',
+          MD101_SN: 300,
+          DSSTR_SE_ID: '1',
+          MSG_CN: '한파 대비 안내드립니다.',
+          EMRGNCY_STEP_NM: '안전안내',
+        },
+      ],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const regionRepository = createRegionRepository();
+    regionRepository.findCodeByNamePrefix.mockResolvedValue('1100000000');
+
+    const labelClassifier = createLabelClassifier();
+    labelClassifier.isEnabled.mockReturnValue(true);
+    labelClassifier.classifyBatch.mockResolvedValue(new Map([['300', '한파']]));
+
+    const source = new DisasterSmsSource(labelClassifier, regionRepository);
+    const result = await source.run(null);
+
+    expect(labelClassifier.isEnabled).toHaveBeenCalled();
+    expect(labelClassifier.classifyBatch).toHaveBeenCalled();
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].kind).toBe(EventKinds.Cold);
+    expect(result.events[0].title).toBe('서울특별시 기타 안전안내');
+  });
+
+  it('should fallback to other when DSSTR_SE_NM is null and classifier is disabled', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-03-02T00:00:00.000Z'));
+
+    const responseBody = {
+      disasterSmsList: [
+        {
+          DSSTR_SE_NM: null,
+          CREAT_DT: '2025/03/02 08:00:00',
+          RCV_AREA_NM: '전국',
+          MD101_SN: 301,
+          DSSTR_SE_ID: '1',
+          MSG_CN: '재난 문자 테스트입니다.',
+          EMRGNCY_STEP_NM: '안전안내',
+        },
+      ],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const regionRepository = createRegionRepository();
+    const labelClassifier = createLabelClassifier();
+
+    const source = new DisasterSmsSource(labelClassifier, regionRepository);
+    const result = await source.run(null);
+
+    expect(labelClassifier.isEnabled).toHaveBeenCalled();
+    expect(labelClassifier.classifyBatch).not.toHaveBeenCalled();
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].kind).toBe(EventKinds.Other);
+    expect(result.events[0].title).toBe('전국 기타 안전안내');
+  });
 });
