@@ -45,6 +45,10 @@ export class EventRepository implements IEventRepository {
       query = query.where('source', '=', params.source);
     }
 
+    if (params.minLevel !== undefined) {
+      query = query.where('level', '>=', params.minLevel);
+    }
+
     if (params.since !== undefined) {
       query = query.where('fetched_at', '>=', params.since);
     }

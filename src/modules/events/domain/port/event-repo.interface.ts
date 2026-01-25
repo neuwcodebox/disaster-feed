@@ -1,10 +1,11 @@
 import type { Event, EventMetric, NewEvent } from '../entity/event.entity';
-import type { EventKinds, EventSources } from '../event.enums';
+import type { EventKinds, EventLevels, EventSources } from '../event.enums';
 
 export type ListEventsParams = {
   limit?: number;
   kind?: EventKinds;
   source?: EventSources;
+  minLevel?: EventLevels;
   since?: string;
 };
 

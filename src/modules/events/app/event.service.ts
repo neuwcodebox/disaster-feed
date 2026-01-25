@@ -31,6 +31,7 @@ export class EventService implements IEventService {
       limit: dto.limit,
       kind: dto.kind,
       source: dto.source,
+      minLevel: dto.minLevel,
       since: dto.since,
     });
 
