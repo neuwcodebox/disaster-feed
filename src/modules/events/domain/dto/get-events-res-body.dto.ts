@@ -12,12 +12,12 @@ export const schemaEvent = z.object({
   source: z.number().int(),
   kind: z.number().int(),
   title: z.string(),
-  body: z.string().nullable(),
+  body: z.string().optional(),
   fetchedAt: z.string(),
   occurredAt: z.string().nullable(),
-  regionText: z.string().nullable(),
-  geo: schemaGeo.nullable(),
-  regionCodes: z.array(schemaRegionCode).nullable(),
+  regionText: z.string().optional(),
+  geo: schemaGeo.optional(),
+  regionCodes: z.array(schemaRegionCode).optional(),
   level: z.number().int(),
 });
 
