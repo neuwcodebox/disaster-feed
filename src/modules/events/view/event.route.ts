@@ -7,8 +7,6 @@ import type { EventStreamService } from '../app/event-stream.service';
 import { EventDeps } from '../domain/dep/event.dep';
 import { schemaGetEventParams } from '../domain/dto/get-event-params.dto';
 import { schemaGetEventResBody } from '../domain/dto/get-event-res-body.dto';
-import { schemaGetEventsMetricsQuery } from '../domain/dto/get-events-metrics-query.dto';
-import { schemaGetEventsMetricsResBody } from '../domain/dto/get-events-metrics-res-body.dto';
 import { schemaGetEventsQuery } from '../domain/dto/get-events-query.dto';
 import { schemaGetEventsResBody } from '../domain/dto/get-events-res-body.dto';
 import { schemaGetEventsStreamClientsResBody } from '../domain/dto/get-events-stream-clients-res-body.dto';
@@ -45,33 +43,6 @@ export class EventRoute implements IRoute {
       async (c) => {
         const query = c.req.valid('query');
         const result = await eventService.listEvents(query);
-        return c.json(result);
-      },
-    );
-
-    this.app.openapi(
-      createRoute({
-        tags: ['Events'],
-        method: 'get',
-        path: '/metrics',
-        summary: 'List events for metrics',
-        request: {
-          query: schemaGetEventsMetricsQuery,
-        },
-        responses: {
-          200: {
-            content: {
-              'application/json': {
-                schema: schemaGetEventsMetricsResBody,
-              },
-            },
-            description: 'Event metrics list',
-          },
-        },
-      }),
-      async (c) => {
-        const query = c.req.valid('query');
-        const result = await eventService.listEventMetrics(query);
         return c.json(result);
       },
     );

@@ -1,4 +1,4 @@
-import type { Event, EventMetric, NewEvent } from '../entity/event.entity';
+import type { Event, NewEvent } from '../entity/event.entity';
 import type { EventKinds, EventLevels, EventSources } from '../event.enums';
 
 export type ListEventsParams = {
@@ -23,7 +23,6 @@ export interface IEventRepository {
   insertEvent(data: NewEvent): Promise<Event>;
   getEventById(id: string): Promise<Event | undefined>;
   listEvents(params: ListEventsParams): Promise<Event[]>;
-  listEventMetrics(params: ListEventsParams): Promise<EventMetric[]>;
   listEventsAfterId(params: ListEventsAfterIdParams): Promise<Event[]>;
   listLatestFetchedAtBySources(sourceIds: EventSources[]): Promise<LatestFetchedAtBySource[]>;
 }

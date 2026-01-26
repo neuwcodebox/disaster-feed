@@ -1,7 +1,6 @@
 import type { EventDetailDto } from '../domain/dto/get-event-res-body.dto';
-import type { EventMetricDto } from '../domain/dto/get-events-metrics-res-body.dto';
 import type { EventDto } from '../domain/dto/get-events-res-body.dto';
-import type { Event, EventMetric } from '../domain/entity/event.entity';
+import type { Event } from '../domain/entity/event.entity';
 
 export function toEventDto(event: Event): EventDto {
   return {
@@ -23,15 +22,5 @@ export function toEventDetailDto(event: Event): EventDetailDto {
   return {
     ...toEventDto(event),
     payload: event.payload ?? null,
-  };
-}
-
-export function toEventMetricDto(event: EventMetric): EventMetricDto {
-  return {
-    id: event.id,
-    source: event.source,
-    kind: event.kind,
-    occurredAt: event.occurredAt,
-    level: event.level,
   };
 }

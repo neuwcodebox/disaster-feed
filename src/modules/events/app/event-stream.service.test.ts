@@ -41,7 +41,6 @@ function createEventRepositoryStub(): IEventRepository {
     },
     getEventById: async () => undefined,
     listEvents: async () => [],
-    listEventMetrics: async () => [],
     listEventsAfterId: async () => [],
     listLatestFetchedAtBySources: async () => [],
   };

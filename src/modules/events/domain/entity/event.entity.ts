@@ -36,11 +36,3 @@ export type NewEvent = {
   level: EventLevels;
   payload?: EventPayload | null;
 };
-
-export type EventMetric = {
-  id: string;
-  source: EventSources;
-  kind: EventKinds;
-  occurredAt: string | null;
-  level: EventLevels;
-};

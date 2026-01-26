@@ -2,13 +2,11 @@ import { inject, injectable } from 'inversify';
 import { EventDeps } from '../domain/dep/event.dep';
 import type { GetEventParamsDto } from '../domain/dto/get-event-params.dto';
 import type { EventDetailDto } from '../domain/dto/get-event-res-body.dto';
-import type { GetEventsMetricsQueryDto } from '../domain/dto/get-events-metrics-query.dto';
-import type { EventMetricDto } from '../domain/dto/get-events-metrics-res-body.dto';
 import type { GetEventsQueryDto } from '../domain/dto/get-events-query.dto';
 import type { EventDto } from '../domain/dto/get-events-res-body.dto';
 import type { IEventRepository } from '../domain/port/event-repo.interface';
 import type { IEventService } from '../domain/port/event-service.interface';
-import { toEventDetailDto, toEventDto, toEventMetricDto } from './event.mapper';
+import { toEventDetailDto, toEventDto } from './event.mapper';
 
 @injectable()
 export class EventService implements IEventService {
@@ -36,16 +34,5 @@ export class EventService implements IEventService {
     });
 
     return events.map((event) => toEventDto(event));
-  }
-
-  public async listEventMetrics(dto: GetEventsMetricsQueryDto): Promise<EventMetricDto[]> {
-    const events = await this.eventRepository.listEventMetrics({
-      limit: dto.limit,
-      kind: dto.kind,
-      source: dto.source,
-      since: dto.since,
-    });
-
-    return events.map((event) => toEventMetricDto(event));
   }
 }
