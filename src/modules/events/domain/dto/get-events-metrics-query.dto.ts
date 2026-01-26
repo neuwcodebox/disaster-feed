@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const schemaGetEventsMetricsQuery = z.object({
-  limit: z.coerce.number().int().positive().max(2000).optional(),
+  limit: z.coerce.number().int().positive().max(3000).optional(),
   kind: z.coerce.number().int().optional(),
   source: z.coerce.number().int().optional(),
   since: z.iso.datetime().optional(),
