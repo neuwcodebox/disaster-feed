@@ -9,12 +9,12 @@ export function toEventDto(event: Event): EventDto {
     source: event.source,
     kind: event.kind,
     title: event.title,
-    body: event.body ?? null,
+    body: event.body ?? undefined,
     fetchedAt: event.fetchedAt,
     occurredAt: event.occurredAt,
-    regionText: event.regionText,
-    geo: event.geo ?? null,
-    regionCodes: event.regionCodes ?? null,
+    regionText: event.regionText ?? undefined,
+    geo: event.geo ?? undefined,
+    regionCodes: event.regionCodes ?? undefined,
     level: event.level,
   };
 }
