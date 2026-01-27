@@ -214,6 +214,8 @@ const formatCasualties = (deaths: number | null, injuries: number | null): strin
 };
 
 const buildPayload = (item: FireDispatchDetailItem, rawNowDate: string | null): EventPayload => {
+  const lawSidoCd = normalizeLawSidoCode(item.lawSidoCd);
+
   return {
     sidoOvrNum: item.sidoOvrNum,
     investNo: normalizeText(item.investNo),
@@ -229,7 +231,7 @@ const buildPayload = (item: FireDispatchDetailItem, rawNowDate: string | null): 
     dethNum: normalizeNumber(item.dethNum),
     injuNum: normalizeNumber(item.injuNum),
     expMount: normalizeText(item.expMount),
-    lawSidoCd: normalizeText(item.lawSidoCd),
+    lawSidoCd,
     lawGunguCd: normalizeText(item.lawGunguCd),
     lawDongCd: normalizeText(item.lawDongCd),
     lawRiCd: normalizeText(item.lawRiCd),
@@ -238,7 +240,7 @@ const buildPayload = (item: FireDispatchDetailItem, rawNowDate: string | null): 
 };
 
 const buildRegionCodes = (item: FireDispatchDetailItem): string[] | null => {
-  const lawSidoCd = normalizeLawCodePart(item.lawSidoCd, 2);
+  const lawSidoCd = normalizeLawSidoCode(item.lawSidoCd);
   const lawGunguCd = normalizeLawCodePart(item.lawGunguCd, 3);
   const lawDongCd = normalizeLawCodePart(item.lawDongCd, 3);
   const lawRiCd = normalizeLawCodePart(item.lawRiCd, 2);
@@ -260,6 +262,23 @@ const normalizeLawCodePart = (value: string | null | undefined, length: number):
     return null;
   }
   return normalized.padStart(length, '0');
+};
+
+const normalizeLawSidoCode = (value: string | null | undefined): string | null => {
+  const normalized = normalizeLawCodePart(value, 2);
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized === '42') {
+    return '51';
+  }
+
+  if (normalized === '45') {
+    return '52';
+  }
+
+  return normalized;
 };
 
 const buildRegionText = (addr: string, sidoNm: string): string | null => {
