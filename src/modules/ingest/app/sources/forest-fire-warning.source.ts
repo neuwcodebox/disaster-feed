@@ -11,6 +11,7 @@ const FOREST_FIRE_WARNING_ENDPOINT = 'https://fd.forest.go.kr/ffas/new/getFireWa
 const REQUEST_TIMEOUT_MS = 15000;
 const STATE_TTL_MS = 1000 * 60 * 60 * 24;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
+const NATIONAL_REGION_LABEL = '전국';
 
 const schemaFireWarningItem = z
   .object({
@@ -19,6 +20,7 @@ const schemaFireWarningItem = z
     frfr_wrnng_rgstn_dtm: z.string().nullish(),
     frfr_wrnng_issu_dtm: z.string().nullish(),
     frfr_wrnng_issu_rsn: z.string().nullish(),
+    lgdng_cd: z.string().nullish(),
     lgdng_ctprv_cd: z.string().nullish(),
     lgdng_nm: z.string().nullish(),
     lgdng_sgng_cd: z.string().nullish(),
@@ -82,6 +84,7 @@ export class ForestFireWarningSource implements Source {
 
     const seen = new Map<string, string>(Object.entries(previousState?.seen ?? {}));
     const groups = new Map<string, FireWarningGroup>();
+    const nationalItems: FireWarningItem[] = [];
 
     for (const item of parsed.data.fireWarningList) {
       const warningId = normalizeText(item.frfr_wrnng_id);
@@ -109,8 +112,18 @@ export class ForestFireWarningSource implements Source {
       }
 
       const stepLabel = normalizeText(item.frfr_wrnng_step_cd);
+      if (!stepLabel) {
+        continue;
+      }
+
+      const regionCode = normalizeText(item.lgdng_cd);
+      if (regionCode === NATIONAL_REGION_LABEL) {
+        nationalItems.push(item);
+        continue;
+      }
+
       const ctprvCode = normalizeText(item.lgdng_ctprv_cd);
-      if (!stepLabel || !ctprvCode) {
+      if (!ctprvCode) {
         continue;
       }
 
@@ -134,6 +147,7 @@ export class ForestFireWarningSource implements Source {
     }
 
     const events = Array.from(groups.values()).map(buildEvent);
+    events.push(...buildNationalEvents(nationalItems));
 
     return {
       events,
@@ -175,6 +189,35 @@ function buildEvent(group: FireWarningGroup): SourceEvent {
     level: mapWarningLevel(group.stepLabel),
     payload: { items: group.items },
   };
+}
+
+function buildNationalEvents(items: FireWarningItem[]): SourceEvent[] {
+  const events: SourceEvent[] = [];
+
+  for (const item of items) {
+    const stepLabel = normalizeText(item.frfr_wrnng_step_cd);
+    if (!stepLabel) {
+      continue;
+    }
+
+    const issuedAt = normalizeText(item.frfr_wrnng_issu_dtm);
+    const occurredAt = parseKstDateTime(normalizeText(item.frfr_wrnng_rgstn_dtm));
+    if (!issuedAt) {
+      continue;
+    }
+
+    events.push({
+      kind: EventKinds.Wildfire,
+      title: buildTitle(NATIONAL_REGION_LABEL, stepLabel),
+      body: buildBody(issuedAt, [], null),
+      occurredAt,
+      regionText: NATIONAL_REGION_LABEL,
+      level: mapWarningLevel(stepLabel),
+      payload: { items: [item] },
+    });
+  }
+
+  return events;
 }
 
 function buildTitle(regionText: string, stepLabel: string): string {

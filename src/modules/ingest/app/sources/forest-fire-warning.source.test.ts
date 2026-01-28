@@ -243,4 +243,40 @@ describe('ForestFireWarningSource', () => {
     expect(result.events[0].title).toBe('부산광역시 산불경보 주의 단계 발령');
     expect(result.events[0].body).toBe('발령 시각: 2026-01-28 11:00\n대상 지역: 부산광역시, 사하구, 해운대구');
   });
+
+  it('should emit national warning without grouping', async () => {
+    const responseBody = {
+      fireWarningList: [
+        {
+          frfr_wrnng_id: '225',
+          frfr_wrnng_step_cd: '관심',
+          frfr_wrnng_rgstn_dtm: '2026-01-28 09:00:00',
+          frfr_wrnng_issu_dtm: '2026-01-28 08:30',
+          lgdng_cd: '전국',
+        },
+      ],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const source = new ForestFireWarningSource();
+    const previousState = JSON.stringify({
+      seen: {},
+    });
+
+    const result = await source.run(previousState);
+
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].title).toBe('전국 산불경보 관심 단계 발령');
+    expect(result.events[0].body).toBe('발령 시각: 2026-01-28 08:30');
+    expect(result.events[0].regionText).toBe('전국');
+  });
 });
