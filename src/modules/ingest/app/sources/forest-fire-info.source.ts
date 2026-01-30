@@ -109,7 +109,10 @@ export class ForestFireInfoSource implements Source {
       const uniqueKey = buildUniqueKey(fireId, progressStatus, stepLabel);
 
       const resolvedOccurredAt = resolveOccurredAt(item);
-      const occurredAt = seenFireIds.has(fireId) ? nowIso : resolvedOccurredAt;
+      const resolvedCompletedAt = resolveCompletedAt(item);
+      const occurredAt = seenFireIds.has(fireId)
+        ? nowIso
+        : resolveFirstOccurredAt(progressStatus, resolvedOccurredAt, resolvedCompletedAt);
       if (isTooOld(occurredAt, nowMs, EVENT_MAX_AGE_MS)) {
         continue;
       }
@@ -238,12 +241,23 @@ function extractFireIdFromKey(key: string): string | null {
 }
 
 const resolveOccurredAt = (item: ForestFireItem): string | null => {
-  const occurredAt = parseKstDateTime(item.frfr_frng_dtm);
-  if (occurredAt) {
-    return occurredAt;
+  return parseKstDateTime(item.frfr_frng_dtm);
+};
+
+const resolveCompletedAt = (item: ForestFireItem): string | null => {
+  return parseKstDateTime(item.potfr_end_dtm);
+};
+
+const resolveFirstOccurredAt = (
+  progressStatus: ProgressStatus,
+  occurredAt: string | null,
+  completedAt: string | null,
+): string | null => {
+  if (progressStatus === 'completed' && completedAt) {
+    return completedAt;
   }
 
-  return parseKstDate(item.frfr_sttmn_dt);
+  return occurredAt;
 };
 
 const resolveProgressLabel = (item: ForestFireItem): string | null => {
@@ -361,27 +375,6 @@ const parseKstDateTime = (value: string | null | undefined): string | null => {
 
   const [, year, month, day, hour, minute, second] = matched;
   const kstIso = `${year}-${month}-${day}T${hour}:${minute}:${second ?? '00'}+09:00`;
-  const parsed = new Date(kstIso);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return parsed.toISOString();
-};
-
-const parseKstDate = (value: string | null | undefined): string | null => {
-  const normalized = normalizeText(value);
-  if (!normalized) {
-    return null;
-  }
-
-  const matched = normalized.match(/^(\d{4})(\d{2})(\d{2})$/);
-  if (!matched) {
-    return null;
-  }
-
-  const [, year, month, day] = matched;
-  const kstIso = `${year}-${month}-${day}T00:00:00+09:00`;
   const parsed = new Date(kstIso);
   if (Number.isNaN(parsed.getTime())) {
     return null;
