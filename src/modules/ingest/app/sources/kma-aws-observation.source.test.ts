@@ -152,7 +152,7 @@ describe('KmaAwsObservationSource', () => {
     expect(result.events).toHaveLength(0);
   });
 
-  it('should store info state and emit on level upgrade', async () => {
+  it('should treat missing state as info and emit on level upgrade', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-31T03:00:00.000Z'));
 
@@ -169,7 +169,7 @@ describe('KmaAwsObservationSource', () => {
     expect(result1.events).toHaveLength(0);
 
     const entry1 = readStateEntry(result1.nextState, 'wind_gust:90');
-    expect(entry1?.level).toBe(EventLevels.Info);
+    expect(entry1).toBeNull();
 
     vi.setSystemTime(new Date('2026-01-31T03:03:00.000Z'));
 
@@ -279,7 +279,7 @@ describe('KmaAwsObservationSource', () => {
     const result4 = await stableSource.run(result3.nextState);
     expect(result4.events).toHaveLength(0);
     const entry4 = readStateEntry(result4.nextState, 'wind_gust:90');
-    expect(entry4?.level).toBe(EventLevels.Info);
+    expect(entry4).toBeNull();
   });
 
   it('should not emit events when downgrade stability window is not met', async () => {
@@ -373,7 +373,7 @@ describe('KmaAwsObservationSource', () => {
     const result4 = await stableSource.run(result3.nextState);
     expect(result4.events).toHaveLength(0);
     const entry4 = readStateEntry(result4.nextState, 'cold:90');
-    expect(entry4?.level).toBe(EventLevels.Info);
+    expect(entry4).toBeNull();
   });
 });
 

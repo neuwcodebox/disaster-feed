@@ -141,7 +141,9 @@ export class KmaAwsObservationSource implements Source {
     const nowMs = now.getTime();
 
     const previousState = parseState(state);
-    const stateMap = new Map<string, AwsStateEntry>(Object.entries(previousState.entries));
+    const stateMap = new Map<string, AwsStateEntry>(
+      Object.entries(previousState.entries).filter(([, entry]) => entry.level !== EventLevels.Info),
+    );
     const stationCache = new Map<number, StationInfo | null>();
 
     const events: SourceEvent[] = [];
@@ -292,18 +294,18 @@ async function processLevel(options: ProcessLevelOptions): Promise<void> {
     if (options.level > EventLevels.Info) {
       await options.onEmit();
     }
-    options.stateMap.set(key, { level: options.level, lastAt: options.nowIso });
+    updateStateEntry(options.stateMap, key, options.level, options.nowIso);
     return;
   }
 
   if (options.level === previous.level) {
-    options.stateMap.set(key, { level: previous.level, lastAt: options.nowIso });
+    updateStateEntry(options.stateMap, key, previous.level, options.nowIso);
     return;
   }
 
   const previousThreshold = options.getThreshold(previous.level);
   if (previousThreshold === null) {
-    options.stateMap.set(key, { level: options.level, lastAt: options.nowIso });
+    updateStateEntry(options.stateMap, key, options.level, options.nowIso);
     return;
   }
 
@@ -314,8 +316,16 @@ async function processLevel(options: ProcessLevelOptions): Promise<void> {
       : options.currentValue > hysteresisThreshold;
 
   if (shouldUpdate && isStableDowngrade(previous, options.nowIso)) {
-    options.stateMap.set(key, { level: options.level, lastAt: options.nowIso });
+    updateStateEntry(options.stateMap, key, options.level, options.nowIso);
   }
+}
+
+function updateStateEntry(stateMap: Map<string, AwsStateEntry>, key: string, level: EventLevels, nowIso: string): void {
+  if (level === EventLevels.Info) {
+    stateMap.delete(key);
+    return;
+  }
+  stateMap.set(key, { level, lastAt: nowIso });
 }
 
 function buildRequestUrl(authKey: string): string {
