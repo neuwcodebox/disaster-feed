@@ -102,6 +102,38 @@ describe('KmaAwsObservationSource', () => {
     expect(result.events[0].title).not.toContain('한파');
   });
 
+  it('should include altitude in body when available', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-31T03:00:00.000Z'));
+
+    process.env.KMA_API_KEY = 'test-key';
+
+    const csvText = buildAwsCsvRow({
+      wss: 45.0,
+      ta: 5.0,
+    });
+    const stationInfo: StationInfo = {
+      code: 90,
+      startDate: '20000101',
+      endDate: null,
+      name: '테스트관측소',
+      address: '서울특별시',
+      office: null,
+      lat: 37.5,
+      lng: 127.0,
+      altitudeM: 123.4,
+      barometerM: null,
+      thermometerM: null,
+      anemometerM: null,
+      rainGaugeM: null,
+    };
+    const { source } = await createSource(csvText, stationInfo);
+
+    const result = await source.run(null);
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].body).toBe('관측 지점: 서울특별시 (해발고도 123.4m)');
+  });
+
   it('should skip events when station info is missing', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-31T03:00:00.000Z'));

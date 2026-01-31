@@ -732,7 +732,14 @@ function buildRegionText(stationInfo: StationInfo | null): string | null {
 
 function buildAddressBody(stationInfo: StationInfo | null): string | null {
   const address = normalizeText(stationInfo?.address);
-  return address ? `관측 위치: ${address}` : null;
+  if (!address) {
+    return null;
+  }
+  const altitude = stationInfo?.altitudeM;
+  if (altitude === null || altitude === undefined) {
+    return `관측 지점: ${address}`;
+  }
+  return `관측 지점: ${address} (해발고도 ${formatAltitude(altitude)}m)`;
 }
 
 function buildGeo(stationInfo: StationInfo | null) {
@@ -759,6 +766,11 @@ async function resolveStationInfo(
 }
 
 function formatNumber(value: number, digits: number = 1): string {
+  return value.toFixed(digits);
+}
+
+function formatAltitude(value: number): string {
+  const digits = Number.isInteger(value) ? 0 : 1;
   return value.toFixed(digits);
 }
 
