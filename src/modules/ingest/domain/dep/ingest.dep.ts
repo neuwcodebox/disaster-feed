@@ -7,4 +7,5 @@ export const IngestDeps = {
   IngestRoute: Symbol('IngestRoute'),
   LlmLabelClassifierService: Symbol('LlmLabelClassifierService'),
   RegionRepository: Symbol('RegionRepository'),
+  StationRepository: Symbol('StationRepository'),
 };

@@ -11,6 +11,7 @@ import { SourceRegistry } from './app/source.registry';
 import { IngestDeps } from './domain/dep/ingest.dep';
 import { IngestCheckpointRepository } from './infra/ingest-checkpoint.repo';
 import { RegionRepository } from './infra/region.repo';
+import { StationRepository } from './infra/station.repo';
 import { IngestRoute } from './view/ingest.route';
 
 export function registerIngestDeps(dep: DependencyContainer) {
@@ -20,6 +21,7 @@ export function registerIngestDeps(dep: DependencyContainer) {
   dep.add(IngestDeps.IngestWorkerService, IngestWorkerService);
   dep.add(IngestDeps.IngestCheckpointRepository, IngestCheckpointRepository);
   dep.add(IngestDeps.RegionRepository, RegionRepository);
+  dep.add(IngestDeps.StationRepository, StationRepository);
   dep.add(IngestDeps.IngestStatusService, IngestStatusService);
   dep.add(IngestDeps.IngestRoute, IngestRoute);
 }
