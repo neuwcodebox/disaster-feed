@@ -15,11 +15,11 @@ const HYSTERESIS_RATIO = 0.5;
 const DOWNGRADE_STABLE_WAIT_MS = 1000 * 60 * 60 * 24;
 const EVENT_MAX_AGE_MS = 1000 * 60 * 60;
 
-const TEMPERATURE_MIN_C = -40;
-const TEMPERATURE_MAX_C = 50;
-const WIND_SPEED_MAX_MS = 80;
-const RAIN_60M_MAX_MM = 600;
-const RAIN_ACCUM_MAX_MM = 5000;
+const TEMPERATURE_MIN_C = -35;
+const TEMPERATURE_MAX_C = 45;
+const WIND_SPEED_MAX_MS = 79;
+const RAIN_60M_MAX_MM = 300;
+const RAIN_ACCUM_MAX_MM = 2000;
 
 const WIND_THRESHOLDS = [
   { level: EventLevels.Severe, avgMs: 30, gustMs: 45 },
