@@ -14,6 +14,8 @@ const REQUEST_TIMEOUT_MS = 30000;
 const HYSTERESIS_RATIO = 0.5;
 const DOWNGRADE_STABLE_WAIT_MS = 1000 * 60 * 60 * 24;
 const EVENT_MAX_AGE_MS = 1000 * 60 * 60;
+const CONSECUTIVE_SAMPLE_SIZE = 3;
+const CONSECUTIVE_SAMPLE_STALE_MS = 1000 * 60 * 10;
 
 const TEMPERATURE_MIN_C = -35;
 const TEMPERATURE_MAX_C = 45;
@@ -95,6 +97,13 @@ type TemperatureEvaluation = {
   temperature: number;
 };
 
+type SampleBufferEntry = {
+  samples: number[];
+  lastObservedMs: number;
+};
+
+type SampleMetricKey = 'wind_gust' | 'wind_avg' | 'rain_intensity' | 'rain_accum' | 'temperature';
+
 type MetricKey = 'wind_gust' | 'wind_avg' | 'rain_intensity' | 'rain_accum' | 'heat' | 'cold';
 
 const schemaAwsState: z.ZodType<AwsState> = z.object({
@@ -114,7 +123,9 @@ const schemaAwsState: z.ZodType<AwsState> = z.object({
 
 export class KmaAwsObservationSource implements Source {
   public readonly sourceId = EventSources.KmaAwsObservation;
-  public readonly pollIntervalSec = 60 * 3;
+  public readonly pollIntervalSec = 60;
+
+  private readonly sampleBuffers = new Map<string, SampleBufferEntry>();
 
   constructor(private readonly stationRepository: IStationRepository) {}
 
@@ -161,110 +172,173 @@ export class KmaAwsObservationSource implements Source {
 
       const windGust = evaluateWindGust(row);
       if (windGust) {
-        await processLevel({
-          metricKey: 'wind_gust',
-          stationCode: row.stationCode,
-          level: windGust.level,
-          currentValue: windGust.speed,
-          direction: 'higher',
-          getThreshold: resolveWindGustThreshold,
-          nowIso,
-          stateMap,
-          onEmit: async () => {
-            events.push(buildWindEvent(row, windGust, 'gust', stationInfo, occurredAt));
-          },
-        });
+        const windGustSamples = updateSampleBuffer(
+          this.sampleBuffers,
+          'wind_gust',
+          row.stationCode,
+          windGust.speed,
+          occurredAt,
+          nowMs,
+        );
+        const windGustThreshold = windGust.level === EventLevels.Info ? null : resolveWindGustThreshold(windGust.level);
+        if (canProcessConsecutive(windGustSamples, 'higher', windGustThreshold)) {
+          await processLevel({
+            metricKey: 'wind_gust',
+            stationCode: row.stationCode,
+            level: windGust.level,
+            currentValue: windGust.speed,
+            direction: 'higher',
+            getThreshold: resolveWindGustThreshold,
+            nowIso,
+            stateMap,
+            onEmit: async () => {
+              events.push(buildWindEvent(row, windGust, 'gust', stationInfo, occurredAt));
+            },
+          });
+        }
       }
 
       const windAvg = evaluateWindAvg(row);
       if (windAvg) {
-        await processLevel({
-          metricKey: 'wind_avg',
-          stationCode: row.stationCode,
-          level: windAvg.level,
-          currentValue: windAvg.speed,
-          direction: 'higher',
-          getThreshold: resolveWindAvgThreshold,
-          nowIso,
-          stateMap,
-          onEmit: async () => {
-            events.push(buildWindEvent(row, windAvg, 'avg_ws10', stationInfo, occurredAt));
-          },
-        });
+        const windAvgSamples = updateSampleBuffer(
+          this.sampleBuffers,
+          'wind_avg',
+          row.stationCode,
+          windAvg.speed,
+          occurredAt,
+          nowMs,
+        );
+        const windAvgThreshold = windAvg.level === EventLevels.Info ? null : resolveWindAvgThreshold(windAvg.level);
+        if (canProcessConsecutive(windAvgSamples, 'higher', windAvgThreshold)) {
+          await processLevel({
+            metricKey: 'wind_avg',
+            stationCode: row.stationCode,
+            level: windAvg.level,
+            currentValue: windAvg.speed,
+            direction: 'higher',
+            getThreshold: resolveWindAvgThreshold,
+            nowIso,
+            stateMap,
+            onEmit: async () => {
+              events.push(buildWindEvent(row, windAvg, 'avg_ws10', stationInfo, occurredAt));
+            },
+          });
+        }
       }
 
       const rainIntensity = evaluateRainIntensity(row);
       if (rainIntensity) {
-        await processLevel({
-          metricKey: 'rain_intensity',
-          stationCode: row.stationCode,
-          level: rainIntensity.level,
-          currentValue: rainIntensity.intensity,
-          direction: 'higher',
-          getThreshold: resolveRainIntensityThreshold,
-          nowIso,
-          stateMap,
-          onEmit: async () => {
-            events.push(buildRainIntensityEvent(row, rainIntensity, stationInfo, occurredAt));
-          },
-        });
+        const rainIntensitySamples = updateSampleBuffer(
+          this.sampleBuffers,
+          'rain_intensity',
+          row.stationCode,
+          rainIntensity.intensity,
+          occurredAt,
+          nowMs,
+        );
+        const rainIntensityThreshold =
+          rainIntensity.level === EventLevels.Info ? null : resolveRainIntensityThreshold(rainIntensity.level);
+        if (canProcessConsecutive(rainIntensitySamples, 'higher', rainIntensityThreshold)) {
+          await processLevel({
+            metricKey: 'rain_intensity',
+            stationCode: row.stationCode,
+            level: rainIntensity.level,
+            currentValue: rainIntensity.intensity,
+            direction: 'higher',
+            getThreshold: resolveRainIntensityThreshold,
+            nowIso,
+            stateMap,
+            onEmit: async () => {
+              events.push(buildRainIntensityEvent(row, rainIntensity, stationInfo, occurredAt));
+            },
+          });
+        }
       }
 
       const rainAccum = evaluateRainAccum(row);
       if (rainAccum) {
-        await processLevel({
-          metricKey: 'rain_accum',
-          stationCode: row.stationCode,
-          level: rainAccum.level,
-          currentValue: rainAccum.rn12h,
-          direction: 'higher',
-          getThreshold: resolveRainAccumThreshold,
-          nowIso,
-          stateMap,
-          onEmit: async () => {
-            events.push(buildRainAccumEvent(row, rainAccum, stationInfo, occurredAt));
-          },
-        });
+        const rainAccumSamples = updateSampleBuffer(
+          this.sampleBuffers,
+          'rain_accum',
+          row.stationCode,
+          rainAccum.rn12h,
+          occurredAt,
+          nowMs,
+        );
+        const rainAccumThreshold =
+          rainAccum.level === EventLevels.Info ? null : resolveRainAccumThreshold(rainAccum.level);
+        if (canProcessConsecutive(rainAccumSamples, 'higher', rainAccumThreshold)) {
+          await processLevel({
+            metricKey: 'rain_accum',
+            stationCode: row.stationCode,
+            level: rainAccum.level,
+            currentValue: rainAccum.rn12h,
+            direction: 'higher',
+            getThreshold: resolveRainAccumThreshold,
+            nowIso,
+            stateMap,
+            onEmit: async () => {
+              events.push(buildRainAccumEvent(row, rainAccum, stationInfo, occurredAt));
+            },
+          });
+        }
       }
 
       if (row.ta !== null) {
+        const temperatureSamples = updateSampleBuffer(
+          this.sampleBuffers,
+          'temperature',
+          row.stationCode,
+          row.ta,
+          occurredAt,
+          nowMs,
+        );
+
         const heatEvaluation: TemperatureEvaluation = {
           level: resolveHeatLevel(row.ta),
           kind: EventKinds.Heat,
           temperature: row.ta,
         };
-        await processLevel({
-          metricKey: 'heat',
-          stationCode: row.stationCode,
-          level: heatEvaluation.level,
-          currentValue: heatEvaluation.temperature,
-          direction: 'higher',
-          getThreshold: resolveHeatThreshold,
-          nowIso,
-          stateMap,
-          onEmit: async () => {
-            events.push(buildTemperatureEvent(row, heatEvaluation, stationInfo, occurredAt));
-          },
-        });
+        const heatThreshold =
+          heatEvaluation.level === EventLevels.Info ? null : resolveHeatThreshold(heatEvaluation.level);
+        if (canProcessConsecutive(temperatureSamples, 'higher', heatThreshold)) {
+          await processLevel({
+            metricKey: 'heat',
+            stationCode: row.stationCode,
+            level: heatEvaluation.level,
+            currentValue: heatEvaluation.temperature,
+            direction: 'higher',
+            getThreshold: resolveHeatThreshold,
+            nowIso,
+            stateMap,
+            onEmit: async () => {
+              events.push(buildTemperatureEvent(row, heatEvaluation, stationInfo, occurredAt));
+            },
+          });
+        }
 
         const coldEvaluation: TemperatureEvaluation = {
           level: resolveColdLevel(row.ta),
           kind: EventKinds.Cold,
           temperature: row.ta,
         };
-        await processLevel({
-          metricKey: 'cold',
-          stationCode: row.stationCode,
-          level: coldEvaluation.level,
-          currentValue: coldEvaluation.temperature,
-          direction: 'lower',
-          getThreshold: resolveColdThreshold,
-          nowIso,
-          stateMap,
-          onEmit: async () => {
-            events.push(buildTemperatureEvent(row, coldEvaluation, stationInfo, occurredAt));
-          },
-        });
+        const coldThreshold =
+          coldEvaluation.level === EventLevels.Info ? null : resolveColdThreshold(coldEvaluation.level);
+        if (canProcessConsecutive(temperatureSamples, 'lower', coldThreshold)) {
+          await processLevel({
+            metricKey: 'cold',
+            stationCode: row.stationCode,
+            level: coldEvaluation.level,
+            currentValue: coldEvaluation.temperature,
+            direction: 'lower',
+            getThreshold: resolveColdThreshold,
+            nowIso,
+            stateMap,
+            onEmit: async () => {
+              events.push(buildTemperatureEvent(row, coldEvaluation, stationInfo, occurredAt));
+            },
+          });
+        }
       }
     }
 
@@ -414,6 +488,64 @@ function parseNumber(value: string | undefined): number | null {
     return null;
   }
   return parsed;
+}
+
+function updateSampleBuffer(
+  buffers: Map<string, SampleBufferEntry>,
+  metricKey: SampleMetricKey,
+  stationCode: number,
+  value: number,
+  observedAtIso: string | null,
+  nowMs: number,
+): number[] {
+  const observedMs = resolveObservedMs(observedAtIso, nowMs);
+  const key = buildSampleKey(metricKey, stationCode);
+  const existing = buffers.get(key);
+  if (!existing || observedMs - existing.lastObservedMs > CONSECUTIVE_SAMPLE_STALE_MS) {
+    const samples = [value];
+    buffers.set(key, { samples, lastObservedMs: observedMs });
+    return samples;
+  }
+
+  existing.samples.push(value);
+  if (existing.samples.length > CONSECUTIVE_SAMPLE_SIZE) {
+    existing.samples.shift();
+  }
+  existing.lastObservedMs = observedMs;
+  return existing.samples;
+}
+
+function resolveObservedMs(observedAtIso: string | null, fallbackMs: number): number {
+  if (!observedAtIso) {
+    return fallbackMs;
+  }
+  const parsed = Date.parse(observedAtIso);
+  return Number.isFinite(parsed) ? parsed : fallbackMs;
+}
+
+function canProcessConsecutive(samples: number[], direction: 'higher' | 'lower', threshold: number | null): boolean {
+  if (samples.length < CONSECUTIVE_SAMPLE_SIZE) {
+    return false;
+  }
+  if (threshold === null) {
+    return true;
+  }
+  return isConsecutiveThresholdSatisfied(samples, direction, threshold);
+}
+
+function isConsecutiveThresholdSatisfied(samples: number[], direction: 'higher' | 'lower', threshold: number): boolean {
+  for (const sample of samples) {
+    if (direction === 'higher') {
+      if (sample < threshold) {
+        return false;
+      }
+      continue;
+    }
+    if (sample > threshold) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function evaluateWindGust(row: AwsRow): WindGustEvaluation | null {
@@ -820,6 +952,10 @@ function buildState(stateMap: Map<string, AwsStateEntry>): string | null {
 }
 
 function buildStateKey(metricKey: MetricKey, stationCode: number): string {
+  return `${metricKey}:${stationCode}`;
+}
+
+function buildSampleKey(metricKey: SampleMetricKey, stationCode: number): string {
   return `${metricKey}:${stationCode}`;
 }
 

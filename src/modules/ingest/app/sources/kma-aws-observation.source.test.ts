@@ -21,17 +21,65 @@ describe('KmaAwsObservationSource', () => {
       ws10: 21.0,
       ta: 5.0,
     });
-    const { source } = await createSource(csvText);
+    const { source, fetchMock } = await createSource();
+    let state: string | null = null;
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvText);
+      const result = await source.run(state);
+      expect(result.events).toHaveLength(0);
+      state = result.nextState;
+    }
 
-    const result1 = await source.run(null);
+    queueAwsResponse(fetchMock, csvText);
+    const result1 = await source.run(state);
     expect(result1.events).toHaveLength(2);
     expect(result1.events[0].level).toBe(EventLevels.Severe);
     expect(result1.events[0].title).toBe('테스트관측소 순간 풍속 45.0 m/s 관측');
     expect(result1.events[1].level).toBe(EventLevels.Minor);
     expect(result1.events[1].title).toBe('테스트관측소 10분 평균 풍속 21.0 m/s 관측');
 
+    queueAwsResponse(fetchMock, csvText);
     const result2 = await source.run(result1.nextState);
     expect(result2.events).toHaveLength(0);
+  });
+
+  it('should reset consecutive buffer after stale window', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-31T03:00:00.000Z'));
+
+    process.env.KMA_API_KEY = 'test-key';
+
+    const { source, fetchMock } = await createSource();
+
+    const csvEarly1 = buildAwsCsvRow({ wss: 45.0, ta: 5.0, timestamp: '202601311200' });
+    queueAwsResponse(fetchMock, csvEarly1);
+    const result1 = await source.run(null);
+    expect(result1.events).toHaveLength(0);
+
+    vi.setSystemTime(new Date('2026-01-31T03:01:00.000Z'));
+    const csvEarly2 = buildAwsCsvRow({ wss: 45.0, ta: 5.0, timestamp: '202601311201' });
+    queueAwsResponse(fetchMock, csvEarly2);
+    const result2 = await source.run(result1.nextState);
+    expect(result2.events).toHaveLength(0);
+
+    vi.setSystemTime(new Date('2026-01-31T03:20:00.000Z'));
+    const csvStale = buildAwsCsvRow({ wss: 45.0, ta: 5.0, timestamp: '202601311220' });
+    queueAwsResponse(fetchMock, csvStale);
+    const result3 = await source.run(result2.nextState);
+    expect(result3.events).toHaveLength(0);
+
+    vi.setSystemTime(new Date('2026-01-31T03:21:00.000Z'));
+    const csvAfter1 = buildAwsCsvRow({ wss: 45.0, ta: 5.0, timestamp: '202601311221' });
+    queueAwsResponse(fetchMock, csvAfter1);
+    const result4 = await source.run(result3.nextState);
+    expect(result4.events).toHaveLength(0);
+
+    vi.setSystemTime(new Date('2026-01-31T03:22:00.000Z'));
+    const csvAfter2 = buildAwsCsvRow({ wss: 45.0, ta: 5.0, timestamp: '202601311222' });
+    queueAwsResponse(fetchMock, csvAfter2);
+    const result5 = await source.run(result4.nextState);
+    expect(result5.events).toHaveLength(1);
+    expect(result5.events[0].kind).toBe(EventKinds.Wind);
   });
 
   it('should emit rain intensity and accumulation events', async () => {
@@ -45,9 +93,17 @@ describe('KmaAwsObservationSource', () => {
       rn12h: 200.0,
       ta: 8.0,
     });
-    const { source } = await createSource(csvText);
+    const { source, fetchMock } = await createSource();
+    let state: string | null = null;
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvText);
+      const result = await source.run(state);
+      expect(result.events).toHaveLength(0);
+      state = result.nextState;
+    }
 
-    const result = await source.run(null);
+    queueAwsResponse(fetchMock, csvText);
+    const result = await source.run(state);
     expect(result.events).toHaveLength(2);
 
     const intensityEvent = result.events.find((event) => event.title.includes('시간당')) ?? null;
@@ -74,9 +130,17 @@ describe('KmaAwsObservationSource', () => {
       wss: 3.0,
       ta: 10.0,
     });
-    const { source } = await createSource(csvText);
+    const { source, fetchMock } = await createSource();
+    let state: string | null = null;
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvText);
+      const result = await source.run(state);
+      expect(result.events).toHaveLength(0);
+      state = result.nextState;
+    }
 
-    const result = await source.run(null);
+    queueAwsResponse(fetchMock, csvText);
+    const result = await source.run(state);
     expect(result.events).toHaveLength(1);
     expect(result.events[0].title).toBe('테스트관측소 시간당 강수 100 mm 관측');
   });
@@ -92,9 +156,18 @@ describe('KmaAwsObservationSource', () => {
       ws1: 5.0,
       wss: 8.0,
     });
-    const { source } = await createSource(csvText);
+    const { source, fetchMock } = await createSource();
 
-    const result = await source.run(null);
+    let state: string | null = null;
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvText);
+      const result = await source.run(state);
+      expect(result.events).toHaveLength(0);
+      state = result.nextState;
+    }
+
+    queueAwsResponse(fetchMock, csvText);
+    const result = await source.run(state);
     expect(result.events).toHaveLength(1);
     expect(result.events[0].kind).toBe(EventKinds.Heat);
     expect(result.events[0].title).toBe('테스트관측소 기온 38.0 ℃ 관측');
@@ -127,9 +200,17 @@ describe('KmaAwsObservationSource', () => {
       anemometerM: null,
       rainGaugeM: null,
     };
-    const { source } = await createSource(csvText, stationInfo);
+    const { source, fetchMock } = await createSource(stationInfo);
+    let state: string | null = null;
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvText);
+      const result = await source.run(state);
+      expect(result.events).toHaveLength(0);
+      state = result.nextState;
+    }
 
-    const result = await source.run(null);
+    queueAwsResponse(fetchMock, csvText);
+    const result = await source.run(state);
     expect(result.events).toHaveLength(1);
     expect(result.events[0].body).toBe('관측 지점: 서울특별시 (해발고도 123.4m)');
   });
@@ -146,8 +227,9 @@ describe('KmaAwsObservationSource', () => {
       rn12h: 200.0,
       ta: 37.0,
     });
-    const { source } = await createSource(csvText, null);
+    const { source, fetchMock } = await createSource(null);
 
+    queueAwsResponse(fetchMock, csvText);
     const result = await source.run(null);
     expect(result.events).toHaveLength(0);
   });
@@ -163,10 +245,13 @@ describe('KmaAwsObservationSource', () => {
       ws10: 0.0,
       ta: 5.0,
     });
-    const { source } = await createSource(csvInfo);
+    const { source, fetchMock } = await createSource();
+    let state: string | null = null;
 
-    const result1 = await source.run(null);
+    queueAwsResponse(fetchMock, csvInfo);
+    const result1 = await source.run(state);
     expect(result1.events).toHaveLength(0);
+    state = result1.nextState;
 
     const entry1 = readStateEntry(result1.nextState, 'wind_gust:90');
     expect(entry1).toBeNull();
@@ -179,9 +264,15 @@ describe('KmaAwsObservationSource', () => {
       ta: 5.0,
       timestamp: '202601311203',
     });
-    const { source: upgradedSource } = await createSource(csvUpgraded);
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvUpgraded);
+      const result = await source.run(state);
+      expect(result.events).toHaveLength(0);
+      state = result.nextState;
+    }
 
-    const result2 = await upgradedSource.run(result1.nextState);
+    queueAwsResponse(fetchMock, csvUpgraded);
+    const result2 = await source.run(state);
     expect(result2.events).toHaveLength(1);
     expect(result2.events[0].level).toBe(EventLevels.Severe);
   });
@@ -198,9 +289,17 @@ describe('KmaAwsObservationSource', () => {
       ta: 5.0,
       timestamp: '202601311155',
     });
-    const { source } = await createSource(csvText);
+    const { source, fetchMock } = await createSource();
+    let state: string | null = null;
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvText);
+      const result = await source.run(state);
+      expect(result.events).toHaveLength(0);
+      state = result.nextState;
+    }
 
-    const result1 = await source.run(null);
+    queueAwsResponse(fetchMock, csvText);
+    const result1 = await source.run(state);
     expect(result1.events).toHaveLength(1);
 
     vi.setSystemTime(new Date('2026-02-01T03:00:00.000Z'));
@@ -211,9 +310,15 @@ describe('KmaAwsObservationSource', () => {
       ta: 5.0,
       timestamp: '202602011155',
     });
-    const { source: laterSource } = await createSource(csvLater);
-
-    const result2 = await laterSource.run(result1.nextState);
+    let lateState: string | null = result1.nextState;
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvLater);
+      const result = await source.run(lateState);
+      expect(result.events).toHaveLength(0);
+      lateState = result.nextState;
+    }
+    queueAwsResponse(fetchMock, csvLater);
+    const result2 = await source.run(lateState);
     expect(result2.events).toHaveLength(0);
 
     const entry2 = readStateEntry(result2.nextState, 'wind_gust:90');
@@ -231,9 +336,16 @@ describe('KmaAwsObservationSource', () => {
       ws10: 0.0,
       ta: 5.0,
     });
-    const { source } = await createSource(csvSevere);
-
-    const result1 = await source.run(null);
+    const { source, fetchMock } = await createSource();
+    let state: string | null = null;
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvSevere);
+      const result = await source.run(state);
+      expect(result.events).toHaveLength(0);
+      state = result.nextState;
+    }
+    queueAwsResponse(fetchMock, csvSevere);
+    const result1 = await source.run(state);
     expect(result1.events).toHaveLength(1);
 
     vi.setSystemTime(new Date('2026-01-31T03:03:00.000Z'));
@@ -244,9 +356,8 @@ describe('KmaAwsObservationSource', () => {
       ta: 5.0,
       timestamp: '202601311203',
     });
-    const { source: moderateSource } = await createSource(csvModerate);
-
-    const result2 = await moderateSource.run(result1.nextState);
+    queueAwsResponse(fetchMock, csvModerate);
+    const result2 = await source.run(result1.nextState);
     expect(result2.events).toHaveLength(0);
     const entry2 = readStateEntry(result2.nextState, 'wind_gust:90');
     expect(entry2?.level).toBe(EventLevels.Severe);
@@ -259,9 +370,8 @@ describe('KmaAwsObservationSource', () => {
       ta: 5.0,
       timestamp: '202601311206',
     });
-    const { source: clearedSource } = await createSource(csvClear);
-
-    const result3 = await clearedSource.run(result2.nextState);
+    queueAwsResponse(fetchMock, csvClear);
+    const result3 = await source.run(result2.nextState);
     expect(result3.events).toHaveLength(0);
     const entry3 = readStateEntry(result3.nextState, 'wind_gust:90');
     expect(entry3?.level).toBe(EventLevels.Severe);
@@ -274,9 +384,15 @@ describe('KmaAwsObservationSource', () => {
       ta: 5.0,
       timestamp: '202602011206',
     });
-    const { source: stableSource } = await createSource(csvStable);
-
-    const result4 = await stableSource.run(result3.nextState);
+    let stableState: string | null = result3.nextState;
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvStable);
+      const result = await source.run(stableState);
+      expect(result.events).toHaveLength(0);
+      stableState = result.nextState;
+    }
+    queueAwsResponse(fetchMock, csvStable);
+    const result4 = await source.run(stableState);
     expect(result4.events).toHaveLength(0);
     const entry4 = readStateEntry(result4.nextState, 'wind_gust:90');
     expect(entry4).toBeNull();
@@ -293,22 +409,28 @@ describe('KmaAwsObservationSource', () => {
       ws10: 0.0,
       ta: 5.0,
     });
-    const { source } = await createSource(csvSevere);
-
-    const result1 = await source.run(null);
+    const { source, fetchMock } = await createSource();
+    let state: string | null = null;
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvSevere);
+      const result = await source.run(state);
+      expect(result.events).toHaveLength(0);
+      state = result.nextState;
+    }
+    queueAwsResponse(fetchMock, csvSevere);
+    const result1 = await source.run(state);
     expect(result1.events).toHaveLength(1);
 
-    vi.setSystemTime(new Date('2026-02-01T02:00:00.000Z'));
+    vi.setSystemTime(new Date('2026-01-31T03:05:00.000Z'));
 
     const csvDowngrade = buildAwsCsvRow({
       wss: 10.0,
       ws10: 0.0,
       ta: 5.0,
-      timestamp: '202602011100',
+      timestamp: '202601311205',
     });
-    const { source: downgradeSource } = await createSource(csvDowngrade);
-
-    const result2 = await downgradeSource.run(result1.nextState);
+    queueAwsResponse(fetchMock, csvDowngrade);
+    const result2 = await source.run(result1.nextState);
     expect(result2.events).toHaveLength(0);
     const entry2 = readStateEntry(result2.nextState, 'wind_gust:90');
     expect(entry2?.level).toBe(EventLevels.Severe);
@@ -325,9 +447,17 @@ describe('KmaAwsObservationSource', () => {
       ws10: 0.0,
       wss: 0.0,
     });
-    const { source } = await createSource(csvSevere);
+    const { source, fetchMock } = await createSource();
 
-    const result1 = await source.run(null);
+    let state: string | null = null;
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvSevere);
+      const result = await source.run(state);
+      expect(result.events).toHaveLength(0);
+      state = result.nextState;
+    }
+    queueAwsResponse(fetchMock, csvSevere);
+    const result1 = await source.run(state);
     expect(result1.events).toHaveLength(1);
 
     vi.setSystemTime(new Date('2026-01-31T03:03:00.000Z'));
@@ -338,9 +468,8 @@ describe('KmaAwsObservationSource', () => {
       wss: 0.0,
       timestamp: '202601311203',
     });
-    const { source: moderateSource } = await createSource(csvModerate);
-
-    const result2 = await moderateSource.run(result1.nextState);
+    queueAwsResponse(fetchMock, csvModerate);
+    const result2 = await source.run(result1.nextState);
     expect(result2.events).toHaveLength(0);
     const entry2 = readStateEntry(result2.nextState, 'cold:90');
     expect(entry2?.level).toBe(EventLevels.Severe);
@@ -353,9 +482,8 @@ describe('KmaAwsObservationSource', () => {
       wss: 0.0,
       timestamp: '202601311206',
     });
-    const { source: clearedSource } = await createSource(csvClear);
-
-    const result3 = await clearedSource.run(result2.nextState);
+    queueAwsResponse(fetchMock, csvClear);
+    const result3 = await source.run(result2.nextState);
     expect(result3.events).toHaveLength(0);
     const entry3 = readStateEntry(result3.nextState, 'cold:90');
     expect(entry3?.level).toBe(EventLevels.Severe);
@@ -368,9 +496,15 @@ describe('KmaAwsObservationSource', () => {
       wss: 0.0,
       timestamp: '202602011206',
     });
-    const { source: stableSource } = await createSource(csvStable);
-
-    const result4 = await stableSource.run(result3.nextState);
+    let downgradeState: string | null = result3.nextState;
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvStable);
+      const result = await source.run(downgradeState);
+      expect(result.events).toHaveLength(0);
+      downgradeState = result.nextState;
+    }
+    queueAwsResponse(fetchMock, csvStable);
+    const result4 = await source.run(downgradeState);
     expect(result4.events).toHaveLength(0);
     const entry4 = readStateEntry(result4.nextState, 'cold:90');
     expect(entry4).toBeNull();
@@ -435,8 +569,8 @@ function buildAwsCsvRow(overrides: AwsCsvOverrides): string {
   ].join(',');
 }
 
-async function createSource(csvText: string, stationInfo?: StationInfo | null) {
-  const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(csvText, { status: 200 })));
+async function createSource(stationInfo?: StationInfo | null) {
+  const fetchMock = vi.fn();
   vi.stubGlobal('fetch', fetchMock);
 
   const defaultStation: StationInfo = {
@@ -460,7 +594,11 @@ async function createSource(csvText: string, stationInfo?: StationInfo | null) {
   };
 
   const { KmaAwsObservationSource } = await import('./kma-aws-observation.source');
-  return { source: new KmaAwsObservationSource(stationRepo) };
+  return { source: new KmaAwsObservationSource(stationRepo), fetchMock };
+}
+
+function queueAwsResponse(fetchMock: ReturnType<typeof vi.fn>, csvText: string) {
+  fetchMock.mockResolvedValueOnce(new Response(csvText, { status: 200 }));
 }
 
 type AwsStateEntry = {
