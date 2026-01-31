@@ -183,6 +183,7 @@ const EVENT_SOURCE_LABELS: Record<EventSources, string> = {
   [EventSources.KmaOverseasEarthquake]: '기상청',
   [EventSources.NfdsFireDispatch]: '소방청',
   [EventSources.KmaWeatherWarning]: '기상청',
+  [EventSources.KmaAwsObservation]: '기상청',
   [EventSources.UticTrafficIncident]: '경찰청',
   [EventSources.AirkoreaPmWarning]: '기후부',
   [EventSources.AirkoreaO3Warning]: '기후부',

@@ -2,6 +2,7 @@ import { inject, injectable } from 'inversify';
 import { IngestDeps } from '../domain/dep/ingest.dep';
 import type { IRegionRepository } from '../domain/port/region-repo.interface';
 import type { Source } from '../domain/port/source.interface';
+import type { IStationRepository } from '../domain/port/station-repo.interface';
 import type { LlmLabelClassifierService } from './llm-label-classifier.service';
 import { buildSourceList } from './source.list';
 
@@ -14,8 +15,10 @@ export class SourceRegistry {
     private readonly llmLabelClassifier: LlmLabelClassifierService,
     @inject(IngestDeps.RegionRepository)
     private readonly regionRepository: IRegionRepository,
+    @inject(IngestDeps.StationRepository)
+    private readonly stationRepository: IStationRepository,
   ) {
-    for (const source of buildSourceList(this.llmLabelClassifier, this.regionRepository)) {
+    for (const source of buildSourceList(this.llmLabelClassifier, this.regionRepository, this.stationRepository)) {
       this.sources.set(source.sourceId, source);
     }
   }

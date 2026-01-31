@@ -76,4 +76,5 @@ export enum EventSources {
   KasaSpaceWeatherWarning = 19,
   KasaSpaceWeatherCrisisAlert = 20,
   KmaOverseasEarthquake = 21,
+  KmaAwsObservation = 22,
 }
