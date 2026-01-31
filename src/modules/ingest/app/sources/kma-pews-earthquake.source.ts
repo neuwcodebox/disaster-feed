@@ -403,7 +403,7 @@ const buildEarthquakeEvent = (
 ): SourceEvent => {
   const phaseLabel = phase === 2 ? '지진 신속정보' : '지진 상세정보';
   const title = buildTitle(phaseLabel, info);
-  const body = buildBody(phaseLabel, info);
+  const body = buildBody(info);
   const geo = resolveGeo(info);
 
   return {
@@ -435,9 +435,8 @@ const buildTitle = (phaseLabel: string, info: ParsedEarthquakeInfo): string => {
   return `${parts.join(' ')} ${phaseLabel}`;
 };
 
-const buildBody = (phaseLabel: string, info: ParsedEarthquakeInfo): string | null => {
+const buildBody = (info: ParsedEarthquakeInfo): string | null => {
   const lines: string[] = [];
-  lines.push(phaseLabel);
 
   if (info.infoText) {
     lines.push(`정보 : ${info.infoText}`);
