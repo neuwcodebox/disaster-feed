@@ -42,3 +42,19 @@ CREATE TABLE IF NOT EXISTS regions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_regions_name_trgm ON regions USING GIN (name gin_trgm_ops);
+
+CREATE TABLE IF NOT EXISTS stations (
+  code INTEGER PRIMARY KEY,
+  start_date DATE NOT NULL,
+  end_date DATE NULL,
+  name TEXT NOT NULL,
+  address TEXT NULL,
+  office TEXT NULL,
+  lat DOUBLE PRECISION NULL,
+  lng DOUBLE PRECISION NULL,
+  altitude_m DOUBLE PRECISION NULL,
+  barometer_m DOUBLE PRECISION NULL,
+  thermometer_m DOUBLE PRECISION NULL,
+  anemometer_m DOUBLE PRECISION NULL,
+  rain_gauge_m DOUBLE PRECISION NULL
+);
