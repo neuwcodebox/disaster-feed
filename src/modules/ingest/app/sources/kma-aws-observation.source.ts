@@ -11,8 +11,8 @@ import { normalizeText } from './_shared/normalize';
 
 const KMA_AWS_ENDPOINT = 'https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-aws2_min';
 const REQUEST_TIMEOUT_MS = 30000;
-const LEVEL_EXPIRE_MS = 1000 * 60 * 60 * 24;
-const STATE_TTL_MS = LEVEL_EXPIRE_MS * 2;
+const HYSTERESIS_RATIO = 0.5;
+const DOWNGRADE_STABLE_WAIT_MS = 1000 * 60 * 60 * 24;
 const EVENT_MAX_AGE_MS = 1000 * 60 * 60;
 
 const TEMPERATURE_MIN_C = -40;
@@ -163,8 +163,10 @@ export class KmaAwsObservationSource implements Source {
           metricKey: 'wind_gust',
           stationCode: row.stationCode,
           level: windGust.level,
+          currentValue: windGust.speed,
+          direction: 'higher',
+          getThreshold: resolveWindGustThreshold,
           nowIso,
-          nowMs,
           stateMap,
           onEmit: async () => {
             events.push(buildWindEvent(row, windGust, 'gust', stationInfo, occurredAt));
@@ -178,8 +180,10 @@ export class KmaAwsObservationSource implements Source {
           metricKey: 'wind_avg',
           stationCode: row.stationCode,
           level: windAvg.level,
+          currentValue: windAvg.speed,
+          direction: 'higher',
+          getThreshold: resolveWindAvgThreshold,
           nowIso,
-          nowMs,
           stateMap,
           onEmit: async () => {
             events.push(buildWindEvent(row, windAvg, 'avg_ws10', stationInfo, occurredAt));
@@ -193,8 +197,10 @@ export class KmaAwsObservationSource implements Source {
           metricKey: 'rain_intensity',
           stationCode: row.stationCode,
           level: rainIntensity.level,
+          currentValue: rainIntensity.intensity,
+          direction: 'higher',
+          getThreshold: resolveRainIntensityThreshold,
           nowIso,
-          nowMs,
           stateMap,
           onEmit: async () => {
             events.push(buildRainIntensityEvent(row, rainIntensity, stationInfo, occurredAt));
@@ -208,8 +214,10 @@ export class KmaAwsObservationSource implements Source {
           metricKey: 'rain_accum',
           stationCode: row.stationCode,
           level: rainAccum.level,
+          currentValue: rainAccum.rn12h,
+          direction: 'higher',
+          getThreshold: resolveRainAccumThreshold,
           nowIso,
-          nowMs,
           stateMap,
           onEmit: async () => {
             events.push(buildRainAccumEvent(row, rainAccum, stationInfo, occurredAt));
@@ -217,23 +225,47 @@ export class KmaAwsObservationSource implements Source {
         });
       }
 
-      const temperature = evaluateTemperature(row.ta);
-      if (temperature) {
+      if (row.ta !== null) {
+        const heatEvaluation: TemperatureEvaluation = {
+          level: resolveHeatLevel(row.ta),
+          kind: EventKinds.Heat,
+          temperature: row.ta,
+        };
         await processLevel({
-          metricKey: temperature.kind === EventKinds.Heat ? 'heat' : 'cold',
+          metricKey: 'heat',
           stationCode: row.stationCode,
-          level: temperature.level,
+          level: heatEvaluation.level,
+          currentValue: heatEvaluation.temperature,
+          direction: 'higher',
+          getThreshold: resolveHeatThreshold,
           nowIso,
-          nowMs,
           stateMap,
           onEmit: async () => {
-            events.push(buildTemperatureEvent(row, temperature, stationInfo, occurredAt));
+            events.push(buildTemperatureEvent(row, heatEvaluation, stationInfo, occurredAt));
+          },
+        });
+
+        const coldEvaluation: TemperatureEvaluation = {
+          level: resolveColdLevel(row.ta),
+          kind: EventKinds.Cold,
+          temperature: row.ta,
+        };
+        await processLevel({
+          metricKey: 'cold',
+          stationCode: row.stationCode,
+          level: coldEvaluation.level,
+          currentValue: coldEvaluation.temperature,
+          direction: 'lower',
+          getThreshold: resolveColdThreshold,
+          nowIso,
+          stateMap,
+          onEmit: async () => {
+            events.push(buildTemperatureEvent(row, coldEvaluation, stationInfo, occurredAt));
           },
         });
       }
     }
 
-    pruneState(stateMap, nowMs, STATE_TTL_MS);
     const nextState = buildState(stateMap);
 
     return { events, nextState };
@@ -244,8 +276,10 @@ type ProcessLevelOptions = {
   metricKey: MetricKey;
   stationCode: number;
   level: EventLevels;
+  currentValue: number;
+  direction: 'higher' | 'lower';
+  getThreshold: (level: EventLevels) => number | null;
   nowIso: string;
-  nowMs: number;
   stateMap: Map<string, AwsStateEntry>;
   onEmit: () => Promise<void>;
 };
@@ -253,9 +287,8 @@ type ProcessLevelOptions = {
 async function processLevel(options: ProcessLevelOptions): Promise<void> {
   const key = buildStateKey(options.metricKey, options.stationCode);
   const previous = options.stateMap.get(key);
-  const expired = isLevelExpired(previous, options.nowMs);
 
-  if (!previous || expired) {
+  if (!previous || options.level > previous.level) {
     if (options.level > EventLevels.Info) {
       await options.onEmit();
     }
@@ -263,14 +296,25 @@ async function processLevel(options: ProcessLevelOptions): Promise<void> {
     return;
   }
 
-  if (options.level > previous.level) {
-    await options.onEmit();
+  if (options.level === previous.level) {
+    options.stateMap.set(key, { level: previous.level, lastAt: options.nowIso });
+    return;
+  }
+
+  const previousThreshold = options.getThreshold(previous.level);
+  if (previousThreshold === null) {
     options.stateMap.set(key, { level: options.level, lastAt: options.nowIso });
     return;
   }
 
-  if (options.level === previous.level) {
-    options.stateMap.set(key, { level: previous.level, lastAt: options.nowIso });
+  const hysteresisThreshold = previousThreshold * HYSTERESIS_RATIO;
+  const shouldUpdate =
+    options.direction === 'higher'
+      ? options.currentValue < hysteresisThreshold
+      : options.currentValue > hysteresisThreshold;
+
+  if (shouldUpdate && isStableDowngrade(previous, options.nowIso)) {
+    options.stateMap.set(key, { level: options.level, lastAt: options.nowIso });
   }
 }
 
@@ -410,30 +454,6 @@ function evaluateRainAccum(row: AwsRow): RainAccumEvaluation | null {
   };
 }
 
-function evaluateTemperature(tempC: number | null): TemperatureEvaluation | null {
-  if (tempC === null) {
-    return null;
-  }
-
-  if (tempC >= HEAT_THRESHOLDS[HEAT_THRESHOLDS.length - 1].tempC) {
-    return {
-      level: resolveHeatLevel(tempC),
-      kind: EventKinds.Heat,
-      temperature: tempC,
-    };
-  }
-
-  if (tempC <= COLD_THRESHOLDS[COLD_THRESHOLDS.length - 1].tempC) {
-    return {
-      level: resolveColdLevel(tempC),
-      kind: EventKinds.Cold,
-      temperature: tempC,
-    };
-  }
-
-  return null;
-}
-
 function resolveWindGustLevel(gustSpeed: number): EventLevels {
   for (const threshold of WIND_THRESHOLDS) {
     if (gustSpeed >= threshold.gustMs) {
@@ -486,6 +506,60 @@ function resolveColdLevel(tempC: number): EventLevels {
     }
   }
   return EventLevels.Info;
+}
+
+function resolveWindGustThreshold(level: EventLevels): number | null {
+  for (const threshold of WIND_THRESHOLDS) {
+    if (threshold.level === level) {
+      return threshold.gustMs;
+    }
+  }
+  return null;
+}
+
+function resolveWindAvgThreshold(level: EventLevels): number | null {
+  for (const threshold of WIND_THRESHOLDS) {
+    if (threshold.level === level) {
+      return threshold.avgMs;
+    }
+  }
+  return null;
+}
+
+function resolveRainIntensityThreshold(level: EventLevels): number | null {
+  for (const threshold of RAIN_THRESHOLDS) {
+    if (threshold.level === level) {
+      return threshold.intensity;
+    }
+  }
+  return null;
+}
+
+function resolveRainAccumThreshold(level: EventLevels): number | null {
+  for (const threshold of RAIN_THRESHOLDS) {
+    if (threshold.level === level) {
+      return threshold.accum12h;
+    }
+  }
+  return null;
+}
+
+function resolveHeatThreshold(level: EventLevels): number | null {
+  for (const threshold of HEAT_THRESHOLDS) {
+    if (threshold.level === level) {
+      return threshold.tempC;
+    }
+  }
+  return null;
+}
+
+function resolveColdThreshold(level: EventLevels): number | null {
+  for (const threshold of COLD_THRESHOLDS) {
+    if (threshold.level === level) {
+      return threshold.tempC;
+    }
+  }
+  return null;
 }
 
 function resolveRainIntensity(row: AwsRow): { intensity: number; basis: 'rn60m' } | null {
@@ -723,29 +797,15 @@ function buildState(stateMap: Map<string, AwsStateEntry>): string | null {
   return JSON.stringify({ entries: Object.fromEntries(stateMap) });
 }
 
-function pruneState(stateMap: Map<string, AwsStateEntry>, nowMs: number, ttlMs: number): void {
-  for (const [key, entry] of stateMap) {
-    const lastAtMs = Date.parse(entry.lastAt);
-    if (!Number.isFinite(lastAtMs)) {
-      continue;
-    }
-    if (nowMs - lastAtMs > ttlMs) {
-      stateMap.delete(key);
-    }
-  }
-}
-
-function isLevelExpired(entry: AwsStateEntry | undefined, nowMs: number): boolean {
-  if (!entry) {
-    return true;
-  }
-  const lastAtMs = Date.parse(entry.lastAt);
-  if (!Number.isFinite(lastAtMs)) {
-    return true;
-  }
-  return nowMs - lastAtMs > LEVEL_EXPIRE_MS;
-}
-
 function buildStateKey(metricKey: MetricKey, stationCode: number): string {
   return `${metricKey}:${stationCode}`;
+}
+
+function isStableDowngrade(previous: AwsStateEntry, nowIso: string): boolean {
+  const previousMs = Date.parse(previous.lastAt);
+  const nowMs = Date.parse(nowIso);
+  if (!Number.isFinite(previousMs) || !Number.isFinite(nowMs)) {
+    return true;
+  }
+  return nowMs - previousMs >= DOWNGRADE_STABLE_WAIT_MS;
 }

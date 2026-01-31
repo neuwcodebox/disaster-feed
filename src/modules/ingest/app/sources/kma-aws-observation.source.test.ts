@@ -18,7 +18,7 @@ describe('KmaAwsObservationSource', () => {
     const csvText = buildAwsCsvRow({
       ws1: 20.0,
       wss: 45.0,
-      ws10: 20.0,
+      ws10: 21.0,
       ta: 5.0,
     });
     const { source } = await createSource(csvText);
@@ -28,7 +28,7 @@ describe('KmaAwsObservationSource', () => {
     expect(result1.events[0].level).toBe(EventLevels.Severe);
     expect(result1.events[0].title).toBe('테스트관측소 순간 풍속 45.0 m/s 관측');
     expect(result1.events[1].level).toBe(EventLevels.Minor);
-    expect(result1.events[1].title).toBe('테스트관측소 10분 평균 풍속 20.0 m/s 관측');
+    expect(result1.events[1].title).toBe('테스트관측소 10분 평균 풍속 21.0 m/s 관측');
 
     const result2 = await source.run(result1.nextState);
     expect(result2.events).toHaveLength(0);
@@ -88,7 +88,7 @@ describe('KmaAwsObservationSource', () => {
     process.env.KMA_API_KEY = 'test-key';
 
     const csvText = buildAwsCsvRow({
-      ta: 37.0,
+      ta: 38.0,
       ws1: 5.0,
       wss: 8.0,
     });
@@ -97,7 +97,7 @@ describe('KmaAwsObservationSource', () => {
     const result = await source.run(null);
     expect(result.events).toHaveLength(1);
     expect(result.events[0].kind).toBe(EventKinds.Heat);
-    expect(result.events[0].title).toBe('테스트관측소 기온 37.0 ℃ 관측');
+    expect(result.events[0].title).toBe('테스트관측소 기온 38.0 ℃ 관측');
     expect(result.events[0].title).not.toContain('폭염');
     expect(result.events[0].title).not.toContain('한파');
   });
@@ -118,6 +118,230 @@ describe('KmaAwsObservationSource', () => {
 
     const result = await source.run(null);
     expect(result.events).toHaveLength(0);
+  });
+
+  it('should store info state and emit on level upgrade', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-31T03:00:00.000Z'));
+
+    process.env.KMA_API_KEY = 'test-key';
+
+    const csvInfo = buildAwsCsvRow({
+      wss: 10.0,
+      ws10: 0.0,
+      ta: 5.0,
+    });
+    const { source } = await createSource(csvInfo);
+
+    const result1 = await source.run(null);
+    expect(result1.events).toHaveLength(0);
+
+    const entry1 = readStateEntry(result1.nextState, 'wind_gust:90');
+    expect(entry1?.level).toBe(EventLevels.Info);
+
+    vi.setSystemTime(new Date('2026-01-31T03:03:00.000Z'));
+
+    const csvUpgraded = buildAwsCsvRow({
+      wss: 45.0,
+      ws10: 0.0,
+      ta: 5.0,
+      timestamp: '202601311203',
+    });
+    const { source: upgradedSource } = await createSource(csvUpgraded);
+
+    const result2 = await upgradedSource.run(result1.nextState);
+    expect(result2.events).toHaveLength(1);
+    expect(result2.events[0].level).toBe(EventLevels.Severe);
+  });
+
+  it('should refresh state timestamp without re-emitting after long time', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-31T03:00:00.000Z'));
+
+    process.env.KMA_API_KEY = 'test-key';
+
+    const csvText = buildAwsCsvRow({
+      wss: 45.0,
+      ws10: 0.0,
+      ta: 5.0,
+      timestamp: '202601311155',
+    });
+    const { source } = await createSource(csvText);
+
+    const result1 = await source.run(null);
+    expect(result1.events).toHaveLength(1);
+
+    vi.setSystemTime(new Date('2026-02-01T03:00:00.000Z'));
+
+    const csvLater = buildAwsCsvRow({
+      wss: 45.0,
+      ws10: 0.0,
+      ta: 5.0,
+      timestamp: '202602011155',
+    });
+    const { source: laterSource } = await createSource(csvLater);
+
+    const result2 = await laterSource.run(result1.nextState);
+    expect(result2.events).toHaveLength(0);
+
+    const entry2 = readStateEntry(result2.nextState, 'wind_gust:90');
+    expect(entry2?.lastAt).toBe(new Date('2026-02-01T03:00:00.000Z').toISOString());
+  });
+
+  it('should apply hysteresis before downgrading wind levels', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-31T03:00:00.000Z'));
+
+    process.env.KMA_API_KEY = 'test-key';
+
+    const csvSevere = buildAwsCsvRow({
+      wss: 45.0,
+      ws10: 0.0,
+      ta: 5.0,
+    });
+    const { source } = await createSource(csvSevere);
+
+    const result1 = await source.run(null);
+    expect(result1.events).toHaveLength(1);
+
+    vi.setSystemTime(new Date('2026-01-31T03:03:00.000Z'));
+
+    const csvModerate = buildAwsCsvRow({
+      wss: 30.0,
+      ws10: 0.0,
+      ta: 5.0,
+      timestamp: '202601311203',
+    });
+    const { source: moderateSource } = await createSource(csvModerate);
+
+    const result2 = await moderateSource.run(result1.nextState);
+    expect(result2.events).toHaveLength(0);
+    const entry2 = readStateEntry(result2.nextState, 'wind_gust:90');
+    expect(entry2?.level).toBe(EventLevels.Severe);
+
+    vi.setSystemTime(new Date('2026-01-31T03:06:00.000Z'));
+
+    const csvClear = buildAwsCsvRow({
+      wss: 20.0,
+      ws10: 0.0,
+      ta: 5.0,
+      timestamp: '202601311206',
+    });
+    const { source: clearedSource } = await createSource(csvClear);
+
+    const result3 = await clearedSource.run(result2.nextState);
+    expect(result3.events).toHaveLength(0);
+    const entry3 = readStateEntry(result3.nextState, 'wind_gust:90');
+    expect(entry3?.level).toBe(EventLevels.Severe);
+
+    vi.setSystemTime(new Date('2026-02-01T03:06:00.000Z'));
+
+    const csvStable = buildAwsCsvRow({
+      wss: 20.0,
+      ws10: 0.0,
+      ta: 5.0,
+      timestamp: '202602011206',
+    });
+    const { source: stableSource } = await createSource(csvStable);
+
+    const result4 = await stableSource.run(result3.nextState);
+    expect(result4.events).toHaveLength(0);
+    const entry4 = readStateEntry(result4.nextState, 'wind_gust:90');
+    expect(entry4?.level).toBe(EventLevels.Info);
+  });
+
+  it('should not emit events when downgrade stability window is not met', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-31T03:00:00.000Z'));
+
+    process.env.KMA_API_KEY = 'test-key';
+
+    const csvSevere = buildAwsCsvRow({
+      wss: 45.0,
+      ws10: 0.0,
+      ta: 5.0,
+    });
+    const { source } = await createSource(csvSevere);
+
+    const result1 = await source.run(null);
+    expect(result1.events).toHaveLength(1);
+
+    vi.setSystemTime(new Date('2026-02-01T02:00:00.000Z'));
+
+    const csvDowngrade = buildAwsCsvRow({
+      wss: 10.0,
+      ws10: 0.0,
+      ta: 5.0,
+      timestamp: '202602011100',
+    });
+    const { source: downgradeSource } = await createSource(csvDowngrade);
+
+    const result2 = await downgradeSource.run(result1.nextState);
+    expect(result2.events).toHaveLength(0);
+    const entry2 = readStateEntry(result2.nextState, 'wind_gust:90');
+    expect(entry2?.level).toBe(EventLevels.Severe);
+  });
+
+  it('should apply hysteresis for cold by requiring warmer temperature', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-31T03:00:00.000Z'));
+
+    process.env.KMA_API_KEY = 'test-key';
+
+    const csvSevere = buildAwsCsvRow({
+      ta: -26.0,
+      ws10: 0.0,
+      wss: 0.0,
+    });
+    const { source } = await createSource(csvSevere);
+
+    const result1 = await source.run(null);
+    expect(result1.events).toHaveLength(1);
+
+    vi.setSystemTime(new Date('2026-01-31T03:03:00.000Z'));
+
+    const csvModerate = buildAwsCsvRow({
+      ta: -20.0,
+      ws10: 0.0,
+      wss: 0.0,
+      timestamp: '202601311203',
+    });
+    const { source: moderateSource } = await createSource(csvModerate);
+
+    const result2 = await moderateSource.run(result1.nextState);
+    expect(result2.events).toHaveLength(0);
+    const entry2 = readStateEntry(result2.nextState, 'cold:90');
+    expect(entry2?.level).toBe(EventLevels.Severe);
+
+    vi.setSystemTime(new Date('2026-01-31T03:06:00.000Z'));
+
+    const csvClear = buildAwsCsvRow({
+      ta: -10.0,
+      ws10: 0.0,
+      wss: 0.0,
+      timestamp: '202601311206',
+    });
+    const { source: clearedSource } = await createSource(csvClear);
+
+    const result3 = await clearedSource.run(result2.nextState);
+    expect(result3.events).toHaveLength(0);
+    const entry3 = readStateEntry(result3.nextState, 'cold:90');
+    expect(entry3?.level).toBe(EventLevels.Severe);
+
+    vi.setSystemTime(new Date('2026-02-01T03:06:00.000Z'));
+
+    const csvStable = buildAwsCsvRow({
+      ta: -10.0,
+      ws10: 0.0,
+      wss: 0.0,
+      timestamp: '202602011206',
+    });
+    const { source: stableSource } = await createSource(csvStable);
+
+    const result4 = await stableSource.run(result3.nextState);
+    expect(result4.events).toHaveLength(0);
+    const entry4 = readStateEntry(result4.nextState, 'cold:90');
+    expect(entry4?.level).toBe(EventLevels.Info);
   });
 });
 
@@ -205,4 +429,17 @@ async function createSource(csvText: string, stationInfo?: StationInfo | null) {
 
   const { KmaAwsObservationSource } = await import('./kma-aws-observation.source');
   return { source: new KmaAwsObservationSource(stationRepo) };
+}
+
+type AwsStateEntry = {
+  level: EventLevels;
+  lastAt: string;
+};
+
+function readStateEntry(state: string | null, key: string): AwsStateEntry | null {
+  if (!state) {
+    return null;
+  }
+  const parsed = JSON.parse(state) as { entries?: Record<string, AwsStateEntry> };
+  return parsed.entries?.[key] ?? null;
 }
