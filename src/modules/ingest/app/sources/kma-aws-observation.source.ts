@@ -22,21 +22,21 @@ const RAIN_60M_MAX_MM = 600;
 const RAIN_ACCUM_MAX_MM = 5000;
 
 const WIND_THRESHOLDS = [
-  { level: EventLevels.Severe, avgMs: 28, gustMs: 40 },
-  { level: EventLevels.Moderate, avgMs: 21, gustMs: 26 },
-  { level: EventLevels.Minor, avgMs: 14, gustMs: 22 },
+  { level: EventLevels.Severe, avgMs: 30, gustMs: 45 },
+  { level: EventLevels.Moderate, avgMs: 26, gustMs: 32 },
+  { level: EventLevels.Minor, avgMs: 21, gustMs: 26 },
 ];
 
 const RAIN_THRESHOLDS = [
-  { level: EventLevels.Severe, intensity: 90, accum12h: 350 },
-  { level: EventLevels.Moderate, intensity: 60, accum12h: 220 },
-  { level: EventLevels.Minor, intensity: 40, accum12h: 150 },
+  { level: EventLevels.Severe, intensity: 100, accum12h: 400 },
+  { level: EventLevels.Moderate, intensity: 70, accum12h: 260 },
+  { level: EventLevels.Minor, intensity: 50, accum12h: 180 },
 ];
 
 const HEAT_THRESHOLDS = [
-  { level: EventLevels.Severe, tempC: 40 },
-  { level: EventLevels.Moderate, tempC: 38 },
-  { level: EventLevels.Minor, tempC: 37 },
+  { level: EventLevels.Severe, tempC: 41 },
+  { level: EventLevels.Moderate, tempC: 39 },
+  { level: EventLevels.Minor, tempC: 38 },
 ];
 
 const COLD_THRESHOLDS = [
