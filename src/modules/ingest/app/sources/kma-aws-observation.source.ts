@@ -30,19 +30,19 @@ const WIND_THRESHOLDS = [
 ];
 
 const RAIN_THRESHOLDS = [
-  { level: EventLevels.Severe, intensity: 100, accum12h: 400 },
-  { level: EventLevels.Moderate, intensity: 70, accum12h: 260 },
-  { level: EventLevels.Minor, intensity: 50, accum12h: 180 },
+  { level: EventLevels.Severe, intensity: 110, accum12h: 400 },
+  { level: EventLevels.Moderate, intensity: 90, accum12h: 300 },
+  { level: EventLevels.Minor, intensity: 60, accum12h: 200 },
 ];
 
 const HEAT_THRESHOLDS = [
-  { level: EventLevels.Severe, tempC: 41 },
+  { level: EventLevels.Severe, tempC: 40 },
   { level: EventLevels.Moderate, tempC: 39 },
-  { level: EventLevels.Minor, tempC: 38 },
+  { level: EventLevels.Minor, tempC: 37 },
 ];
 
 const COLD_THRESHOLDS = [
-  { level: EventLevels.Severe, tempC: -26 },
+  { level: EventLevels.Severe, tempC: -25 },
   { level: EventLevels.Moderate, tempC: -21 },
   { level: EventLevels.Minor, tempC: -16 },
 ];
