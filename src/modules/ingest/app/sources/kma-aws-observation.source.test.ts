@@ -89,7 +89,7 @@ describe('KmaAwsObservationSource', () => {
     process.env.KMA_API_KEY = 'test-key';
 
     const csvText = buildAwsCsvRow({
-      rn60m: 50.0,
+      rn60m: 60.0,
       rn12h: 200.0,
       ta: 8.0,
     });
@@ -109,7 +109,7 @@ describe('KmaAwsObservationSource', () => {
     const intensityEvent = result.events.find((event) => event.title.includes('시간당')) ?? null;
     expect(intensityEvent).not.toBeNull();
     expect(intensityEvent?.kind).toBe(EventKinds.Rain);
-    expect(intensityEvent?.title).toBe('테스트관측소 시간당 강수 50 mm 관측');
+    expect(intensityEvent?.title).toBe('테스트관측소 시간당 강수 60 mm 관측');
 
     const accumEvent = result.events.find((event) => event.title.includes('12시간')) ?? null;
     expect(accumEvent).not.toBeNull();
