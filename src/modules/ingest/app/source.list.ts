@@ -10,6 +10,7 @@ import { ForestFireInfoSource } from './sources/forest-fire-info.source';
 import { ForestFireWarningSource } from './sources/forest-fire-warning.source';
 import { KasaSpaceWeatherCrisisAlertSource } from './sources/kasa-space-weather-crisis-alert.source';
 import { KasaSpaceWeatherWarningSource } from './sources/kasa-space-weather-warning.source';
+import { KdcaPressReleaseSource } from './sources/kdca-press-release.source';
 import { KmaAwsObservationSource } from './sources/kma-aws-observation.source';
 import { KmaMicroEarthquakeSource } from './sources/kma-micro-earthquake.source';
 import { KmaOverseasEarthquakeSource } from './sources/kma-overseas-earthquake.source';
@@ -46,6 +47,7 @@ export function buildSourceList(
     new YnaNewsSource(llmLabelClassifier),
     new MoisPressReleaseSource(llmLabelClassifier),
     new MsitPressReleaseSource(llmLabelClassifier),
+    new KdcaPressReleaseSource(),
     new AirkoreaPmWarningSource(regionRepository),
     new AirkoreaO3WarningSource(regionRepository),
     new NcscCyberCrisisSource(),

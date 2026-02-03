@@ -178,6 +178,7 @@ const EVENT_SOURCE_LABELS: Record<EventSources, string> = {
   [EventSources.SafekoreaSms]: '행안부',
   [EventSources.MoisPressRelease]: '행안부',
   [EventSources.MsitPressRelease]: '과기정통부',
+  [EventSources.KdcaPressRelease]: '질병관리청',
   [EventSources.KmaMicroEarthquake]: '기상청',
   [EventSources.KmaPewsEarthquake]: '기상청',
   [EventSources.KmaOverseasEarthquake]: '기상청',
