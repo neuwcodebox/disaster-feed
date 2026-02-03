@@ -19,6 +19,8 @@ const CONSECUTIVE_SAMPLE_STALE_MS = 1000 * 60 * 10;
 
 const TEMPERATURE_MIN_C = -35;
 const TEMPERATURE_MAX_C = 45;
+const TEMPERATURE_LAPSE_RATE = 0.0065;
+const TEMPERATURE_CORRECTION_BASE_ALTITUDE_M = 10;
 const WIND_SPEED_MAX_MS = 79;
 const RAIN_60M_MAX_MM = 300;
 const RAIN_ACCUM_MAX_MM = 2000;
@@ -317,19 +319,23 @@ export class KmaAwsObservationSource implements Source {
           });
         }
 
+        const coldComparisonTemperature = applyAltitudeTemperatureCorrection(row.ta, stationInfo?.altitudeM);
+        const coldSamples = temperatureSamples.map((sample) =>
+          applyAltitudeTemperatureCorrection(sample, stationInfo?.altitudeM),
+        );
         const coldEvaluation: TemperatureEvaluation = {
-          level: resolveColdLevel(row.ta),
+          level: resolveColdLevel(coldComparisonTemperature),
           kind: EventKinds.Cold,
           temperature: row.ta,
         };
         const coldThreshold =
           coldEvaluation.level === EventLevels.Info ? null : resolveColdThreshold(coldEvaluation.level);
-        if (canProcessConsecutive(temperatureSamples, 'lower', coldThreshold)) {
+        if (canProcessConsecutive(coldSamples, 'lower', coldThreshold)) {
           await processLevel({
             metricKey: 'cold',
             stationCode: row.stationCode,
             level: coldEvaluation.level,
-            currentValue: coldEvaluation.temperature,
+            currentValue: coldComparisonTemperature,
             direction: 'lower',
             getThreshold: resolveColdThreshold,
             nowIso,
@@ -473,6 +479,13 @@ function parseRainAmount(value: string | undefined, maxValue: number): number | 
     return null;
   }
   return parsed;
+}
+
+function applyAltitudeTemperatureCorrection(temperature: number, altitudeM: number | null | undefined): number {
+  if (altitudeM === null || altitudeM === undefined) {
+    return temperature;
+  }
+  return temperature + TEMPERATURE_LAPSE_RATE * (altitudeM - TEMPERATURE_CORRECTION_BASE_ALTITUDE_M);
 }
 
 function parseNumber(value: string | undefined): number | null {

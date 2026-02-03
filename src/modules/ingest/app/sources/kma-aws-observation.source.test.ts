@@ -175,6 +175,49 @@ describe('KmaAwsObservationSource', () => {
     expect(result.events[0].title).not.toContain('한파');
   });
 
+  it('should apply altitude correction when evaluating cold levels', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-31T03:00:00.000Z'));
+
+    process.env.KMA_API_KEY = 'test-key';
+
+    const csvText = buildAwsCsvRow({
+      ta: -22.0,
+      ws10: 0.0,
+      wss: 0.0,
+    });
+    const stationInfo: StationInfo = {
+      code: 90,
+      startDate: '20000101',
+      endDate: null,
+      name: '테스트관측소',
+      address: '서울특별시',
+      office: null,
+      lat: 37.5,
+      lng: 127.0,
+      altitudeM: 1000.0,
+      barometerM: null,
+      thermometerM: null,
+      anemometerM: null,
+      rainGaugeM: null,
+    };
+    const { source, fetchMock } = await createSource(stationInfo);
+
+    let state: string | null = null;
+    for (let i = 0; i < 2; i += 1) {
+      queueAwsResponse(fetchMock, csvText);
+      const result = await source.run(state);
+      expect(result.events).toHaveLength(0);
+      state = result.nextState;
+    }
+
+    queueAwsResponse(fetchMock, csvText);
+    const result = await source.run(state);
+    expect(result.events).toHaveLength(0);
+    const entry = readStateEntry(result.nextState, 'cold:90');
+    expect(entry).toBeNull();
+  });
+
   it('should include altitude in body when available', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-31T03:00:00.000Z'));
