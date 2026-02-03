@@ -43,6 +43,7 @@ function createEventRepositoryStub(): IEventRepository {
     listEvents: async () => [],
     listEventsAfterId: async () => [],
     listLatestFetchedAtBySources: async () => [],
+    deleteEventsBefore: async () => 0,
   };
 }
 

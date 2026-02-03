@@ -25,4 +25,5 @@ export interface IEventRepository {
   listEvents(params: ListEventsParams): Promise<Event[]>;
   listEventsAfterId(params: ListEventsAfterIdParams): Promise<Event[]>;
   listLatestFetchedAtBySources(sourceIds: EventSources[]): Promise<LatestFetchedAtBySource[]>;
+  deleteEventsBefore(cutoff: Date, limit: number): Promise<number>;
 }

@@ -120,6 +120,28 @@ export class EventRepository implements IEventRepository {
 
     return results;
   }
+
+  public async deleteEventsBefore(cutoff: Date, limit: number): Promise<number> {
+    if (limit <= 0) {
+      return 0;
+    }
+
+    const cutoffIso = cutoff.toISOString();
+    const result = await this.db
+      .deleteFrom('events')
+      .where(
+        'id',
+        'in',
+        this.db
+          .selectFrom('events')
+          .select('id')
+          .where('fetched_at', '<', cutoffIso)
+          .orderBy('fetched_at', 'asc')
+          .limit(limit),
+      )
+      .executeTakeFirst();
+    return Number(result.numDeletedRows ?? 0);
+  }
 }
 
 function toEventRow(data: NewEvent): NewEventRow {

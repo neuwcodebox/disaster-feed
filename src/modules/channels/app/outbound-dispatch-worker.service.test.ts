@@ -13,6 +13,7 @@ function createEventRepositoryStub(event: Event | undefined): IEventRepository {
     listEvents: async () => [],
     listEventsAfterId: async () => [],
     listLatestFetchedAtBySources: async () => [],
+    deleteEventsBefore: async () => 0,
   };
 }
 

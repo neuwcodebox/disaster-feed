@@ -5,6 +5,7 @@ import { createUuidV7 } from '@/core/uuid';
 import { createIngestWorker } from '@/infra/queue/worker';
 import { EventDeps } from '@/modules/events/domain/dep/event.dep';
 import type { EventSources } from '@/modules/events/domain/event.enums';
+import type { IEventRepository } from '@/modules/events/domain/port/event-repo.interface';
 import type { IEventWriterService } from '@/modules/events/domain/port/event-writer-service.interface';
 import { IngestDeps } from '../domain/dep/ingest.dep';
 import type { IngestJobPayload } from '../domain/dto/ingest-job.dto';
@@ -13,10 +14,18 @@ import type { IIngestCheckpointRepository } from '../domain/port/ingest-checkpoi
 import type { SourceEvent } from '../domain/port/source.interface';
 import type { SourceRegistry } from './source.registry';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const EVENT_RETENTION_DAYS = 30;
+const EVENT_PRUNE_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const EVENT_PRUNE_BATCH_SIZE = 2000;
+const EVENT_PRUNE_MAX_BATCHES = 3;
+
 @injectable()
 export class IngestWorkerService {
   private worker: Worker<IngestJobPayload> | null = null;
   private readonly runningSourceIds = new Set<EventSources>();
+  private lastCleanupAtMs = 0;
+  private cleanupRunning = false;
 
   constructor(
     @inject(IngestDeps.SourceRegistry)
@@ -25,6 +34,8 @@ export class IngestWorkerService {
     private readonly eventWriter: IEventWriterService,
     @inject(IngestDeps.IngestCheckpointRepository)
     private readonly ingestCheckpointRepository: IIngestCheckpointRepository,
+    @inject(EventDeps.EventRepo)
+    private readonly eventRepository: IEventRepository,
   ) {}
 
   public start(): void {
@@ -92,6 +103,7 @@ export class IngestWorkerService {
       }
     } finally {
       this.runningSourceIds.delete(sourceId);
+      await this.maybeCleanupOldEvents();
     }
   }
 
@@ -115,6 +127,45 @@ export class IngestWorkerService {
     } catch (error) {
       logger.error({ error, sourceId }, 'Failed to append event');
       return false;
+    }
+  }
+
+  private async maybeCleanupOldEvents(): Promise<void> {
+    if (this.cleanupRunning) {
+      return;
+    }
+
+    const nowMs = Date.now();
+    if (this.lastCleanupAtMs > 0 && nowMs - this.lastCleanupAtMs < EVENT_PRUNE_INTERVAL_MS) {
+      return;
+    }
+
+    this.cleanupRunning = true;
+
+    try {
+      const cutoff = new Date(nowMs - EVENT_RETENTION_DAYS * DAY_MS);
+      let deletedTotal = 0;
+
+      for (let batch = 0; batch < EVENT_PRUNE_MAX_BATCHES; batch += 1) {
+        const deleted = await this.eventRepository.deleteEventsBefore(cutoff, EVENT_PRUNE_BATCH_SIZE);
+        deletedTotal += deleted;
+
+        if (deleted < EVENT_PRUNE_BATCH_SIZE) {
+          break;
+        }
+      }
+
+      this.lastCleanupAtMs = nowMs;
+
+      if (deletedTotal > 0) {
+        logger.info({ deletedTotal, cutoff: cutoff.toISOString() }, 'Pruned old events');
+      } else {
+        logger.debug({ cutoff: cutoff.toISOString() }, 'No old events to prune');
+      }
+    } catch (error) {
+      logger.warn({ error }, 'Failed to prune old events');
+    } finally {
+      this.cleanupRunning = false;
     }
   }
 }
