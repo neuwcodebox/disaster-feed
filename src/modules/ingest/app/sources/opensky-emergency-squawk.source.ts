@@ -12,7 +12,7 @@ import { shouldEmitEvent } from './_shared/should-emit-event';
 const OPENSKY_TOKEN_ENDPOINT =
   'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
 const OPENSKY_STATES_ENDPOINT =
-  'https://opensky-network.org/api/states/all?lamin=33.027883325892795&lamax=38.71987804858907&lomin=125.80824722926299&lomax=129.92855739659672';
+  'https://opensky-network.org/api/states/all?lamin=32.90284330827965&lamax=38.70294554565657&lomin=125.54418240072219&lomax=129.84176310720568';
 const REQUEST_TIMEOUT_MS = 20000;
 const TOKEN_DEFAULT_TTL_SEC = 60 * 30;
 const TOKEN_SAFETY_WINDOW_MS = 1000 * 60;
