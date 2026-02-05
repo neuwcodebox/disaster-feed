@@ -198,6 +198,7 @@ const EVENT_SOURCE_LABELS: Record<EventSources, string> = {
   [EventSources.YnaNews]: '연합뉴스',
   [EventSources.KasaSpaceWeatherWarning]: '우주청',
   [EventSources.KasaSpaceWeatherCrisisAlert]: '우주청',
+  [EventSources.OpenSkyEmergencySquawk]: 'OpenSky',
 };
 
 const EVENT_KIND_LABELS: Record<EventKinds, string> = {

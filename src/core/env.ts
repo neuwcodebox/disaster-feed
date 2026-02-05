@@ -23,6 +23,8 @@ export const env = z
     ADMIN_API_KEY: z.string().min(1),
     KMA_API_KEY: z.string().optional(),
     YNA_SERVICE_KEY: z.string().optional(),
+    OPENSKY_CLIENT_ID: z.string().optional(),
+    OPENSKY_CLIENT_SECRET: z.string().optional(),
     OPENAI_API_KEY: z.string().optional(),
   })
   .parse(process.env);

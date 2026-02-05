@@ -23,6 +23,7 @@ import { MsitPressReleaseSource } from './sources/msit-press-release.source';
 import { NcscCyberCrisisSource } from './sources/ncsc-cyber-crisis.source';
 import { NctcTerrorAlertSource } from './sources/nctc-terror-alert.source';
 import { NfdsFireDispatchSource } from './sources/nfds-fire-dispatch.source';
+import { OpenSkyEmergencySquawkSource } from './sources/opensky-emergency-squawk.source';
 import { UticTrafficIncidentSource } from './sources/utic-traffic-incident.source';
 import { YnaNewsSource } from './sources/yna-news.source';
 
@@ -55,5 +56,6 @@ export function buildSourceList(
     new KpxPowerSupplySource(),
     new KasaSpaceWeatherWarningSource(),
     new KasaSpaceWeatherCrisisAlertSource(),
+    new OpenSkyEmergencySquawkSource(),
   ];
 }
