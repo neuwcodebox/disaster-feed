@@ -96,7 +96,7 @@ export class AirkoreaPmWarningSource implements Source {
       return { events: [], nextState: state };
     }
 
-    const groups = groupWarningRows(rows);
+    const groups = groupWarningRows(rows, nowMs);
     const previousState = parseState(state);
     const seen = new Map<string, string>(Object.entries(previousState.seen));
     const regionCodeCache = new Map<string, string | null>();
@@ -224,7 +224,7 @@ const parseWarningRows = (html: string): PmWarningRow[] => {
   return rows;
 };
 
-const groupWarningRows = (rows: PmWarningRow[]): PmWarningGroup[] => {
+const groupWarningRows = (rows: PmWarningRow[], nowMs: number): PmWarningGroup[] => {
   const groups = new Map<string, PmWarningGroup>();
 
   for (const row of rows) {
@@ -236,7 +236,7 @@ const groupWarningRows = (rows: PmWarningRow[]): PmWarningGroup[] => {
         item: row.item,
         level: row.level,
         issuedAtRaw: row.issuedAt,
-        issuedAt: parseKstHourTimestamp(row.issuedAt),
+        issuedAt: parseKstHourTimestamp(row.issuedAt, nowMs),
         zones: [],
       };
       groups.set(key, group);
@@ -315,7 +315,7 @@ const buildState = (seen: Map<string, string>): string | null => {
 };
 
 const isRecentIssuedAt = (value: string, nowMs: number): boolean => {
-  const issuedAt = parseKstHourTimestamp(value);
+  const issuedAt = parseKstHourTimestamp(value, nowMs);
   if (!issuedAt) {
     return true;
   }
@@ -328,7 +328,7 @@ const isRecentIssuedAt = (value: string, nowMs: number): boolean => {
   return nowMs - parsed <= STATE_TTL_MS;
 };
 
-const parseKstHourTimestamp = (value: string): string | null => {
+const parseKstHourTimestamp = (value: string, nowMs: number): string | null => {
   const normalized = normalizeText(value);
   if (!normalized) {
     return null;
@@ -357,8 +357,14 @@ const parseKstHourTimestamp = (value: string): string | null => {
   }
 
   const utcMs = Date.UTC(Number(yearText), Number(monthText) - 1, Number(dayText), hour - 9, minute, 0);
-  const date = new Date(utcMs);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  const parsedAt = new Date(utcMs);
+  const parsedAtMs = parsedAt.getTime();
+  if (Number.isNaN(parsedAtMs)) {
+    return null;
+  }
+
+  const boundedAtMs = Math.min(parsedAtMs, nowMs);
+  return new Date(boundedAtMs).toISOString();
 };
 
 const buildRequestUrl = (page: number): string => {

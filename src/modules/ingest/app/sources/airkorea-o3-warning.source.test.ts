@@ -64,4 +64,36 @@ describe('AirkoreaO3WarningSource', () => {
     expect(result.events[0].regionCodes).toEqual(['1100000000']);
     expect(result.events[0].level).toBe(EventLevels.Minor);
   });
+
+  it('should cap future issued time to now', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-01-02T02:00:00.000Z'));
+
+    const html = `
+      <table>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>서울</td>
+            <td>강남구</td>
+            <td>주의보</td>
+            <td>2025-01-03 09</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(html, { status: 200 })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const regionRepository = createRegionRepository();
+    regionRepository.findCodeByNamePrefix.mockResolvedValue('1100000000');
+
+    const source = new AirkoreaO3WarningSource(regionRepository);
+    const result = await source.run(null);
+
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].occurredAt).toBe('2025-01-02T02:00:00.000Z');
+  });
 });
