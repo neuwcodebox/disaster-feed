@@ -12,6 +12,8 @@ import { resolveRegionCodeByPrefix } from './_shared/resolve-region-code';
 const DISASTER_SMS_ENDPOINT = 'https://www.safekorea.go.kr/idsiSFK/sfk/cs/sua/web/DisasterSmsList.do';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const PAGE_SIZE = 50;
+const SAFETY_FORECAST_KEYWORDS = ['예상', '예방'] as const;
+const SAFETY_SYMBOL_KEYWORDS = ['▲', '△', '▷', '○'] as const;
 
 const schemaDisasterSmsItem = z.object({
   DSSTR_SE_NM: z.string().nullable().optional(), // 예: "한파"
@@ -72,15 +74,19 @@ export class DisasterSmsSource implements Source {
     const lastSeenSerial = parseSerial(state);
     const items = filterNewItems(parsed.data.disasterSmsList, lastSeenSerial);
     const nextState = getNextSerialState(items, lastSeenSerial);
-    const resolvedKinds = await resolveDisasterKinds(items, this.labelClassifier);
+    const [resolvedKinds, resolvedLevels] = await Promise.all([
+      resolveDisasterKinds(items, this.labelClassifier),
+      resolveEmergencyLevels(items, this.labelClassifier),
+    ]);
     const regionCodeCache = new Map<string, string | null>();
 
     const events: SourceEvent[] = [];
     for (const item of items) {
       const resolvedKind = resolvedKinds.get(item.MD101_SN) ?? EventKinds.Other;
+      const resolvedLevel = resolvedLevels.get(item.MD101_SN) ?? mapEmergencyLevel(item.EMRGNCY_STEP_NM, item.MSG_CN);
       const regionText = normalizeRegionText(item.RCV_AREA_NM);
       const regionCodes = await resolveRegionCodes(regionText, this.regionRepository, regionCodeCache);
-      events.push(toSourceEvent(item, resolvedKind, regionText, regionCodes));
+      events.push(toSourceEvent(item, resolvedKind, resolvedLevel, regionText, regionCodes));
     }
 
     return {
@@ -95,6 +101,7 @@ type DisasterSmsLabelClassifier = Pick<LlmLabelClassifierService, 'isEnabled' | 
 function toSourceEvent(
   item: DisasterSmsItem,
   resolvedKind: EventKinds,
+  resolvedLevel: EventLevels,
   regionText: string | null,
   regionCodes: string[] | null,
 ): SourceEvent {
@@ -108,7 +115,7 @@ function toSourceEvent(
     occurredAt: parseKstDateTime(item.CREAT_DT),
     regionText,
     regionCodes,
-    level: mapEmergencyLevel(item.EMRGNCY_STEP_NM, item.MSG_CN),
+    level: resolvedLevel,
     payload: item,
   };
 }
@@ -265,6 +272,110 @@ function isEvacuationOrderOrAdvisory(message: string): boolean {
   return head.includes('대피명령') || head.includes('대피권고');
 }
 
+async function resolveEmergencyLevels(
+  items: DisasterSmsItem[],
+  labelClassifier: DisasterSmsLabelClassifier,
+): Promise<Map<number, EventLevels>> {
+  const resolved = new Map<number, EventLevels>();
+  const pending: Array<{ id: string; serial: number; text: string }> = [];
+  const isClassifierEnabled = labelClassifier.isEnabled();
+
+  for (const item of items) {
+    if (!isSafetyEmergencyStep(item.EMRGNCY_STEP_NM)) {
+      resolved.set(item.MD101_SN, mapEmergencyLevel(item.EMRGNCY_STEP_NM, item.MSG_CN));
+      continue;
+    }
+
+    if (isEvacuationOrderOrAdvisory(item.MSG_CN)) {
+      resolved.set(item.MD101_SN, EventLevels.Moderate);
+      continue;
+    }
+
+    const normalizedMessage = normalizeText(item.MSG_CN) ?? '';
+    const keywordMatch = matchSafetyLevelKeywords(normalizedMessage);
+
+    if (keywordMatch.hasForecastKeyword && keywordMatch.hasSymbolKeyword) {
+      resolved.set(item.MD101_SN, EventLevels.Info);
+      continue;
+    }
+
+    if (!keywordMatch.hasAnyKeyword || !isClassifierEnabled || !normalizedMessage) {
+      resolved.set(item.MD101_SN, EventLevels.Minor);
+      continue;
+    }
+
+    pending.push({
+      id: String(item.MD101_SN),
+      serial: item.MD101_SN,
+      text: normalizedMessage,
+    });
+  }
+
+  if (!isClassifierEnabled || pending.length === 0) {
+    return resolved;
+  }
+
+  const situationLabel = '사건발생';
+  const guidanceLabel = '예방안내';
+  const otherLabel = '기타';
+
+  const classified = await labelClassifier.classifyBatch({
+    labels: [situationLabel, guidanceLabel, otherLabel],
+    items: pending.map((item) => ({
+      id: item.id,
+      text: item.text,
+    })),
+    request: [
+      'You are a strict classifier for Korean emergency alert messages (재난문자) used on a real-time public safety dashboard in South Korea.',
+      'Classify based on factual assertions about the REAL WORLD, not on official announcement states.',
+      `Output "${situationLabel}" only when the text asserts a real-world incident/disruption on the ground: something physically happened, is happening, or a disruption is actually in effect (e.g., damage/failure/accident/fire/flooding/outage/closure already happening).`,
+      `If a confirmed cause-event is stated and impacts are described as "예상/전망", only the impacts are predicted; the cause-event is still real => "${situationLabel}". Advice does not cancel a confirmed real-world assertion.`,
+      `Output "${guidanceLabel}" when the text does NOT assert a real-world incident/disruption, and is mainly warning/forecast/preparedness guidance. Treat official announcements (특보/경보/주의보/발효/발령/단계) as "${guidanceLabel}" by default because they are announcement/status, not proof that a real incident has occurred.`,
+      `An announcement becomes "${situationLabel}" only if the SAME message also asserts a real-world incident/disruption already happening.`,
+      `Output "${otherLabel}" only when it is not meaningfully about public-safety risk in South Korea, or when it is too unclear to decide whether it asserts a real-world incident/disruption versus only guidance.`,
+      'Tie-breaker:',
+      `- If you are unsure whether the text asserts a real-world incident/disruption, choose "${otherLabel}" (not "${guidanceLabel}" and not "${situationLabel}").`,
+      'Mini examples (follow these):',
+      `- "대설경보, 미끄럼 주의" => "${guidanceLabel}" (announcement + advice; no real-world incident asserted)`,
+      `- "OO 파손으로 인해 단수 예상, 대비 바랍니다" => "${situationLabel}" (real-world cause-event asserted; only impact timing is expected)`,
+    ].join(' '),
+  });
+
+  for (const item of pending) {
+    const label = classified?.get(item.id);
+    resolved.set(item.serial, label === guidanceLabel ? EventLevels.Info : EventLevels.Minor);
+  }
+
+  return resolved;
+}
+
+function matchSafetyLevelKeywords(message: string): {
+  hasForecastKeyword: boolean;
+  hasSymbolKeyword: boolean;
+  hasAnyKeyword: boolean;
+} {
+  const hasForecastKeyword = includesAnyKeyword(message, SAFETY_FORECAST_KEYWORDS);
+  const hasSymbolKeyword = includesAnyKeyword(message, SAFETY_SYMBOL_KEYWORDS);
+  return {
+    hasForecastKeyword,
+    hasSymbolKeyword,
+    hasAnyKeyword: hasForecastKeyword || hasSymbolKeyword,
+  };
+}
+
+function includesAnyKeyword(message: string, keywords: readonly string[]): boolean {
+  for (const keyword of keywords) {
+    if (message.includes(keyword)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function isSafetyEmergencyStep(emergencyStep: string): boolean {
+  return emergencyStep.includes('안전');
+}
+
 function mapEmergencyLevel(emergencyStep: string, message: string): EventLevels {
   if (emergencyStep.includes('위급')) {
     return EventLevels.Critical;
@@ -272,7 +383,7 @@ function mapEmergencyLevel(emergencyStep: string, message: string): EventLevels 
   if (emergencyStep.includes('긴급')) {
     return EventLevels.Severe;
   }
-  if (emergencyStep.includes('안전')) {
+  if (isSafetyEmergencyStep(emergencyStep)) {
     if (isEvacuationOrderOrAdvisory(message)) {
       return EventLevels.Moderate;
     }

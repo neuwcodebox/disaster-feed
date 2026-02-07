@@ -136,6 +136,147 @@ describe('DisasterSmsSource', () => {
     expect(result.events[1].level).toBe(EventLevels.Minor);
   });
 
+  it('should downgrade safety messages to info when both forecast and symbol keywords exist', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-02-02T00:00:00.000Z'));
+
+    const responseBody = {
+      disasterSmsList: [
+        {
+          DSSTR_SE_NM: '호우',
+          CREAT_DT: '2025/02/02 09:00:00',
+          RCV_AREA_NM: '전국',
+          MD101_SN: 210,
+          DSSTR_SE_ID: '1',
+          MSG_CN: '내일 집중호우 예상 ▲ 저지대 접근을 자제해 주세요.',
+          EMRGNCY_STEP_NM: '안전안내',
+        },
+      ],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const regionRepository = createRegionRepository();
+    const labelClassifier = createLabelClassifier();
+    labelClassifier.isEnabled.mockReturnValue(true);
+    const source = new DisasterSmsSource(labelClassifier, regionRepository);
+    const result = await source.run(null);
+
+    expect(labelClassifier.classifyBatch).not.toHaveBeenCalled();
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].level).toBe(EventLevels.Info);
+  });
+
+  it('should classify partial safety keyword matches with llm for final level', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-02-03T00:00:00.000Z'));
+
+    const responseBody = {
+      disasterSmsList: [
+        {
+          DSSTR_SE_NM: '호우',
+          CREAT_DT: '2025/02/03 09:00:00',
+          RCV_AREA_NM: '전국',
+          MD101_SN: 220,
+          DSSTR_SE_ID: '1',
+          MSG_CN: '호우 예방을 위한 배수로 점검 안내입니다.',
+          EMRGNCY_STEP_NM: '안전안내',
+        },
+        {
+          DSSTR_SE_NM: '호우',
+          CREAT_DT: '2025/02/03 10:00:00',
+          RCV_AREA_NM: '전국',
+          MD101_SN: 221,
+          DSSTR_SE_ID: '1',
+          MSG_CN: '하천 수위 상승 가능성 ▲ 인근 주민은 상황을 주시하세요.',
+          EMRGNCY_STEP_NM: '안전안내',
+        },
+      ],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const regionRepository = createRegionRepository();
+    const labelClassifier = createLabelClassifier();
+    labelClassifier.isEnabled.mockReturnValue(true);
+    labelClassifier.classifyBatch.mockResolvedValue(
+      new Map([
+        ['220', '예방안내'],
+        ['221', '사건발생'],
+      ]),
+    );
+
+    const source = new DisasterSmsSource(labelClassifier, regionRepository);
+    const result = await source.run(null);
+
+    expect(labelClassifier.classifyBatch).toHaveBeenCalledTimes(1);
+    expect(labelClassifier.classifyBatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        labels: ['사건발생', '예방안내', '기타'],
+      }),
+    );
+    expect(result.events).toHaveLength(2);
+    expect(result.events[0].level).toBe(EventLevels.Info);
+    expect(result.events[1].level).toBe(EventLevels.Minor);
+  });
+
+  it('should keep level as minor when safety keyword match is classified as 기타', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-02-04T00:00:00.000Z'));
+
+    const responseBody = {
+      disasterSmsList: [
+        {
+          DSSTR_SE_NM: '호우',
+          CREAT_DT: '2025/02/04 09:00:00',
+          RCV_AREA_NM: '전국',
+          MD101_SN: 222,
+          DSSTR_SE_ID: '1',
+          MSG_CN: '하천 인근 주민은 △ 상황을 살피고 대비해 주세요.',
+          EMRGNCY_STEP_NM: '안전안내',
+        },
+      ],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const regionRepository = createRegionRepository();
+    const labelClassifier = createLabelClassifier();
+    labelClassifier.isEnabled.mockReturnValue(true);
+    labelClassifier.classifyBatch.mockResolvedValue(new Map([['222', '기타']]));
+
+    const source = new DisasterSmsSource(labelClassifier, regionRepository);
+    const result = await source.run(null);
+
+    expect(labelClassifier.classifyBatch).toHaveBeenCalledTimes(1);
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].level).toBe(EventLevels.Minor);
+  });
+
   it('should classify when DSSTR_SE_NM is null and classifier is enabled', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-03-01T00:00:00.000Z'));
