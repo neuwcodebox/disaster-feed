@@ -3,7 +3,7 @@ import { logger } from '@/core/logger';
 import type { LlmChatMessage, LlmJsonClient } from '@/infra/llm/llm-client.interface';
 import { OpenAiLlmClient } from '@/infra/llm/openai-llm-client';
 
-const DEFAULT_MODEL = 'gpt-5-mini';
+const DEFAULT_MODEL = 'gpt-5-nano';
 const DEFAULT_BATCH_SIZE = 10;
 const DEFAULT_MAX_CONCURRENCY = 6;
 const DEFAULT_TIMEOUT_MS = 40000;
