@@ -12,10 +12,20 @@ import { resolveRegionCodeByPrefix } from './_shared/resolve-region-code';
 const DISASTER_SMS_ENDPOINT = 'https://www.safekorea.go.kr/idsiSFK/sfk/cs/sua/web/DisasterSmsList.do';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const PAGE_SIZE = 50;
-const SAFETY_PRECAUTION_KEYWORDS = ['예상', '예방', '우려', '주의', '유의', '자제'] as const;
-const SAFETY_INFO_SYMBOL_KEYWORDS = ['▲', '△', '▶', '▷', '●', '○'] as const;
-const SAFETY_INFO_DIRECT_KEYWORDS = ['불씨', '안부', '담배불', '담뱃불', '난방기'] as const;
+
+// 예방안내/사건발생 분류를 하지 않을 키워드들
 const SAFETY_LEVEL_EXCLUDED_KEYWORDS = ['[기상청]', 'Heavy', 'Evacuation'] as const;
+
+// 다음 3가지 키워드들 중 한 종류가 검출되면 분류기를 탐, 두 종류 이상이 검출되면 레벨 격하
+// 예방안내를 의미하는 키워드들
+const SAFETY_PRECAUTION_KEYWORDS = ['예상', '예방', '우려', '주의', '유의', '자제'] as const;
+// 예방안내시 자주 사용되는 기호들
+const SAFETY_INFO_SYMBOL_KEYWORDS = ['▲', '△', '▶', '▷', '●', '○'] as const;
+// 예방안내시 자주 언급되는 키워드들
+const SAFETY_INFO_DIRECT_KEYWORDS = ['불씨', '안부', '담배불', '담뱃불', '난방기'] as const;
+
+// 사건발생을 의미하는 키워드들 (레벨 격하 조건이 만족되어도 이 키워드가 검출되면 분류기를 탐)
+const SAFETY_INCIDENT_KEYWORDS = ['이동제한', '통제', '붕괴', '대피', '유출', '누출'] as const;
 
 const schemaDisasterSmsItem = z.object({
   DSSTR_SE_NM: z.string().nullable().optional(), // 예: "한파"
@@ -386,10 +396,13 @@ function matchSafetyLevelKeywords(message: string): {
   const hasPrecautionKeyword = includesAnyKeyword(message, SAFETY_PRECAUTION_KEYWORDS);
   const hasInfoSymbolKeyword = includesAnyKeyword(message, SAFETY_INFO_SYMBOL_KEYWORDS);
   const hasInfoDirectKeyword = includesAnyKeyword(message, SAFETY_INFO_DIRECT_KEYWORDS);
+  const hasIncidentKeyword = includesAnyKeyword(message, SAFETY_INCIDENT_KEYWORDS);
   const matchedKeywordTypeCount =
     Number(hasPrecautionKeyword) + Number(hasInfoSymbolKeyword) + Number(hasInfoDirectKeyword);
-  const hasClassifierTriggerKeyword = matchedKeywordTypeCount === 1;
-  const shouldSetInfoImmediately = matchedKeywordTypeCount >= 2;
+  const hasMultipleSafetyKeywords = matchedKeywordTypeCount >= 2;
+  const hasClassifierTriggerKeyword =
+    matchedKeywordTypeCount === 1 || (hasMultipleSafetyKeywords && hasIncidentKeyword);
+  const shouldSetInfoImmediately = hasMultipleSafetyKeywords && !hasIncidentKeyword;
 
   return {
     hasClassifierTriggerKeyword,
