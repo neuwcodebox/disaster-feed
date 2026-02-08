@@ -175,6 +175,45 @@ describe('DisasterSmsSource', () => {
     expect(result.events[0].level).toBe(EventLevels.Info);
   });
 
+  it('should exclude safety keyword logic when excluded keywords exist', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-02-02T00:00:00.000Z'));
+
+    const responseBody = {
+      disasterSmsList: [
+        {
+          DSSTR_SE_NM: '호우',
+          CREAT_DT: '2025/02/02 09:00:00',
+          RCV_AREA_NM: '전국',
+          MD101_SN: 211,
+          DSSTR_SE_ID: '1',
+          MSG_CN: '[기상청] 호우 우려 지역 행동요령 ▲ 저지대 접근을 자제해 주세요.',
+          EMRGNCY_STEP_NM: '안전안내',
+        },
+      ],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const regionRepository = createRegionRepository();
+    const labelClassifier = createLabelClassifier();
+    labelClassifier.isEnabled.mockReturnValue(true);
+    const source = new DisasterSmsSource(labelClassifier, regionRepository);
+    const result = await source.run(null);
+
+    expect(labelClassifier.classifyBatch).not.toHaveBeenCalled();
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].level).toBe(EventLevels.Minor);
+  });
+
   it('should classify partial safety keyword matches with llm for final level', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-02-03T00:00:00.000Z'));
