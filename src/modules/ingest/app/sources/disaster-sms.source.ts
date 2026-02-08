@@ -12,9 +12,9 @@ import { resolveRegionCodeByPrefix } from './_shared/resolve-region-code';
 const DISASTER_SMS_ENDPOINT = 'https://www.safekorea.go.kr/idsiSFK/sfk/cs/sua/web/DisasterSmsList.do';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const PAGE_SIZE = 50;
-const SAFETY_FORECAST_KEYWORDS = ['예상', '예방', '우려', '주의', '유의'] as const;
-const SAFETY_SYMBOL_KEYWORDS = ['▲', '△', '▶', '▷', '○'] as const;
-const SAFETY_AUXILIARY_KEYWORDS = ['불씨', '안부'] as const;
+const SAFETY_PRECAUTION_KEYWORDS = ['예상', '예방', '우려', '주의', '유의'] as const;
+const SAFETY_INFO_SYMBOL_KEYWORDS = ['▲', '△', '▶', '▷', '●', '○'] as const;
+const SAFETY_INFO_DIRECT_KEYWORDS = ['불씨', '안부', '담배불', '담뱃불'] as const;
 const SAFETY_LEVEL_EXCLUDED_KEYWORDS = ['[기상청]', 'Heavy', 'Evacuation'] as const;
 
 const schemaDisasterSmsItem = z.object({
@@ -299,19 +299,19 @@ async function resolveEmergencyLevels(
     }
 
     const normalizedMessage = normalizeText(item.MSG_CN) ?? '';
-    const keywordMatch = matchSafetyLevelKeywords(normalizedMessage);
+    const keywordSignals = matchSafetyLevelKeywords(normalizedMessage);
 
-    if (keywordMatch.hasExcludedKeyword) {
+    if (keywordSignals.hasExcludedKeyword) {
       resolved.set(item.MD101_SN, EventLevels.Minor);
       continue;
     }
 
-    if (keywordMatch.hasForecastKeyword && (keywordMatch.hasSymbolKeyword || keywordMatch.hasAuxiliaryKeyword)) {
+    if (keywordSignals.shouldSetInfoImmediately) {
       resolved.set(item.MD101_SN, EventLevels.Info);
       continue;
     }
 
-    if (!keywordMatch.hasAnyKeyword || !isClassifierEnabled || !normalizedMessage) {
+    if (!keywordSignals.hasClassifierTriggerKeyword || !isClassifierEnabled || !normalizedMessage) {
       resolved.set(item.MD101_SN, EventLevels.Minor);
       continue;
     }
@@ -370,31 +370,30 @@ async function resolveEmergencyLevels(
 }
 
 function matchSafetyLevelKeywords(message: string): {
-  hasForecastKeyword: boolean;
-  hasSymbolKeyword: boolean;
-  hasAuxiliaryKeyword: boolean;
-  hasAnyKeyword: boolean;
+  hasClassifierTriggerKeyword: boolean;
+  shouldSetInfoImmediately: boolean;
   hasExcludedKeyword: boolean;
 } {
   const hasExcludedKeyword = includesAnyKeyword(message, SAFETY_LEVEL_EXCLUDED_KEYWORDS);
   if (hasExcludedKeyword) {
     return {
-      hasForecastKeyword: false,
-      hasSymbolKeyword: false,
-      hasAuxiliaryKeyword: false,
-      hasAnyKeyword: false,
+      hasClassifierTriggerKeyword: false,
+      shouldSetInfoImmediately: false,
       hasExcludedKeyword: true,
     };
   }
 
-  const hasForecastKeyword = includesAnyKeyword(message, SAFETY_FORECAST_KEYWORDS);
-  const hasSymbolKeyword = includesAnyKeyword(message, SAFETY_SYMBOL_KEYWORDS);
-  const hasAuxiliaryKeyword = includesAnyKeyword(message, SAFETY_AUXILIARY_KEYWORDS);
+  const hasPrecautionKeyword = includesAnyKeyword(message, SAFETY_PRECAUTION_KEYWORDS);
+  const hasInfoSymbolKeyword = includesAnyKeyword(message, SAFETY_INFO_SYMBOL_KEYWORDS);
+  const hasInfoDirectKeyword = includesAnyKeyword(message, SAFETY_INFO_DIRECT_KEYWORDS);
+  const matchedKeywordTypeCount =
+    Number(hasPrecautionKeyword) + Number(hasInfoSymbolKeyword) + Number(hasInfoDirectKeyword);
+  const hasClassifierTriggerKeyword = matchedKeywordTypeCount === 1;
+  const shouldSetInfoImmediately = matchedKeywordTypeCount >= 2;
+
   return {
-    hasForecastKeyword,
-    hasSymbolKeyword,
-    hasAuxiliaryKeyword,
-    hasAnyKeyword: hasForecastKeyword || hasSymbolKeyword,
+    hasClassifierTriggerKeyword,
+    shouldSetInfoImmediately,
     hasExcludedKeyword: false,
   };
 }

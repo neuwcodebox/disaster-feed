@@ -136,7 +136,7 @@ describe('DisasterSmsSource', () => {
     expect(result.events[1].level).toBe(EventLevels.Minor);
   });
 
-  it('should downgrade safety messages to info when both forecast and symbol keywords exist', async () => {
+  it('should downgrade safety messages to info when precaution and symbol keywords exist', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-02-02T00:00:00.000Z'));
 
@@ -175,7 +175,7 @@ describe('DisasterSmsSource', () => {
     expect(result.events[0].level).toBe(EventLevels.Info);
   });
 
-  it('should downgrade safety messages to info when forecast and auxiliary keywords exist', async () => {
+  it('should classify when only direct keywords exist', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-02-02T00:00:00.000Z'));
 
@@ -187,7 +187,7 @@ describe('DisasterSmsSource', () => {
           RCV_AREA_NM: '전국',
           MD101_SN: 212,
           DSSTR_SE_ID: '1',
-          MSG_CN: '건조한 날씨로 산불 불씨 우려, 야외 소각을 자제해 주세요.',
+          MSG_CN: '산불 불씨를 확인하고 화기 사용을 자제해 주세요.',
           EMRGNCY_STEP_NM: '안전안내',
         },
       ],
@@ -206,10 +206,11 @@ describe('DisasterSmsSource', () => {
     const regionRepository = createRegionRepository();
     const labelClassifier = createLabelClassifier();
     labelClassifier.isEnabled.mockReturnValue(true);
+    labelClassifier.classifyBatch.mockResolvedValue(new Map([['212', '예방안내']]));
     const source = new DisasterSmsSource(labelClassifier, regionRepository);
     const result = await source.run(null);
 
-    expect(labelClassifier.classifyBatch).not.toHaveBeenCalled();
+    expect(labelClassifier.classifyBatch).toHaveBeenCalledTimes(1);
     expect(result.events).toHaveLength(1);
     expect(result.events[0].level).toBe(EventLevels.Info);
   });
@@ -274,7 +275,7 @@ describe('DisasterSmsSource', () => {
           RCV_AREA_NM: '전국',
           MD101_SN: 221,
           DSSTR_SE_ID: '1',
-          MSG_CN: '하천 수위 상승 가능성 ▲ 인근 주민은 상황을 주시하세요.',
+          MSG_CN: '하천 수위 상승 우려, 인근 주민은 상황을 주시하세요.',
           EMRGNCY_STEP_NM: '안전안내',
         },
       ],
