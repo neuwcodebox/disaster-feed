@@ -202,10 +202,15 @@ async function resolveDisasterKinds(
     batchItems.push({ id: item.id, text: item.text });
   }
 
-  const classified = await labelClassifier.classifyBatch({
-    labels: DISASTER_KIND_LABELS,
-    items: batchItems,
-  });
+  let classified: Map<string, string> | null = null;
+  try {
+    classified = await labelClassifier.classifyBatch({
+      labels: DISASTER_KIND_LABELS,
+      items: batchItems,
+    });
+  } catch (error) {
+    logger.warn({ error, pendingCount: pending.length }, 'MSIT kind classification failed, fallback to other');
+  }
 
   for (const item of pending) {
     const label = classified?.get(item.id) ?? '기타';

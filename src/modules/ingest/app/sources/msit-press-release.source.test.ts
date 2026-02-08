@@ -109,4 +109,31 @@ describe('MsitPressReleaseSource', () => {
     expect(result.events).toHaveLength(1);
     expect(result.events[0].occurredAt).toBe('2026-01-14T14:59:59.999Z');
   });
+
+  it('should fallback to other when classifier throws', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-15T01:00:00.000Z'));
+
+    const xml = buildRss(
+      buildItem({
+        title: 'SYSTEM-X 위기경보 경계 발령',
+        link: 'https://www.msit.go.kr/bbs/view.do?sCode=user&bbsSeqNo=94&nttSeqNo=3186770',
+        pubDate: '2026.01.15',
+      }),
+    );
+
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(xml, { status: 200 })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const source = new MsitPressReleaseSource({
+      isEnabled: () => true,
+      classifyBatch: async () => {
+        throw new Error('timeout');
+      },
+    });
+    const result = await source.run(null);
+
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].kind).toBe(EventKinds.Other);
+  });
 });

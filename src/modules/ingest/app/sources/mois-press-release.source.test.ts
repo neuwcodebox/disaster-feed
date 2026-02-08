@@ -123,4 +123,32 @@ describe('MoisPressReleaseSource', () => {
     expect(result.events).toHaveLength(0);
     expect(result.nextState).toContain('"123186"');
   });
+
+  it('should fallback to other when classifier throws', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-15T04:00:00.000Z'));
+
+    const xml = buildRss(
+      buildItem({
+        title: '행정정보시스템 위기경보 경계 단계 발령',
+        link: 'https://www.mois.go.kr/frt/bbs/type010/commonSelectBoardArticle.do?bbsId=BBSMSTR_000000000008&nttId=123300',
+        pubDate: 'THU, 15 JAN 2026 12:00:00 KST',
+        author: '재난안전관리본부',
+      }),
+    );
+
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(xml, { status: 200 })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const source = new MoisPressReleaseSource({
+      isEnabled: () => true,
+      classifyBatch: async () => {
+        throw new Error('timeout');
+      },
+    });
+    const result = await source.run(null);
+
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].kind).toBe(EventKinds.Other);
+  });
 });

@@ -164,13 +164,18 @@ async function resolveDisasterKinds(
     return resolved;
   }
 
-  const classified = await labelClassifier.classifyBatch({
-    labels: DISASTER_KIND_LABELS,
-    items: pending.map((item) => ({
-      id: item.id,
-      text: item.text,
-    })),
-  });
+  let classified: Map<string, string> | null = null;
+  try {
+    classified = await labelClassifier.classifyBatch({
+      labels: DISASTER_KIND_LABELS,
+      items: pending.map((item) => ({
+        id: item.id,
+        text: item.text,
+      })),
+    });
+  } catch (error) {
+    logger.warn({ error, pendingCount: pending.length }, 'Disaster SMS kind classification failed, fallback to other');
+  }
 
   for (const item of pending) {
     const label = classified?.get(item.id) ?? '기타';
@@ -325,27 +330,35 @@ async function resolveEmergencyLevels(
   const guidanceLabel = '예방안내';
   const otherLabel = '기타';
 
-  const classified = await labelClassifier.classifyBatch({
-    labels: [situationLabel, guidanceLabel, otherLabel],
-    items: pending.map((item) => ({
-      id: item.id,
-      text: item.text,
-    })),
-    request: [
-      'You are a strict classifier for Korean emergency alert messages (재난문자) used on a real-time public safety dashboard in South Korea.',
-      'Classify based on factual assertions about the REAL WORLD, not on official announcement states.',
-      `Output "${situationLabel}" only when the text asserts a real-world incident/disruption on the ground: something physically happened, is happening, or a disruption is actually in effect (e.g., damage/failure/accident/fire/flooding/outage/closure already happening).`,
-      `If a confirmed cause-event is stated and impacts are described as "예상/전망", only the impacts are predicted; the cause-event is still real => "${situationLabel}". Advice does not cancel a confirmed real-world assertion.`,
-      `Output "${guidanceLabel}" when the text does NOT assert a real-world incident/disruption, and is mainly warning/forecast/preparedness guidance. Treat official announcements (특보/경보/주의보/발효/발령/단계) as "${guidanceLabel}" by default because they are announcement/status, not proof that a real incident has occurred.`,
-      `An announcement becomes "${situationLabel}" only if the SAME message also asserts a real-world incident/disruption already happening.`,
-      `Output "${otherLabel}" only when it is not meaningfully about public-safety risk in South Korea, or when it is too unclear to decide whether it asserts a real-world incident/disruption versus only guidance.`,
-      'Tie-breaker:',
-      `- If you are unsure whether the text asserts a real-world incident/disruption, choose "${otherLabel}" (not "${guidanceLabel}" and not "${situationLabel}").`,
-      'Mini examples (follow these):',
-      `- "대설경보, 미끄럼 주의" => "${guidanceLabel}" (announcement + advice; no real-world incident asserted)`,
-      `- "OO 파손으로 인해 단수 예상, 대비 바랍니다" => "${situationLabel}" (real-world cause-event asserted; only impact timing is expected)`,
-    ].join(' '),
-  });
+  let classified: Map<string, string> | null = null;
+  try {
+    classified = await labelClassifier.classifyBatch({
+      labels: [situationLabel, guidanceLabel, otherLabel],
+      items: pending.map((item) => ({
+        id: item.id,
+        text: item.text,
+      })),
+      request: [
+        'You are a strict classifier for Korean emergency alert messages (재난문자) used on a real-time public safety dashboard in South Korea.',
+        'Classify based on factual assertions about the REAL WORLD, not on official announcement states.',
+        `Output "${situationLabel}" only when the text asserts a real-world incident/disruption on the ground: something physically happened, is happening, or a disruption is actually in effect (e.g., damage/failure/accident/fire/flooding/outage/closure already happening).`,
+        `If a confirmed cause-event is stated and impacts are described as "예상/전망", only the impacts are predicted; the cause-event is still real => "${situationLabel}". Advice does not cancel a confirmed real-world assertion.`,
+        `Output "${guidanceLabel}" when the text does NOT assert a real-world incident/disruption, and is mainly warning/forecast/preparedness guidance. Treat official announcements (특보/경보/주의보/발효/발령/단계) as "${guidanceLabel}" by default because they are announcement/status, not proof that a real incident has occurred.`,
+        `An announcement becomes "${situationLabel}" only if the SAME message also asserts a real-world incident/disruption already happening.`,
+        `Output "${otherLabel}" only when it is not meaningfully about public-safety risk in South Korea, or when it is too unclear to decide whether it asserts a real-world incident/disruption versus only guidance.`,
+        'Tie-breaker:',
+        `- If you are unsure whether the text asserts a real-world incident/disruption, choose "${otherLabel}" (not "${guidanceLabel}" and not "${situationLabel}").`,
+        'Mini examples (follow these):',
+        `- "대설경보, 미끄럼 주의" => "${guidanceLabel}" (announcement + advice; no real-world incident asserted)`,
+        `- "OO 파손으로 인해 단수 예상, 대비 바랍니다" => "${situationLabel}" (real-world cause-event asserted; only impact timing is expected)`,
+      ].join(' '),
+    });
+  } catch (error) {
+    logger.warn(
+      { error, pendingCount: pending.length },
+      'Disaster SMS level classification failed, fallback to default safety level',
+    );
+  }
 
   for (const item of pending) {
     const label = classified?.get(item.id);

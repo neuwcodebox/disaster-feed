@@ -6,7 +6,7 @@ import { OpenAiLlmClient } from '@/infra/llm/openai-llm-client';
 const DEFAULT_MODEL = 'gpt-5-nano';
 const DEFAULT_BATCH_SIZE = 10;
 const DEFAULT_MAX_CONCURRENCY = 6;
-const DEFAULT_TIMEOUT_MS = 40000;
+const DEFAULT_TIMEOUT_MS = 20000;
 const DEFAULT_SYSTEM_PROMPT = [
   'You are a strict text-to-label classifier.',
   'You will receive one JSON object with two fields:',

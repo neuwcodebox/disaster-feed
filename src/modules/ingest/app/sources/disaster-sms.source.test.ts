@@ -458,4 +458,46 @@ describe('DisasterSmsSource', () => {
     expect(result.events[0].kind).toBe(EventKinds.Rain);
     expect(result.events[1].kind).toBe(EventKinds.Cold);
   });
+
+  it('should fallback when classifier throws timeout-like errors', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-03-04T00:00:00.000Z'));
+
+    const responseBody = {
+      disasterSmsList: [
+        {
+          DSSTR_SE_NM: null,
+          CREAT_DT: '2025/03/04 08:00:00',
+          RCV_AREA_NM: '전국',
+          MD101_SN: 320,
+          DSSTR_SE_ID: '1',
+          MSG_CN: '호우 예방을 위한 행동요령 안내입니다.',
+          EMRGNCY_STEP_NM: '안전안내',
+        },
+      ],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const regionRepository = createRegionRepository();
+    const labelClassifier = createLabelClassifier();
+    labelClassifier.isEnabled.mockReturnValue(true);
+    labelClassifier.classifyBatch.mockRejectedValue(new Error('timeout'));
+
+    const source = new DisasterSmsSource(labelClassifier, regionRepository);
+    const result = await source.run(null);
+
+    expect(labelClassifier.classifyBatch).toHaveBeenCalledTimes(2);
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].kind).toBe(EventKinds.Other);
+    expect(result.events[0].level).toBe(EventLevels.Minor);
+  });
 });

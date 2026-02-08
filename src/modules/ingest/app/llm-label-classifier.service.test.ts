@@ -82,6 +82,46 @@ describe('LlmLabelClassifierService', () => {
     expect(result?.get('a')).toBe('호우');
   });
 
+  it('should use default timeout', async () => {
+    openAiClientMock.parseJson.mockResolvedValue({
+      parsed: { items: [{ id: 'a', label: '호우' }] },
+      refusal: null,
+    });
+
+    const service = new LlmLabelClassifierService();
+    const labels = ['기타', '호우'] as const;
+    await service.classifyBatch({
+      labels,
+      items: [{ id: 'a', text: '호우 주의' }],
+    });
+
+    expect(openAiClientMock.parseJson).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeoutMs: 20000,
+      }),
+    );
+  });
+
+  it('should override timeout when option is provided', async () => {
+    openAiClientMock.parseJson.mockResolvedValue({
+      parsed: { items: [{ id: 'a', label: '호우' }] },
+      refusal: null,
+    });
+
+    const service = new LlmLabelClassifierService({ timeoutMs: 1200 });
+    const labels = ['기타', '호우'] as const;
+    await service.classifyBatch({
+      labels,
+      items: [{ id: 'a', text: '호우 주의' }],
+    });
+
+    expect(openAiClientMock.parseJson).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeoutMs: 1200,
+      }),
+    );
+  });
+
   it('should return partial results when a chunk fails', async () => {
     openAiClientMock.parseJson
       .mockResolvedValueOnce({

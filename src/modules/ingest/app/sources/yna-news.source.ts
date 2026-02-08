@@ -110,18 +110,24 @@ export class YnaNewsSource implements Source {
 
     const outOfScopeLabel = '범위외';
 
-    const classified = await this.labelClassifier.classifyBatch({
-      labels: [...DISASTER_KIND_LABELS, outOfScopeLabel],
-      items: batchItems,
-      request: [
-        'You are filtering news for display on a real-time public safety emergency dashboard.',
-        'Decide classification in this order:',
-        `1) Is there an ongoing or just-occurred situation that still poses a real-time threat to public safety (e.g. active danger, evacuation, emergency response, area control) in or affecting South Korea? If NO, classify as "${outOfScopeLabel}".`,
-        `2) If the message mainly describes legal action, arrest, warrant, investigation, trial, policy, technology, routine management, recovery life, or human-interest reporting AFTER an incident, classify as "${outOfScopeLabel}".`,
-        '3) Only if the message clearly describes a currently unfolding emergency or immediate hazard, classify it into the appropriate disaster category. (Note: "AI" refers to avian influenza, NOT artificial intelligence.)',
-        'Do NOT rely on keywords alone (e.g. death, fire, accident, traffic, water).',
-      ].join('\n'),
-    });
+    let classified: Map<string, string> | null = null;
+    try {
+      classified = await this.labelClassifier.classifyBatch({
+        labels: [...DISASTER_KIND_LABELS, outOfScopeLabel],
+        items: batchItems,
+        request: [
+          'You are filtering news for display on a real-time public safety emergency dashboard.',
+          'Decide classification in this order:',
+          `1) Is there an ongoing or just-occurred situation that still poses a real-time threat to public safety (e.g. active danger, evacuation, emergency response, area control) in or affecting South Korea? If NO, classify as "${outOfScopeLabel}".`,
+          `2) If the message mainly describes legal action, arrest, warrant, investigation, trial, policy, technology, routine management, recovery life, or human-interest reporting AFTER an incident, classify as "${outOfScopeLabel}".`,
+          '3) Only if the message clearly describes a currently unfolding emergency or immediate hazard, classify it into the appropriate disaster category. (Note: "AI" refers to avian influenza, NOT artificial intelligence.)',
+          'Do NOT rely on keywords alone (e.g. death, fire, accident, traffic, water).',
+        ].join('\n'),
+      });
+    } catch (error) {
+      logger.error({ error, itemCount: batchItems.length }, 'LLM label classification failed');
+      throw new Error('LLM label classification failed');
+    }
 
     if (!classified) {
       logger.error('LLM label classification failed');
