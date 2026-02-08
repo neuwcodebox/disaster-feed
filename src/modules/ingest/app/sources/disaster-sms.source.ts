@@ -13,7 +13,8 @@ const DISASTER_SMS_ENDPOINT = 'https://www.safekorea.go.kr/idsiSFK/sfk/cs/sua/we
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const PAGE_SIZE = 50;
 const SAFETY_FORECAST_KEYWORDS = ['예상', '예방', '우려', '주의', '유의'] as const;
-const SAFETY_SYMBOL_KEYWORDS = ['▲', '△', '▷', '○'] as const;
+const SAFETY_SYMBOL_KEYWORDS = ['▲', '△', '▶', '▷', '○'] as const;
+const SAFETY_AUXILIARY_KEYWORDS = ['불씨', '안부'] as const;
 const SAFETY_LEVEL_EXCLUDED_KEYWORDS = ['[기상청]', 'Heavy', 'Evacuation'] as const;
 
 const schemaDisasterSmsItem = z.object({
@@ -305,7 +306,7 @@ async function resolveEmergencyLevels(
       continue;
     }
 
-    if (keywordMatch.hasForecastKeyword && keywordMatch.hasSymbolKeyword) {
+    if (keywordMatch.hasForecastKeyword && (keywordMatch.hasSymbolKeyword || keywordMatch.hasAuxiliaryKeyword)) {
       resolved.set(item.MD101_SN, EventLevels.Info);
       continue;
     }
@@ -371,6 +372,7 @@ async function resolveEmergencyLevels(
 function matchSafetyLevelKeywords(message: string): {
   hasForecastKeyword: boolean;
   hasSymbolKeyword: boolean;
+  hasAuxiliaryKeyword: boolean;
   hasAnyKeyword: boolean;
   hasExcludedKeyword: boolean;
 } {
@@ -379,6 +381,7 @@ function matchSafetyLevelKeywords(message: string): {
     return {
       hasForecastKeyword: false,
       hasSymbolKeyword: false,
+      hasAuxiliaryKeyword: false,
       hasAnyKeyword: false,
       hasExcludedKeyword: true,
     };
@@ -386,9 +389,11 @@ function matchSafetyLevelKeywords(message: string): {
 
   const hasForecastKeyword = includesAnyKeyword(message, SAFETY_FORECAST_KEYWORDS);
   const hasSymbolKeyword = includesAnyKeyword(message, SAFETY_SYMBOL_KEYWORDS);
+  const hasAuxiliaryKeyword = includesAnyKeyword(message, SAFETY_AUXILIARY_KEYWORDS);
   return {
     hasForecastKeyword,
     hasSymbolKeyword,
+    hasAuxiliaryKeyword,
     hasAnyKeyword: hasForecastKeyword || hasSymbolKeyword,
     hasExcludedKeyword: false,
   };
