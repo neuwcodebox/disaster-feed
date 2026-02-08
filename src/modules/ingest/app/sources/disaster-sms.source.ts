@@ -12,7 +12,7 @@ import { resolveRegionCodeByPrefix } from './_shared/resolve-region-code';
 const DISASTER_SMS_ENDPOINT = 'https://www.safekorea.go.kr/idsiSFK/sfk/cs/sua/web/DisasterSmsList.do';
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const PAGE_SIZE = 50;
-const SAFETY_PRECAUTION_KEYWORDS = ['예상', '예방', '우려', '주의', '유의'] as const;
+const SAFETY_PRECAUTION_KEYWORDS = ['예상', '예방', '우려', '주의', '유의', '자제'] as const;
 const SAFETY_INFO_SYMBOL_KEYWORDS = ['▲', '△', '▶', '▷', '●', '○'] as const;
 const SAFETY_INFO_DIRECT_KEYWORDS = ['불씨', '안부', '담배불', '담뱃불', '난방기'] as const;
 const SAFETY_LEVEL_EXCLUDED_KEYWORDS = ['[기상청]', 'Heavy', 'Evacuation'] as const;
