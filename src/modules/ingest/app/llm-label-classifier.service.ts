@@ -209,18 +209,27 @@ function buildMessages(
   items: LlmLabelClassifierBatchItem[],
   request?: string,
 ): LlmChatMessage[] {
-  const payload = {
-    labels,
-    items: items.map((item) => ({
-      id: item.id,
-      text: item.text.trim(),
-    })),
-  };
+  const normalizedItems = items.map((item) => ({
+    id: item.id,
+    text: item.text.trim(),
+  }));
 
   return [
     { role: 'system', content: request ? `${systemPrompt}\n\nExtra request: ${request}` : systemPrompt },
-    { role: 'user', content: JSON.stringify(payload) },
+    { role: 'user', content: serializeClassificationPayload(labels, normalizedItems) },
   ];
+}
+
+function serializeClassificationPayload(
+  labels: readonly [string, ...string[]],
+  items: Array<{ id: string; text: string }>,
+): string {
+  const labelsLine = JSON.stringify(labels);
+  const serializedItems = items.map((item) => `    ${JSON.stringify(item)}`);
+
+  const itemsBlock = serializedItems.length > 0 ? `[\n${serializedItems.join(',\n')}\n  ]` : '[]';
+
+  return ['{', `  "labels": ${labelsLine},`, `  "items": ${itemsBlock}`, '}'].join('\n');
 }
 
 function clampPositiveInt(value: number, fallback: number): number {
