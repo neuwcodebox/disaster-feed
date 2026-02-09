@@ -183,6 +183,8 @@ async function resolveDisasterKinds(
         id: item.id,
         text: item.text,
       })),
+      request:
+        'Prefer labels that describe a CONFIRMED event over labels that describe risk, prevention, guidance, or general context.',
     });
   } catch (error) {
     logger.warn({ error, pendingCount: pending.length }, 'Disaster SMS kind classification failed, fallback to other');
@@ -350,18 +352,23 @@ async function resolveEmergencyLevels(
         text: item.text,
       })),
       request: [
-        'You are a strict classifier for Korean emergency alert messages (재난문자) used on a real-time public safety dashboard in South Korea.',
-        'Classify based on factual assertions about the REAL WORLD, not on official announcement states.',
-        `Output "${situationLabel}" only when the text asserts a real-world incident/disruption on the ground: something physically happened, is happening, or a disruption is actually in effect (e.g., damage/failure/accident/fire/flooding/outage/closure already happening).`,
-        `If a confirmed cause-event is stated and impacts are described as "예상/전망", only the impacts are predicted; the cause-event is still real => "${situationLabel}". Advice does not cancel a confirmed real-world assertion.`,
-        `Output "${guidanceLabel}" when the text does NOT assert a real-world incident/disruption, and is mainly warning/forecast/preparedness guidance. Treat official announcements (특보/경보/주의보/발효/발령/단계) as "${guidanceLabel}" by default because they are announcement/status, not proof that a real incident has occurred.`,
-        `An announcement becomes "${situationLabel}" only if the SAME message also asserts a real-world incident/disruption already happening.`,
-        `Output "${otherLabel}" only when it is not meaningfully about public-safety risk in South Korea, or when it is too unclear to decide whether it asserts a real-world incident/disruption versus only guidance.`,
-        'Tie-breaker:',
-        `- If you are unsure whether the text asserts a real-world incident/disruption, choose "${otherLabel}" (not "${guidanceLabel}" and not "${situationLabel}").`,
+        'You are classifying Korean emergency alert messages (재난문자) for a real-time public safety dashboard in South Korea.',
+        `"${situationLabel}" = a confirmed on-the-ground situation exists (a real incident/failure/disruption is true now) OR a concrete operation is being executed / will be executed as a definite notice.`,
+        `"${guidanceLabel}" = no confirmed situation is asserted; mainly forecast/warning/prevention guidance/campaign.`,
+        `"${otherLabel}" = not a public-safety message, or too unclear to decide.`,
+        `Important clarification: alarming incident-like wording (e.g., broad claims that something is "happening") is NOT sufficient for "${situationLabel}" unless the message also includes at least one concrete on-the-ground operational fact (e.g., response/activity in progress, control/closure/outage in effect, evacuation/area control, recovery work, affected service/route currently impacted, or a definite execution notice).`,
+        `If the message is dominated by bans/precautions/safety rules and lacks such concrete operational facts, classify it as "${guidanceLabel}" even if it uses strong incident-like wording.`,
+        `Key rule (do not ignore this): If the text contains a CONFIRMED CAUSE stated as fact and then gives predicted impacts or preparedness guidance, classify as "${situationLabel}".`,
+        'A confirmed cause is a statement like "X로 인해/때문에" where X is written as an already-true event/failure/condition (the prediction applies to the impact, not to whether X happened).',
+        `Treat official advisories/warnings by themselves as "${guidanceLabel}" unless the same message also asserts a confirmed situation or a definite execution notice.`,
+        `If the message mainly announces the end/clearance/normalization of a restriction or disruption (e.g., control lifted, reopened, restored), classify it as "${guidanceLabel}" unless it also reports a new or ongoing incident.`,
+        `Tie-breaker: If you are deciding between "${situationLabel}" and "${guidanceLabel}" and the message is dominated by bans/precautions (no explicit response/control/disruption/execution notice), default to "${guidanceLabel}".`,
         'Mini examples (follow these):',
-        `- "대설경보, 미끄럼 주의" => "${guidanceLabel}" (announcement + advice; no real-world incident asserted)`,
-        `- "OO 파손으로 인해 단수 예상, 대비 바랍니다" => "${situationLabel}" (real-world cause-event asserted; only impact timing is expected)`,
+        `* "상수도관 파손으로 단수 예상, 대비 바랍니다" => "${situationLabel}" (cause is confirmed; only impact is expected)`,
+        `* "대설경보, 미끄럼 주의" => "${guidanceLabel}" (advisory + guidance only)`,
+        `* "산불 관련 예방 수칙/금지 안내" => "${guidanceLabel}" (campaign/guidance-dominant)`,
+        `* "헬기 살수 작업 예정 안내, 인근 안전 유의" => "${situationLabel}" (definite execution notice)`,
+        `* "전국 산불 동시다발 발생! 불씨 관리 철저, 입산시 화기 소지 금지, 담뱃불 투기 금지" => "${guidanceLabel}" (campaign/guidance-dominant; no concrete on-the-ground operational facts)`,
       ].join(' '),
     });
   } catch (error) {

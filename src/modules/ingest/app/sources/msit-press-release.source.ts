@@ -207,6 +207,8 @@ async function resolveDisasterKinds(
     classified = await labelClassifier.classifyBatch({
       labels: DISASTER_KIND_LABELS,
       items: batchItems,
+      request:
+        'Prefer labels that describe a CONFIRMED event over labels that describe risk, prevention, guidance, or general context.',
     });
   } catch (error) {
     logger.warn({ error, pendingCount: pending.length }, 'MSIT kind classification failed, fallback to other');
