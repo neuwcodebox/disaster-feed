@@ -22,7 +22,7 @@ const SAFETY_PRECAUTION_KEYWORDS = ['예상', '예방', '우려', '주의', '유
 // 예방안내시 자주 사용되는 기호들
 const SAFETY_INFO_SYMBOL_KEYWORDS = ['▲', '△', '▶', '▷', '●', '○'] as const;
 // 예방안내시 자주 언급되는 키워드들
-const SAFETY_INFO_DIRECT_KEYWORDS = ['불씨', '안부', '담배불', '담뱃불', '난방기'] as const;
+const SAFETY_INFO_DIRECT_KEYWORDS = ['불씨', '안부', '담배불', '담뱃불', '난방기', '과태료'] as const;
 
 // 사건발생을 의미하는 키워드들 (레벨 격하 조건이 만족되어도 이 키워드가 검출되면 분류기를 탐)
 const SAFETY_INCIDENT_KEYWORDS = ['이동제한', '통제', '붕괴', '대피', '유출', '누출'] as const;
