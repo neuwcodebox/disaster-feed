@@ -25,7 +25,7 @@ const SAFETY_INFO_SYMBOL_KEYWORDS = ['▲', '△', '▶', '▷', '●', '○'] a
 const SAFETY_INFO_DIRECT_KEYWORDS = ['불씨', '안부', '담배불', '담뱃불', '난방기', '과태료'] as const;
 
 // 사건발생을 의미하는 키워드들 (레벨 격하 조건이 만족되어도 이 키워드가 검출되면 분류기를 탐)
-const SAFETY_INCIDENT_KEYWORDS = ['이동제한', '통제', '붕괴', '대피', '유출', '누출'] as const;
+const SAFETY_INCIDENT_KEYWORDS = ['이동제한', '통제', '붕괴', '대피', '유출', '누출', '우회'] as const;
 
 const schemaDisasterSmsItem = z.object({
   DSSTR_SE_NM: z.string().nullable().optional(), // 예: "한파"
