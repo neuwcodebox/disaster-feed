@@ -37,6 +37,8 @@ export const DISASTER_KIND_BY_NAME: Record<string, EventKinds> = {
   홍수: EventKinds.Flood,
   화재: EventKinds.Fire,
   환경오염사고: EventKinds.Pollution,
+  오존: EventKinds.O3,
+  우주환경: EventKinds.SpaceWeather,
   야생동물출현: EventKinds.WildAnimal,
   황사: EventKinds.YellowDust,
 };
