@@ -11,6 +11,7 @@ export type LlmJsonParseOptions<T> = {
   schema: ZodType<T>;
   schemaName: string;
   timeoutMs?: number;
+  reasoningEffort?: 'low' | 'medium' | 'high';
 };
 
 export type LlmJsonParseResult<T> = {

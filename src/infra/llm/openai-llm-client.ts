@@ -24,6 +24,7 @@ export class OpenAiLlmClient implements LlmJsonClient {
         model: options.model,
         messages: options.messages,
         response_format: zodResponseFormat(options.schema, options.schemaName),
+        reasoning_effort: options.reasoningEffort,
       },
       { timeout: options.timeoutMs ?? 30000 },
     );

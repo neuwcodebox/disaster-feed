@@ -167,6 +167,7 @@ export class LlmLabelClassifierService {
         schema: options.schemaClassified,
         schemaName: 'labels',
         timeoutMs: this.timeoutMs,
+        reasoningEffort: 'low',
       });
 
       if (!result.parsed) {
