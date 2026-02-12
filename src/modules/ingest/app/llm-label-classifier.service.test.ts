@@ -122,6 +122,28 @@ describe('LlmLabelClassifierService', () => {
     );
   });
 
+  it('should pass tracing options for Langfuse observation', async () => {
+    openAiClientMock.parseJson.mockResolvedValue({
+      parsed: { items: [{ id: 'a', label: '호우' }] },
+      refusal: null,
+    });
+
+    const service = new LlmLabelClassifierService();
+    const labels = ['기타', '호우'] as const;
+    await service.classifyBatch({
+      labels,
+      items: [{ id: 'a', text: '호우 주의' }],
+      request: '재난 기준으로 분류',
+    });
+
+    expect(openAiClientMock.parseJson).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reasoningSummary: 'auto',
+        observationName: 'ingest.llm-label-classification',
+      }),
+    );
+  });
+
   it('should return partial results when a chunk fails', async () => {
     openAiClientMock.parseJson
       .mockResolvedValueOnce({

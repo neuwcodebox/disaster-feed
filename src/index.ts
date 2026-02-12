@@ -13,6 +13,7 @@ import type { DatabaseScheme } from './infra/db/db-scheme';
 import { registerQueueDeps } from './infra/queue/queue';
 import { RedisDeps } from './infra/redis/redis.dep';
 import { registerRedisDeps } from './infra/redis/redis-conn';
+import { initializeLangfuseTracing, shutdownLangfuseTracing } from './infra/tracing/langfuse-tracing';
 import {
   registerChannelDeps,
   registerChannelRoutes,
@@ -34,6 +35,7 @@ import { corsMiddleware } from './view/middleware/cors.middleware';
 //
 
 logger.info(`Starting up in ${env.NODE_ENV} mode`);
+initializeLangfuseTracing();
 
 const dep = new DependencyContainer();
 const app = new OpenAPIHono();
@@ -189,6 +191,8 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   } catch (error) {
     logger.warn({ error }, 'Failed to close database pool');
   }
+
+  await shutdownLangfuseTracing();
 
   clearTimeout(forceTimer);
   process.exit(0);

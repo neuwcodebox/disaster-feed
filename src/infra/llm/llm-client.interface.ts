@@ -12,11 +12,15 @@ export type LlmJsonParseOptions<T> = {
   schemaName: string;
   timeoutMs?: number;
   reasoningEffort?: 'low' | 'medium' | 'high';
+  reasoningSummary?: 'auto' | 'concise' | 'detailed';
+  observationName?: string;
 };
 
 export type LlmJsonParseResult<T> = {
   parsed: T | null;
   refusal: string | null;
+  reasoningSummary?: string[];
+  requestId?: string | null;
 };
 
 export interface LlmJsonClient {

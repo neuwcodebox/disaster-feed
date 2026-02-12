@@ -369,7 +369,7 @@ async function resolveEmergencyLevels(
         `* "산불 관련 예방 수칙/금지 안내" => "${guidanceLabel}" (campaign/guidance-dominant)`,
         `* "헬기 살수 작업 예정 안내, 인근 안전 유의" => "${situationLabel}" (definite execution notice)`,
         `* "전국 산불 동시다발 발생! 불씨 관리 철저, 입산시 화기 소지 금지, 담뱃불 투기 금지" => "${guidanceLabel}" (campaign/guidance-dominant; no concrete on-the-ground operational facts)`,
-      ].join(' '),
+      ].join('\n'),
     });
   } catch (error) {
     logger.warn(
