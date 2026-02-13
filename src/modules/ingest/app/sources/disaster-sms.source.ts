@@ -369,6 +369,7 @@ async function resolveEmergencyLevels(
         `* "산불 관련 예방 수칙/금지 안내" => "${guidanceLabel}" (campaign/guidance-dominant)`,
         `* "헬기 살수 작업 예정 안내, 인근 안전 유의" => "${situationLabel}" (definite execution notice)`,
         `* "전국 산불 동시다발 발생! 불씨 관리 철저, 입산시 화기 소지 금지, 담뱃불 투기 금지" => "${guidanceLabel}" (campaign/guidance-dominant; no concrete on-the-ground operational facts)`,
+        `* "금일 어린이대공원 주변 멧돼지 출몰, 인근 주민께서는 안전에 유의하세요" => "${situationLabel}" (confirmed local sighting; guidance follows but does not change the fact that a real situation is already true)`,
       ].join('\n'),
     });
   } catch (error) {
