@@ -3,13 +3,11 @@ import { z } from 'zod';
 import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
-import type { IRegionRepository } from '../../domain/port/region-repo.interface';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
 import { pruneTimedMap } from './_shared/prune-timed-map';
-import { resolveRegionCodeByPrefix } from './_shared/resolve-region-code';
 
 const AIRKOREA_O3_WARNING_ENDPOINT = 'https://www.airkorea.or.kr/web/o3WarningSubTab1?lastymd=today';
 const STATE_TTL_MS = 1000 * 60 * 60 * 24;
@@ -41,8 +39,6 @@ export class AirkoreaO3WarningSource implements Source {
   public readonly sourceId = EventSources.AirkoreaO3Warning;
   public readonly pollIntervalSec = 60 * 5;
 
-  constructor(private readonly regionRepository: IRegionRepository) {}
-
   public async run(state: string | null): Promise<SourceRunResult> {
     const response = await fetchWithTimeout({
       url: AIRKOREA_O3_WARNING_ENDPOINT,
@@ -65,7 +61,6 @@ export class AirkoreaO3WarningSource implements Source {
     const groups = groupWarningRows(rows, nowMs);
     const previousState = parseState(state);
     const seen = new Map<string, string>(Object.entries(previousState.seen));
-    const regionCodeCache = new Map<string, string | null>();
 
     const events: SourceEvent[] = [];
     for (const group of groups) {
@@ -76,8 +71,7 @@ export class AirkoreaO3WarningSource implements Source {
       const key = buildGroupKey(group.region, group.level, group.issuedAtRaw);
       if (!seen.has(key)) {
         const regionText = normalizeText(group.region);
-        const regionCode = await resolveRegionCodeByPrefix(regionText, this.regionRepository, regionCodeCache);
-        events.push(buildWarningEvent(group, regionText, regionCode));
+        events.push(buildWarningEvent(group, regionText));
       }
       seen.set(key, nowIso);
     }
@@ -89,18 +83,13 @@ export class AirkoreaO3WarningSource implements Source {
   }
 }
 
-const buildWarningEvent = (
-  group: O3WarningGroup,
-  regionText: string | null,
-  regionCode: string | null,
-): SourceEvent => {
+const buildWarningEvent = (group: O3WarningGroup, regionText: string | null): SourceEvent => {
   return {
     kind: EventKinds.O3,
     title: buildTitle(group.region, group.level),
     body: buildBody(group.zones),
     occurredAt: group.issuedAt,
     regionText,
-    regionCodes: regionCode ? [regionCode] : null,
     level: mapWarningLevel(group.level),
     payload: buildPayload(group),
   };

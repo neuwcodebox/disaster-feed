@@ -1,19 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventLevels } from '@/modules/events/domain/event.enums';
-import type { IRegionRepository, RegionCenter } from '../../domain/port/region-repo.interface';
 import { AirkoreaPmWarningSource } from './airkorea-pm-warning.source';
-
-type RegionRepositoryMocks = {
-  findCodeByNamePrefix: ReturnType<typeof vi.fn<() => Promise<string | null>>>;
-  findCodeByNamePostfix: ReturnType<typeof vi.fn<() => Promise<string | null>>>;
-  findCentersByCodes: ReturnType<typeof vi.fn<() => Promise<Map<string, RegionCenter>>>>;
-};
-
-const createRegionRepository = (): RegionRepositoryMocks & IRegionRepository => ({
-  findCodeByNamePrefix: vi.fn<() => Promise<string | null>>(),
-  findCodeByNamePostfix: vi.fn<() => Promise<string | null>>(),
-  findCentersByCodes: vi.fn<() => Promise<Map<string, RegionCenter>>>(),
-});
 
 describe('AirkoreaPmWarningSource', () => {
   afterEach(() => {
@@ -21,7 +8,7 @@ describe('AirkoreaPmWarningSource', () => {
     vi.unstubAllGlobals();
   });
 
-  it('should group warning rows and build event with region codes', async () => {
+  it('should group warning rows and build event', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-01-02T02:00:00.000Z'));
 
@@ -81,17 +68,13 @@ describe('AirkoreaPmWarningSource', () => {
       .mockImplementationOnce(() => Promise.resolve(new Response(htmlEmpty, { status: 200 })));
     vi.stubGlobal('fetch', fetchMock);
 
-    const regionRepository = createRegionRepository();
-    regionRepository.findCodeByNamePrefix.mockResolvedValue('1100000000');
-
-    const source = new AirkoreaPmWarningSource(regionRepository);
+    const source = new AirkoreaPmWarningSource();
     const result = await source.run(null);
 
     expect(result.events).toHaveLength(1);
     expect(result.events[0].title).toBe('서울 미세먼지 주의보');
     expect(result.events[0].body).toBe('권역: 종로구, 강남구');
     expect(result.events[0].occurredAt).toBe('2025-01-02T00:00:00.000Z');
-    expect(result.events[0].regionCodes).toEqual(['1100000000']);
     expect(result.events[0].level).toBe(EventLevels.Minor);
     expect(result.nextState).not.toBeNull();
   });
@@ -147,10 +130,7 @@ describe('AirkoreaPmWarningSource', () => {
       .mockImplementationOnce(() => Promise.resolve(new Response(htmlEmpty, { status: 200 })));
     vi.stubGlobal('fetch', fetchMock);
 
-    const regionRepository = createRegionRepository();
-    regionRepository.findCodeByNamePrefix.mockResolvedValue('1100000000');
-
-    const source = new AirkoreaPmWarningSource(regionRepository);
+    const source = new AirkoreaPmWarningSource();
     const result = await source.run(null);
 
     expect(result.events).toHaveLength(1);

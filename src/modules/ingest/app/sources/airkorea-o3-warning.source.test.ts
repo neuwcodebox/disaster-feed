@@ -1,19 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EventLevels } from '@/modules/events/domain/event.enums';
-import type { IRegionRepository, RegionCenter } from '../../domain/port/region-repo.interface';
 import { AirkoreaO3WarningSource } from './airkorea-o3-warning.source';
-
-type RegionRepositoryMocks = {
-  findCodeByNamePrefix: ReturnType<typeof vi.fn<() => Promise<string | null>>>;
-  findCodeByNamePostfix: ReturnType<typeof vi.fn<() => Promise<string | null>>>;
-  findCentersByCodes: ReturnType<typeof vi.fn<() => Promise<Map<string, RegionCenter>>>>;
-};
-
-const createRegionRepository = (): RegionRepositoryMocks & IRegionRepository => ({
-  findCodeByNamePrefix: vi.fn<() => Promise<string | null>>(),
-  findCodeByNamePostfix: vi.fn<() => Promise<string | null>>(),
-  findCentersByCodes: vi.fn<() => Promise<Map<string, RegionCenter>>>(),
-});
 
 describe('AirkoreaO3WarningSource', () => {
   afterEach(() => {
@@ -51,17 +38,13 @@ describe('AirkoreaO3WarningSource', () => {
     const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(html, { status: 200 })));
     vi.stubGlobal('fetch', fetchMock);
 
-    const regionRepository = createRegionRepository();
-    regionRepository.findCodeByNamePrefix.mockResolvedValue('1100000000');
-
-    const source = new AirkoreaO3WarningSource(regionRepository);
+    const source = new AirkoreaO3WarningSource();
     const result = await source.run(null);
 
     expect(result.events).toHaveLength(1);
     expect(result.events[0].title).toBe('서울 오존 주의보');
     expect(result.events[0].body).toBe('권역: 강남구, 서초구');
     expect(result.events[0].occurredAt).toBe('2025-01-02T00:00:00.000Z');
-    expect(result.events[0].regionCodes).toEqual(['1100000000']);
     expect(result.events[0].level).toBe(EventLevels.Minor);
   });
 
@@ -87,10 +70,7 @@ describe('AirkoreaO3WarningSource', () => {
     const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(new Response(html, { status: 200 })));
     vi.stubGlobal('fetch', fetchMock);
 
-    const regionRepository = createRegionRepository();
-    regionRepository.findCodeByNamePrefix.mockResolvedValue('1100000000');
-
-    const source = new AirkoreaO3WarningSource(regionRepository);
+    const source = new AirkoreaO3WarningSource();
     const result = await source.run(null);
 
     expect(result.events).toHaveLength(1);
