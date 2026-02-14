@@ -160,12 +160,15 @@ function buildUsageDetails(usage: ResponseUsage | undefined): Record<string, num
     return undefined;
   }
 
+  const cachedTokens = usage.input_tokens_details.cached_tokens;
+  const reasoningTokens = usage.output_tokens_details.reasoning_tokens;
+
   return {
-    inputTokens: usage.input_tokens,
-    outputTokens: usage.output_tokens,
-    totalTokens: usage.total_tokens,
-    cachedInputTokens: usage.input_tokens_details.cached_tokens,
-    reasoningTokens: usage.output_tokens_details.reasoning_tokens,
+    input: usage.input_tokens,
+    output: usage.output_tokens,
+    total: usage.total_tokens,
+    input_cached_tokens: cachedTokens,
+    output_reasoning_tokens: reasoningTokens,
   };
 }
 
