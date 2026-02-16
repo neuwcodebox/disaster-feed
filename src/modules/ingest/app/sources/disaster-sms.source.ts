@@ -14,7 +14,7 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const PAGE_SIZE = 50;
 
 // 예방안내/사건발생 분류를 하지 않을 키워드들
-const SAFETY_LEVEL_EXCLUDED_KEYWORDS = ['[기상청]', 'Heavy', 'Evacuation', '비상저감조치'] as const;
+const SAFETY_LEVEL_EXCLUDED_KEYWORDS = ['[기상청]', 'Heavy', 'Evacuation', '비상저감조치', '지진발생'] as const;
 
 // 다음 3가지 키워드들 중 한 종류가 검출되면 분류기를 탐, 두 종류 이상이 검출되면 레벨 격하
 // 예방안내를 의미하는 키워드들
