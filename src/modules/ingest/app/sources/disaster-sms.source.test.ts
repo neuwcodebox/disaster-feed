@@ -113,6 +113,16 @@ describe('DisasterSmsSource', () => {
           MSG_CN: '(대피명령 해제) 하천 범람 위험 해소로 대피명령 해제되었습니다.',
           EMRGNCY_STEP_NM: '안전안내',
         },
+        {
+          DSSTR_SE_NM: '산불',
+          CREAT_DT: '2025/02/01 12:00:00',
+          RCV_AREA_NM: '경상북도 봉화군',
+          MD101_SN: 202,
+          DSSTR_SE_ID: '1',
+          MSG_CN:
+            '오늘17:51경 춘양면 석현리 산 187인근 산불발생. 주민과 등산객은 석현2리 노인회관으로 즉시 대피. Evacuation, Forest fire [봉화군]',
+          EMRGNCY_STEP_NM: '안전안내',
+        },
       ],
     };
 
@@ -131,9 +141,10 @@ describe('DisasterSmsSource', () => {
     const source = new DisasterSmsSource(labelClassifier, regionRepository);
     const result = await source.run(null);
 
-    expect(result.events).toHaveLength(2);
+    expect(result.events).toHaveLength(3);
     expect(result.events[0].level).toBe(EventLevels.Moderate);
     expect(result.events[1].level).toBe(EventLevels.Minor);
+    expect(result.events[2].level).toBe(EventLevels.Moderate);
   });
 
   it('should downgrade safety messages to info when precaution and symbol keywords exist', async () => {

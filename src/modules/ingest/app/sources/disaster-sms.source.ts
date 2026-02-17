@@ -287,6 +287,10 @@ function normalizeRegionSearchText(value: string): string | null {
 }
 
 function isEvacuationOrderOrAdvisory(message: string): boolean {
+  if (/evacuation/i.test(message)) {
+    return true;
+  }
+
   const trimmed = message.trimStart();
   const matched = trimmed.match(/^\(([^)]*)\)/);
   if (!matched) {
