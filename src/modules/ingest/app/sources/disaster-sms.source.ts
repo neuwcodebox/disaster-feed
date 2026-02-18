@@ -193,8 +193,15 @@ async function resolveDisasterKinds(
         id: item.id,
         text: item.text,
       })),
-      request:
+      request: [
         'Prefer labels that describe a CONFIRMED event over labels that describe risk, prevention, guidance, or general context.',
+        '- "민방공" is ONLY for wartime / national-security civil-defense alerts (e.g., air-raid/missile warnings, evacuation orders, civil-defense drills/sirens). NEVER use "민방공" for general safety tips, accident prevention, weather-related cautions, or ambiguous public-safety notices. If it’s not clearly civil-defense, choose another label; if none fits, choose "기타".',
+        '- "AI" means Avian Influenza (조류인플루엔자), NOT Artificial Intelligence. Use "AI" only for messages about poultry/birds + outbreaks/suspected/confirmed cases, quarantine, culling, movement restrictions, test results, etc. If the text mentions “AI” as Artificial Intelligence or is unclear, prefer "기타".',
+        '- "테러" is ONLY for terrorism-related threats/incidents or official counter-terror alerts. Do NOT use it for ordinary crime, accidents, or vague danger warnings; if unclear, prefer "기타".',
+        '- "사이버" is ONLY for cyber incidents (hacking, ransomware, DDoS, malware, data breaches, unauthorized access). If it is primarily a communication/service outage without cyber-attack evidence, consider "통신" instead; if still unclear, use "기타".',
+        '- "금융" is ONLY for financial issues such as voice phishing/smishing, bank/card/account fraud, financial-institution service disruptions, or payment system incidents. If unclear, prefer "기타".',
+        '- Default rule for "기타": If no label is a clear match, choose "기타".',
+      ].join('\n'),
     });
   } catch (error) {
     logger.warn({ error, pendingCount: pending.length }, 'Disaster SMS kind classification failed, fallback to other');
