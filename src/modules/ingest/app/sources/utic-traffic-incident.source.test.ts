@@ -51,7 +51,7 @@ describe('UticTrafficIncidentSource', () => {
     const result = await source.run(null);
 
     expect(result.events).toHaveLength(3);
-    expect(result.events[0].kind).toBe(EventKinds.Transport);
+    expect(result.events[0].kind).toBe(EventKinds.TrafficCrash);
     expect(result.events[0].title).toBe('<사고> 서초구 사고');
     expect(result.events[0].geo).toEqual({ lat: 37.5, lng: 127.1 });
   });
