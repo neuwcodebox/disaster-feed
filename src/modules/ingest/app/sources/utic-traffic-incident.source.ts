@@ -26,8 +26,8 @@ const GRADE_QUERY: Record<IncidentGrade, string> = {
 };
 
 const KIND_BY_LABEL: Record<string, EventKinds> = {
-  사고: EventKinds.Transport,
-  통제: EventKinds.Transport,
+  사고: EventKinds.TrafficCrash,
+  통제: EventKinds.TrafficCtrl,
   공사: EventKinds.Transport,
   행사: EventKinds.Transport,
   기상: EventKinds.Transport,
