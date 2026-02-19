@@ -8,36 +8,34 @@ import { normalizeText } from './_shared/normalize';
 import { pruneTimedMap } from './_shared/prune-timed-map';
 import { shouldEmitEvent } from './_shared/should-emit-event';
 
-const FOREST_FIRE_INFO_ENDPOINT = 'https://fd.forest.go.kr/ffas/pubConn/occur/getPublicShowFireInfoList.do';
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const FOREST_FIRE_INFO_ENDPOINT = 'https://fd.forest.go.kr/ffas/pubConn/selectPublicFireShowList.do';
 const STATE_RANGE_DAYS = 7;
 const STATE_TTL_MS = 1000 * 60 * 60 * 24 * STATE_RANGE_DAYS;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 
 const schemaForestFireItem = z
   .object({
-    sttn_map_id: z.string().nullable().optional(),
-    frfr_lctn_xcrd: z.string().nullable().optional(),
-    frfr_prgrs_stcd_str: z.string().nullable().optional(),
-    potfr_end_dtm: z.string().nullable().optional(),
-    frfr_info_id: z.string().nullable().optional(),
-    frfr_prgrs_stcd: z.string().nullable().optional(),
-    frfr_lctn_ycrd: z.string().nullable().optional(),
-    frfr_sttmn_addr: z.string().nullable().optional(),
-    frfr_step_issu_cd: z.string().nullable().optional(),
-    frfr_sttmn_dt: z.string().nullable().optional(),
-    frfr_frng_dtm: z.string().nullable().optional(),
+    frfrInfoId: z.string().nullish(),
+    frfrPrgrsStcd: z.string().nullish(),
+    frfrPrgrsStcdNm: z.string().nullish(),
+    frfrStepIssuCd: z.string().nullish(),
+    frfrStepIssuNm: z.string().nullish(),
+    frfrSttmnAddr: z.string().nullish(),
+    frfrSttmnAddrDe: z.string().nullish(),
+    frfrFrngDtm: z.string().nullish(),
+    potfrCmpleDtm: z.string().nullish(),
+    frfrSttmnDt: z.string().nullish(),
+    frfrSttmnHms: z.string().nullish(),
+    frfrLctnXcrd: z.string().nullish(),
+    frfrLctnYcrd: z.string().nullish(),
+    frfrSttmnLctnXcrd: z.string().nullish(),
+    frfrSttmnLctnYcrd: z.string().nullish(),
+    lgdngCd: z.string().nullish(),
   })
   .loose();
 
 const schemaForestFireResponse = z.object({
-  pager: z
-    .object({
-      total_count: z.number().optional(),
-      last_page: z.number().optional(),
-    })
-    .optional(),
-  frfrInfoList: z.array(schemaForestFireItem).optional().default([]),
+  fireShowInfoList: z.array(schemaForestFireItem).optional().default([]),
 });
 
 type ForestFireItem = z.infer<typeof schemaForestFireItem>;
@@ -54,23 +52,30 @@ type HighLevelEntry = {
 
 type ProgressStatus = 'reported' | 'in_progress' | 'completed' | 'not_fire' | 'unknown';
 
+const FOREST_FIRE_PROGRESS_LABELS_BY_CODE: Record<string, string> = {
+  '02': '진화중',
+  '03': '진화완료',
+  '05': '산불외종료',
+};
+
+const FOREST_FIRE_STEP_LABELS_BY_CODE: Record<string, string> = {
+  '00': '초기 대응',
+  '01': '산불 1단계',
+  '02': '산불 2단계',
+  '03': '산불 3단계',
+};
+
 export class ForestFireInfoSource implements Source {
   public readonly sourceId = EventSources.ForestFireInfo;
   public readonly pollIntervalSec = 60 * 5;
 
   public async run(state: string | null): Promise<SourceRunResult> {
-    const { startDate, endDate } = getKstDateRange(STATE_RANGE_DAYS);
-    const payload = buildRequestBody(startDate, endDate);
-
     const response = await fetchWithTimeout({
       url: FOREST_FIRE_INFO_ENDPOINT,
       init: {
-        method: 'POST',
         headers: {
-          'Content-Type': 'application/json;charset=UTF-8',
           Accept: 'application/json',
         },
-        body: JSON.stringify(payload),
       },
     });
 
@@ -96,15 +101,15 @@ export class ForestFireInfoSource implements Source {
 
     const events: SourceEvent[] = [];
 
-    for (const item of parsed.data.frfrInfoList) {
-      const fireId = normalizeText(item.frfr_info_id);
+    for (const item of parsed.data.fireShowInfoList) {
+      const fireId = normalizeText(item.frfrInfoId);
       if (!fireId) {
         continue;
       }
 
       const progressLabel = resolveProgressLabel(item);
       const progressStatus = resolveProgressStatus(progressLabel);
-      const stepLabel = normalizeText(item.frfr_step_issu_cd);
+      const stepLabel = resolveStepLabel(item);
       const baseLevel = isStepLevelEnabled(progressStatus) ? mapStepLevel(stepLabel) : EventLevels.Info;
       const uniqueKey = buildUniqueKey(fireId, progressStatus, stepLabel);
 
@@ -149,7 +154,7 @@ const buildEvent = (
   stepLabel: string | null,
   level: EventLevels,
 ): SourceEvent => {
-  const regionText = normalizeText(item.frfr_sttmn_addr);
+  const regionText = resolveRegionText(item);
   const title = buildTitle(regionText, progressLabel, stepLabel);
   const geo = resolveGeo(item);
 
@@ -198,12 +203,12 @@ const buildBody = (
     lines.push(`대응 단계: ${stepLabel}`);
   }
 
-  const fireAt = normalizeText(item.frfr_frng_dtm);
+  const fireAt = normalizeText(item.frfrFrngDtm);
   if (fireAt) {
     lines.push(`발생 시각: ${fireAt}`);
   }
 
-  const endAt = normalizeText(item.potfr_end_dtm);
+  const endAt = normalizeText(item.potfrCmpleDtm);
   if (endAt) {
     lines.push(`진화 시각: ${endAt}`);
   }
@@ -241,11 +246,16 @@ function extractFireIdFromKey(key: string): string | null {
 }
 
 const resolveOccurredAt = (item: ForestFireItem): string | null => {
-  return parseKstDateTime(item.frfr_frng_dtm);
+  const fireDateTime = parseKstDateTime(item.frfrFrngDtm);
+  if (fireDateTime) {
+    return fireDateTime;
+  }
+
+  return parseCompactKstDateTime(item.frfrSttmnDt, item.frfrSttmnHms);
 };
 
 const resolveCompletedAt = (item: ForestFireItem): string | null => {
-  return parseKstDateTime(item.potfr_end_dtm);
+  return parseKstDateTime(item.potfrCmpleDtm);
 };
 
 const resolveFirstOccurredAt = (
@@ -261,7 +271,35 @@ const resolveFirstOccurredAt = (
 };
 
 const resolveProgressLabel = (item: ForestFireItem): string | null => {
-  return normalizeText(item.frfr_prgrs_stcd_str) ?? normalizeText(item.frfr_prgrs_stcd);
+  const progressName = normalizeText(item.frfrPrgrsStcdNm);
+  if (progressName) {
+    return progressName;
+  }
+
+  const progressCode = normalizeText(item.frfrPrgrsStcd);
+  if (!progressCode) {
+    return null;
+  }
+
+  return FOREST_FIRE_PROGRESS_LABELS_BY_CODE[progressCode] ?? progressCode;
+};
+
+const resolveStepLabel = (item: ForestFireItem): string | null => {
+  const stepName = normalizeText(item.frfrStepIssuNm);
+  if (stepName) {
+    return stepName;
+  }
+
+  const stepCode = normalizeText(item.frfrStepIssuCd);
+  if (!stepCode) {
+    return null;
+  }
+
+  return FOREST_FIRE_STEP_LABELS_BY_CODE[stepCode] ?? stepCode;
+};
+
+const resolveRegionText = (item: ForestFireItem): string | null => {
+  return normalizeText(item.frfrSttmnAddrDe) ?? normalizeText(item.frfrSttmnAddr);
 };
 
 const resolveProgressStatus = (progressLabel: string | null): ProgressStatus => {
@@ -338,8 +376,17 @@ const extractRegionPrefix = (regionText: string): string => {
     return regionText;
   }
 
-  const [first] = trimmed.split(/\s+/);
-  return first ?? regionText;
+  const parts = trimmed.split(/\s+/);
+  const [first, second] = parts;
+  if (!first) {
+    return regionText;
+  }
+
+  if (!second) {
+    return first;
+  }
+
+  return `${first} ${second}`;
 };
 
 const parseCoordinate = (value: string | null | undefined): number | null => {
@@ -352,8 +399,8 @@ const parseCoordinate = (value: string | null | undefined): number | null => {
 };
 
 const resolveGeo = (item: ForestFireItem): { lat: number; lng: number } | null => {
-  const lng = parseCoordinate(item.frfr_lctn_xcrd);
-  const lat = parseCoordinate(item.frfr_lctn_ycrd);
+  const lng = parseCoordinate(item.frfrLctnXcrd) ?? parseCoordinate(item.frfrSttmnLctnXcrd);
+  const lat = parseCoordinate(item.frfrLctnYcrd) ?? parseCoordinate(item.frfrSttmnLctnYcrd);
 
   if (lng === null || lat === null) {
     return null;
@@ -375,6 +422,33 @@ const parseKstDateTime = (value: string | null | undefined): string | null => {
 
   const [, year, month, day, hour, minute, second] = matched;
   const kstIso = `${year}-${month}-${day}T${hour}:${minute}:${second ?? '00'}+09:00`;
+  const parsed = new Date(kstIso);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed.toISOString();
+};
+
+const parseCompactKstDateTime = (
+  dateValue: string | null | undefined,
+  timeValue: string | null | undefined,
+): string | null => {
+  const date = normalizeText(dateValue);
+  const time = normalizeText(timeValue);
+  if (!date || !time) {
+    return null;
+  }
+
+  const matchedDate = date.match(/^(\d{4})(\d{2})(\d{2})$/);
+  const matchedTime = time.match(/^(\d{2})(\d{2})(\d{2})$/);
+  if (!matchedDate || !matchedTime) {
+    return null;
+  }
+
+  const [, year, month, day] = matchedDate;
+  const [, hour, minute, second] = matchedTime;
+  const kstIso = `${year}-${month}-${day}T${hour}:${minute}:${second}+09:00`;
   const parsed = new Date(kstIso);
   if (Number.isNaN(parsed.getTime())) {
     return null;
@@ -505,57 +579,4 @@ const buildState = (seen: Map<string, string>, highLevelSent: Map<string, HighLe
   }
 
   return JSON.stringify({ seen: seenPayload, highLevelSent: highLevelPayload });
-};
-
-const getKstDateRange = (daysBack: number): { startDate: string; endDate: string } => {
-  const nowKst = new Date(Date.now() + KST_OFFSET_MS);
-  const endDate = formatCompactDate(nowKst);
-  const startKst = new Date(nowKst);
-  startKst.setUTCDate(startKst.getUTCDate() - daysBack);
-  return {
-    startDate: formatCompactDate(startKst),
-    endDate,
-  };
-};
-
-const formatCompactDate = (date: Date): string => {
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
-  return `${year}${month}${day}`;
-};
-
-const buildRequestBody = (startDate: string, endDate: string) => {
-  const perPage = '30';
-
-  return {
-    param: {
-      startDtm: startDate,
-      endDtm: endDate,
-      regionCode: '',
-      issuCode: '',
-      prgrsCode: '',
-      sttnMapCheckFlag: '',
-      perPage,
-      perPageList: 10,
-      pageListStart: 0,
-      pageListEnd: 10,
-      currentPage: 1,
-      lastPage: 0,
-      totalCount: 0,
-      total_count: 0,
-      last_page: 0,
-    },
-    pager: {
-      perPage,
-      perPageList: 10,
-      pageListStart: 0,
-      pageListEnd: 10,
-      currentPage: 1,
-      lastPage: 0,
-      totalCount: 0,
-      total_count: 0,
-      last_page: 0,
-    },
-  };
 };
