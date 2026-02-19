@@ -79,6 +79,7 @@ HTTP API 및 SSE로 최신 이벤트 목록을 제공한다.
 - Zod 스키마 변수는 schemaXXX 형태의 camelCase로 작성합니다.
 - `logger`를 사용하여 적절한 수준의 로그를 남깁니다. (debug/info/warn/error)
 - 필요한 경우가 아니라면 일반 함수는 `function` 키워드로 작성합니다. (화살표 함수는 주로 콜백용)
+- `as unknown` 같이 타입 안전성을 해치는 변환을 사용하지 않습니다.
 
 ## Git commit style
 
