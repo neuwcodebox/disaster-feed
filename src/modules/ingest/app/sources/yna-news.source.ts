@@ -17,13 +17,14 @@ const REQUEST_TIMEOUT_MS = 15000;
 const PAGE_SIZE = 100;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const STATE_TTL_MS = 1000 * 60 * 60 * 24 * 2;
+const YNA_NEWS_STATE_VERSION = 2;
 
 const schemaYnaNewsItem = z.object({
   CRT_DT: z.string().nullable().optional(),
   YNA_WRTR_NM: z.string().nullable().optional(),
   YNA_CN: z.string().nullable().optional(),
   YNA_YMD: z.string().nullable().optional(),
-  YNA_TTL: z.string().nullable().optional(),
+  YNA_TTL: z.string().trim().min(1),
   YNA_NO: z.coerce.number().int(),
 });
 
@@ -39,6 +40,11 @@ const schemaYnaNewsRawResponse = z.object({
   body: z.array(schemaYnaNewsItem).nullable().optional(),
 });
 
+const schemaYnaNewsState = z.object({
+  version: z.literal(YNA_NEWS_STATE_VERSION),
+  seen: z.record(z.string(), z.string()),
+});
+
 type YnaNewsItem = z.infer<typeof schemaYnaNewsItem>;
 type YnaNewsRawResponse = z.infer<typeof schemaYnaNewsRawResponse>;
 type YnaNewsResponse = {
@@ -50,8 +56,11 @@ type YnaNewsResponse = {
 };
 
 type YnaNewsState = {
+  version: typeof YNA_NEWS_STATE_VERSION;
   seen: Record<string, string>;
 };
+
+type YnaNewsLabelClassifier = Pick<LlmLabelClassifierService, 'isEnabled' | 'classifyBatch'>;
 
 type ClassifiedNewsItem = {
   id: string;
@@ -63,7 +72,7 @@ export class YnaNewsSource implements Source {
   public readonly sourceId = EventSources.YnaNews;
   public readonly pollIntervalSec = 60 * 3;
 
-  constructor(private readonly labelClassifier: LlmLabelClassifierService) {}
+  constructor(private readonly labelClassifier: YnaNewsLabelClassifier) {}
 
   public async run(state: string | null): Promise<SourceRunResult> {
     const serviceKey = env.YNA_SERVICE_KEY;
@@ -79,13 +88,20 @@ export class YnaNewsSource implements Source {
 
     const inqDate = formatKstCompactDate(new Date());
     const previousState = parseState(state);
-    const seen = new Map<string, string>(Object.entries(previousState.seen));
+    const seen = new Map<string, string>(Object.entries(previousState?.seen ?? {}));
     const now = new Date();
     const nowIso = now.toISOString();
     const nowMs = now.getTime();
 
     const items = await this.fetchAllPages(serviceKey, inqDate);
     const uniqueItems = dedupeItems(items);
+
+    if (!previousState) {
+      applySeen(seen, uniqueItems, nowIso);
+      pruneTimedMap(seen, nowMs, STATE_TTL_MS);
+      const nextState = buildState(seen);
+      return { events: [], nextState };
+    }
 
     const candidates: YnaNewsItem[] = [];
     for (const item of uniqueItems) {
@@ -208,11 +224,7 @@ export class YnaNewsSource implements Source {
       }
 
       const kind = DISASTER_KIND_BY_NAME[label] ?? EventKinds.Other;
-
-      const event = this.buildEvent(entry.item, kind);
-      if (event) {
-        events.push(event);
-      }
+      events.push(this.buildEvent(entry.item, kind));
     }
 
     applySeen(seen, uniqueItems, nowIso);
@@ -298,15 +310,10 @@ export class YnaNewsSource implements Source {
     return url.toString();
   }
 
-  private buildEvent(item: YnaNewsItem, kind: EventKinds): SourceEvent | null {
-    const title = normalizeText(item.YNA_TTL);
-    if (!title) {
-      return null;
-    }
-
+  private buildEvent(item: YnaNewsItem, kind: EventKinds): SourceEvent {
     return {
       kind,
-      title,
+      title: item.YNA_TTL,
       body: null,
       occurredAt: parseKstDateTime(item.YNA_YMD),
       regionText: null,
@@ -335,56 +342,45 @@ function normalizeResponse(raw: YnaNewsRawResponse): YnaNewsResponse {
   };
 }
 
-function parseState(state: string | null): YnaNewsState {
+function parseState(state: string | null): YnaNewsState | null {
   if (!state) {
-    return { seen: {} };
-  }
-
-  try {
-    const parsed = JSON.parse(state) as { seen?: unknown };
-    if (!parsed || typeof parsed !== 'object') {
-      return { seen: {} };
-    }
-
-    const rawSeen = parsed.seen;
-    if (!rawSeen || typeof rawSeen !== 'object' || Array.isArray(rawSeen)) {
-      return { seen: {} };
-    }
-
-    const seen: Record<string, string> = {};
-    for (const [key, value] of Object.entries(rawSeen)) {
-      if (typeof value === 'string') {
-        seen[key] = value;
-      }
-    }
-
-    return { seen };
-  } catch (error) {
-    logger.warn({ error }, 'Failed to parse YNA news checkpoint state');
-    return { seen: {} };
-  }
-}
-
-function buildState(seen: Map<string, string>): string | null {
-  if (seen.size === 0) {
     return null;
   }
 
-  return JSON.stringify({ seen: Object.fromEntries(seen) });
+  try {
+    const parsed = schemaYnaNewsState.safeParse(JSON.parse(state));
+    if (parsed.success) {
+      return parsed.data;
+    }
+
+    logger.info('YNA news checkpoint state is old version; initialize checkpoint without emitting events');
+    return null;
+  } catch (error) {
+    logger.warn({ error }, 'Failed to parse YNA news checkpoint state');
+    return null;
+  }
+}
+
+function buildState(seen: Map<string, string>): string {
+  return JSON.stringify({
+    version: YNA_NEWS_STATE_VERSION,
+    seen: Object.fromEntries(seen),
+  });
 }
 
 function dedupeItems(items: YnaNewsItem[]): YnaNewsItem[] {
-  const byId = new Map<number, YnaNewsItem>();
+  const byTitle = new Map<string, YnaNewsItem>();
   for (const item of items) {
-    if (!byId.has(item.YNA_NO)) {
-      byId.set(item.YNA_NO, item);
+    const key = buildItemKey(item);
+    if (!byTitle.has(key)) {
+      byTitle.set(key, item);
     }
   }
-  return Array.from(byId.values());
+  return Array.from(byTitle.values());
 }
 
 function buildItemKey(item: YnaNewsItem): string {
-  return String(item.YNA_NO);
+  return item.YNA_TTL;
 }
 
 function applySeen(seen: Map<string, string>, items: YnaNewsItem[], seenAt: string): void {
@@ -396,27 +392,13 @@ function applySeen(seen: Map<string, string>, items: YnaNewsItem[], seenAt: stri
 function buildClassifiedItems(items: YnaNewsItem[]): ClassifiedNewsItem[] {
   const result: ClassifiedNewsItem[] = [];
   for (const item of items) {
-    const text = buildClassifyText(item);
-    if (!text) {
-      continue;
-    }
     result.push({
       id: String(item.YNA_NO),
       item,
-      text,
+      text: item.YNA_TTL,
     });
   }
   return result;
-}
-
-function buildClassifyText(item: YnaNewsItem): string | null {
-  const title = normalizeText(item.YNA_TTL);
-
-  if (!title) {
-    return null;
-  }
-
-  return title;
 }
 
 function parseKstDateTime(value: string | null | undefined): string | null {
