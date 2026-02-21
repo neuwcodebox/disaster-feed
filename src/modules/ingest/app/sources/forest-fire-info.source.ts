@@ -5,8 +5,6 @@ import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/sou
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
-import { pruneTimedMap } from './_shared/prune-timed-map';
-import { shouldEmitEvent } from './_shared/should-emit-event';
 
 const FOREST_FIRE_INFO_ENDPOINT = 'https://fd.forest.go.kr/ffas/pubConn/selectPublicFireShowList.do';
 const STATE_RANGE_DAYS = 7;
@@ -40,14 +38,23 @@ const schemaForestFireResponse = z.object({
 
 type ForestFireItem = z.infer<typeof schemaForestFireItem>;
 
-type ForestFireState = {
-  seen: Record<string, string>;
-  highLevelSent: Record<string, HighLevelEntry>;
-};
+const schemaForestFireStateStatus = z.enum(['in_progress', 'completed', 'unknown']);
 
-type HighLevelEntry = {
-  level: EventLevels;
-  seenAt: string;
+const schemaForestFireStateSeenEntry = z.object({
+  status: schemaForestFireStateStatus,
+  step: z.string().nullable(),
+  seenAt: z.string(),
+});
+
+const schemaForestFireState = z.object({
+  seen: z.record(z.string(), schemaForestFireStateSeenEntry),
+});
+
+type ForestFireStateStatus = z.infer<typeof schemaForestFireStateStatus>;
+type ForestFireSeenEntry = z.infer<typeof schemaForestFireStateSeenEntry>;
+
+type ForestFireState = {
+  seen: Record<string, ForestFireSeenEntry>;
 };
 
 type ProgressStatus = 'reported' | 'in_progress' | 'completed' | 'not_fire' | 'unknown';
@@ -67,7 +74,7 @@ const FOREST_FIRE_STEP_LABELS_BY_CODE: Record<string, string> = {
 
 export class ForestFireInfoSource implements Source {
   public readonly sourceId = EventSources.ForestFireInfo;
-  public readonly pollIntervalSec = 60 * 5;
+  public readonly pollIntervalSec = 60 * 3;
 
   public async run(state: string | null): Promise<SourceRunResult> {
     const response = await fetchWithTimeout({
@@ -92,9 +99,8 @@ export class ForestFireInfoSource implements Source {
     }
 
     const previousState = parseState(state);
-    const seen = new Map<string, string>(Object.entries(previousState.seen));
-    const seenFireIds = buildSeenFireIdSet(seen);
-    const highLevelSent = new Map<string, HighLevelEntry>(Object.entries(previousState.highLevelSent));
+    const seen = new Map<string, ForestFireSeenEntry>(Object.entries(previousState?.seen ?? {}));
+    const shouldEmitEvents = previousState !== null;
     const now = new Date();
     const nowMs = now.getTime();
     const nowIso = now.toISOString();
@@ -109,39 +115,33 @@ export class ForestFireInfoSource implements Source {
 
       const progressLabel = resolveProgressLabel(item);
       const progressStatus = resolveProgressStatus(progressLabel);
+      const stateStatus = mapStateStatus(progressStatus);
       const stepLabel = resolveStepLabel(item);
-      const baseLevel = isStepLevelEnabled(progressStatus) ? mapStepLevel(stepLabel) : EventLevels.Info;
-      const uniqueKey = buildUniqueKey(fireId, progressStatus, stepLabel);
+      const baseLevel = isStepLevelEnabled(stateStatus) ? mapStepLevel(stepLabel) : EventLevels.Info;
 
       const resolvedOccurredAt = resolveOccurredAt(item);
       const resolvedCompletedAt = resolveCompletedAt(item);
-      const occurredAt = seenFireIds.has(fireId)
-        ? nowIso
-        : resolveFirstOccurredAt(progressStatus, resolvedOccurredAt, resolvedCompletedAt);
+      const previousEntry = seen.get(fireId);
+      const occurredAt = resolveEventOccurredAt(
+        stateStatus,
+        previousEntry,
+        resolvedOccurredAt,
+        resolvedCompletedAt,
+        nowIso,
+      );
       if (isTooOld(occurredAt, nowMs, EVENT_MAX_AGE_MS)) {
         continue;
       }
 
-      const lastHighLevel = getLastHighLevel(highLevelSent, fireId, nowMs);
-      const shouldBoost = baseLevel !== EventLevels.Info && (lastHighLevel === null || baseLevel > lastHighLevel);
-      const level = shouldBoost ? baseLevel : EventLevels.Info;
-
-      if (shouldEmitEvent(seen.get(uniqueKey), nowMs, STATE_TTL_MS)) {
-        events.push(buildEvent(item, occurredAt, progressLabel, stepLabel, level));
+      if (shouldEmitEvents && shouldEmitTransition(previousEntry, stateStatus, stepLabel)) {
+        events.push(buildEvent(item, occurredAt, progressLabel, stepLabel, baseLevel));
       }
 
-      if (baseLevel !== EventLevels.Info) {
-        const nextLevel = lastHighLevel === null ? baseLevel : pickHigherLevel(lastHighLevel, baseLevel);
-        highLevelSent.set(fireId, { level: nextLevel, seenAt: nowIso });
-      }
-
-      seen.set(uniqueKey, nowIso);
-      seenFireIds.add(fireId);
+      seen.set(fireId, { status: stateStatus, step: stepLabel, seenAt: nowIso });
     }
 
-    pruneTimedMap(seen, nowMs, STATE_TTL_MS);
-    pruneHighLevelMap(highLevelSent, nowMs);
-    const nextState = buildState(seen, highLevelSent);
+    pruneSeenMap(seen, nowMs, STATE_TTL_MS);
+    const nextState = buildState(seen);
 
     return { events, nextState };
   }
@@ -216,35 +216,6 @@ const buildBody = (
   return lines.length > 0 ? lines.join('\n') : null;
 };
 
-const buildUniqueKey = (fireId: string, progressStatus: ProgressStatus, stepLabel: string | null): string => {
-  const progressKey = progressStatus;
-  const stepKey = stepLabel ?? 'unknown';
-
-  return `${fireId}|${progressKey}|${stepKey}`;
-};
-
-function buildSeenFireIdSet(seen: Map<string, string>): Set<string> {
-  const seenFireIds = new Set<string>();
-  for (const key of seen.keys()) {
-    const fireId = extractFireIdFromKey(key);
-    if (fireId) {
-      seenFireIds.add(fireId);
-    }
-  }
-  return seenFireIds;
-}
-
-function extractFireIdFromKey(key: string): string | null {
-  const trimmed = key.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const [fireId] = trimmed.split('|');
-  const normalized = fireId?.trim();
-  return normalized ? normalized : null;
-}
-
 const resolveOccurredAt = (item: ForestFireItem): string | null => {
   const fireDateTime = parseKstDateTime(item.frfrFrngDtm);
   if (fireDateTime) {
@@ -258,16 +229,26 @@ const resolveCompletedAt = (item: ForestFireItem): string | null => {
   return parseKstDateTime(item.potfrCmpleDtm);
 };
 
-const resolveFirstOccurredAt = (
-  progressStatus: ProgressStatus,
+const resolveEventOccurredAt = (
+  status: ForestFireStateStatus,
+  previousEntry: ForestFireSeenEntry | undefined,
   occurredAt: string | null,
   completedAt: string | null,
-): string | null => {
-  if (progressStatus === 'completed' && completedAt) {
-    return completedAt;
+  nowIso: string,
+): string => {
+  if (status === 'completed') {
+    return completedAt ?? nowIso;
   }
 
-  return occurredAt;
+  if (status === 'in_progress') {
+    if (!previousEntry) {
+      return occurredAt ?? nowIso;
+    }
+
+    return nowIso;
+  }
+
+  return nowIso;
 };
 
 const resolveProgressLabel = (item: ForestFireItem): string | null => {
@@ -324,8 +305,31 @@ const resolveProgressStatus = (progressLabel: string | null): ProgressStatus => 
   return 'unknown';
 };
 
-const isStepLevelEnabled = (progressStatus: ProgressStatus): boolean => {
-  return progressStatus === 'reported' || progressStatus === 'in_progress';
+const mapStateStatus = (progressStatus: ProgressStatus): ForestFireStateStatus => {
+  if (progressStatus === 'reported' || progressStatus === 'in_progress') {
+    return 'in_progress';
+  }
+  if (progressStatus === 'completed' || progressStatus === 'not_fire') {
+    return 'completed';
+  }
+
+  return 'unknown';
+};
+
+const shouldEmitTransition = (
+  previousEntry: ForestFireSeenEntry | undefined,
+  status: ForestFireStateStatus,
+  step: string | null,
+): boolean => {
+  if (!previousEntry) {
+    return true;
+  }
+
+  return previousEntry.status !== status || previousEntry.step !== step;
+};
+
+const isStepLevelEnabled = (status: ForestFireStateStatus): boolean => {
+  return status === 'in_progress';
 };
 
 const mapStepLevel = (stepLabel: string | null): EventLevels => {
@@ -348,10 +352,6 @@ const mapStepLevel = (stepLabel: string | null): EventLevels => {
   }
 
   return EventLevels.Info;
-};
-
-const pickHigherLevel = (first: EventLevels, second: EventLevels): EventLevels => {
-  return first > second ? first : second;
 };
 
 const isReportedStatus = (value: string): boolean => {
@@ -457,126 +457,43 @@ const parseCompactKstDateTime = (
   return parsed.toISOString();
 };
 
-const pruneHighLevelMap = (items: Map<string, HighLevelEntry>, nowMs: number): void => {
+const pruneSeenMap = (items: Map<string, ForestFireSeenEntry>, nowMs: number, ttlMs: number): void => {
   for (const [key, value] of items) {
     const parsed = Date.parse(value.seenAt);
-    if (!Number.isFinite(parsed) || nowMs - parsed > STATE_TTL_MS) {
+    if (!Number.isFinite(parsed) || nowMs - parsed > ttlMs) {
       items.delete(key);
     }
   }
 };
 
-const getLastHighLevel = (
-  highLevelSent: Map<string, HighLevelEntry>,
-  fireId: string,
-  nowMs: number,
-): EventLevels | null => {
-  const entry = highLevelSent.get(fireId);
-  if (!entry) {
-    return null;
-  }
-
-  const parsed = Date.parse(entry.seenAt);
-  if (!Number.isFinite(parsed) || nowMs - parsed > STATE_TTL_MS) {
-    highLevelSent.delete(fireId);
-    return null;
-  }
-
-  return entry.level;
-};
-
-const parseState = (state: string | null): ForestFireState => {
+const parseState = (state: string | null): ForestFireState | null => {
   if (!state) {
-    return { seen: {}, highLevelSent: {} };
+    return null;
   }
 
   try {
-    const parsed = JSON.parse(state) as { seen?: unknown; highLevelSent?: unknown };
-    if (!parsed || typeof parsed !== 'object') {
-      return { seen: {}, highLevelSent: {} };
+    const parsed = schemaForestFireState.safeParse(JSON.parse(state));
+    if (!parsed.success) {
+      logger.warn({ error: parsed.error }, 'Failed to parse forest fire info checkpoint state');
+      return null;
     }
 
-    return {
-      seen: parseStateRecord(parsed.seen),
-      highLevelSent: parseHighLevelStateRecord(parsed.highLevelSent),
-    };
+    return parsed.data;
   } catch (error) {
     logger.warn({ error }, 'Failed to parse forest fire info checkpoint state');
-    return { seen: {}, highLevelSent: {} };
+    return null;
   }
 };
 
-const parseStateRecord = (value: unknown): Record<string, string> => {
-  if (!value || typeof value !== 'object') {
-    return {};
-  }
-
-  const result: Record<string, string> = {};
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    const trimmedKey = key.trim();
-    if (trimmedKey && typeof entry === 'string') {
-      result[trimmedKey] = entry;
-    }
-  }
-
-  return result;
-};
-
-const parseHighLevelStateRecord = (value: unknown): Record<string, HighLevelEntry> => {
-  if (!value || typeof value !== 'object') {
-    return {};
-  }
-
-  const result: Record<string, HighLevelEntry> = {};
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    const trimmedKey = key.trim();
-    if (!trimmedKey || !entry || typeof entry !== 'object') {
-      continue;
-    }
-
-    const parsed = parseHighLevelEntry(entry);
-    if (parsed) {
-      result[trimmedKey] = parsed;
-    }
-  }
-
-  return result;
-};
-
-const parseHighLevelEntry = (value: object): HighLevelEntry | null => {
-  const { level, seenAt } = value as { level?: unknown; seenAt?: unknown };
-  if (typeof level !== 'number' || typeof seenAt !== 'string') {
-    return null;
-  }
-
-  if (!Number.isFinite(level) || level < EventLevels.Info || level > EventLevels.Critical) {
-    return null;
-  }
-
-  if (!seenAt.trim()) {
-    return null;
-  }
-
-  return { level: level as EventLevels, seenAt };
-};
-
-const buildState = (seen: Map<string, string>, highLevelSent: Map<string, HighLevelEntry>): string | null => {
-  if (seen.size === 0 && highLevelSent.size === 0) {
-    return null;
-  }
-
-  const seenPayload: Record<string, string> = {};
+const buildState = (seen: Map<string, ForestFireSeenEntry>): string => {
+  const seenPayload: Record<string, ForestFireSeenEntry> = {};
   for (const [key, value] of seen) {
-    seenPayload[key] = value;
-  }
-
-  const highLevelPayload: Record<string, HighLevelEntry> = {};
-  for (const [key, value] of highLevelSent) {
-    highLevelPayload[key] = {
-      level: value.level,
+    seenPayload[key] = {
+      status: value.status,
+      step: value.step,
       seenAt: value.seenAt,
     };
   }
 
-  return JSON.stringify({ seen: seenPayload, highLevelSent: highLevelPayload });
+  return JSON.stringify({ seen: seenPayload });
 };
