@@ -97,7 +97,7 @@ export class KmaWeatherWarningSource implements Source {
 
     const events: SourceEvent[] = [];
     for (const group of groups) {
-      const occurredAt = parseKstCompactTimestamp(group.tmFc);
+      const occurredAt = resolveOccurredAt(group.tmFc, nowMs);
       if (isTooOld(occurredAt, nowMs, EVENT_MAX_AGE_MS)) {
         continue;
       }
@@ -376,6 +376,20 @@ const parseKstCompactTimestamp = (value: string): string | null => {
   const utcMs = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour) - 9, Number(minute), 0);
   const date = new Date(utcMs);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const resolveOccurredAt = (tmFc: string, nowMs: number): string | null => {
+  const forecastAt = parseKstCompactTimestamp(tmFc);
+  if (!forecastAt) {
+    return null;
+  }
+
+  const forecastAtMs = new Date(forecastAt).getTime();
+  if (Number.isNaN(forecastAtMs)) {
+    return null;
+  }
+
+  return new Date(Math.min(forecastAtMs, nowMs)).toISOString();
 };
 
 const formatKstCompactTimestamp = (value: string): string | null => {
