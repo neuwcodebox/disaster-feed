@@ -5,6 +5,7 @@ import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
+import { formatZoneTitle } from './_shared/format-zone-title';
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
 import { pruneTimedMap } from './_shared/prune-timed-map';
@@ -120,8 +121,7 @@ export class AirkoreaPmWarningSource implements Source {
 const buildWarningEvent = (group: PmWarningGroup, regionText: string | null): SourceEvent => {
   return {
     kind: EventKinds.FineDust,
-    title: buildTitle(group.region, group.item, group.level),
-    body: buildBody(group.zones),
+    title: buildTitle(group.region, group.zones, group.item, group.level),
     occurredAt: group.issuedAt,
     regionText,
     level: mapWarningLevel(group.level),
@@ -129,19 +129,14 @@ const buildWarningEvent = (group: PmWarningGroup, regionText: string | null): So
   };
 };
 
-const buildTitle = (region: string, item: string, level: string): string => {
-  const parts = [normalizeText(region), normalizeText(item), normalizeText(level)].filter((value): value is string =>
-    Boolean(value),
-  );
+const buildTitle = (region: string, zones: string[], item: string, level: string): string => {
+  const parts = [
+    normalizeText(region),
+    formatZoneTitle(zones, region),
+    normalizeText(item),
+    normalizeText(level),
+  ].filter((value): value is string => Boolean(value));
   return parts.length > 0 ? parts.join(' ') : '미세먼지 경보';
-};
-
-const buildBody = (zones: string[]): string | null => {
-  if (zones.length === 0) {
-    return null;
-  }
-
-  return `권역: ${zones.join(', ')}`;
 };
 
 const buildPayload = (group: PmWarningGroup): EventPayload => {

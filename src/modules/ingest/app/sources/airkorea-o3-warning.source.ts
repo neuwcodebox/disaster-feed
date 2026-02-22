@@ -5,6 +5,7 @@ import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
+import { formatZoneTitle } from './_shared/format-zone-title';
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
 import { pruneTimedMap } from './_shared/prune-timed-map';
@@ -86,8 +87,7 @@ export class AirkoreaO3WarningSource implements Source {
 const buildWarningEvent = (group: O3WarningGroup, regionText: string | null): SourceEvent => {
   return {
     kind: EventKinds.O3,
-    title: buildTitle(group.region, group.level),
-    body: buildBody(group.zones),
+    title: buildTitle(group.region, group.zones, group.level),
     occurredAt: group.issuedAt,
     regionText,
     level: mapWarningLevel(group.level),
@@ -95,17 +95,9 @@ const buildWarningEvent = (group: O3WarningGroup, regionText: string | null): So
   };
 };
 
-const buildTitle = (region: string, level: string): string => {
-  const parts = [normalizeText(region), '오존', normalizeText(level) ?? '안내'];
+const buildTitle = (region: string, zones: string[], level: string): string => {
+  const parts = [normalizeText(region), formatZoneTitle(zones, region), '오존', normalizeText(level) ?? '안내'];
   return parts.join(' ').trim();
-};
-
-const buildBody = (zones: string[]): string | null => {
-  if (zones.length === 0) {
-    return null;
-  }
-
-  return `권역: ${zones.join(', ')}`;
 };
 
 const buildPayload = (group: O3WarningGroup): EventPayload => {
