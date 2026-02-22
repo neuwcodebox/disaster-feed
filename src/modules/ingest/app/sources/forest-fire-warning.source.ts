@@ -19,6 +19,7 @@ const schemaFireWarningItem = z
     frfr_wrnng_step_cd: z.string().nullish(),
     frfr_wrnng_rgstn_dtm: z.string().nullish(),
     frfr_wrnng_issu_dtm: z.string().nullish(),
+    sync_dt: z.string().nullish(),
     frfr_wrnng_issu_rsn: z.string().nullish(),
     lgdng_cd: z.string().nullish(),
     lgdng_ctprv_cd: z.string().nullish(),
@@ -47,6 +48,7 @@ type FireWarningGroup = {
   stepLabel: string;
   items: FireWarningItem[];
   occurredAt: string;
+  syncedAt: string;
   issuedAt: string;
   regionNames: string[];
 };
@@ -93,8 +95,9 @@ export class ForestFireWarningSource implements Source {
       }
 
       const occurredAt = parseKstDateTime(normalizeText(item.frfr_wrnng_rgstn_dtm));
+      const syncedAt = parseKstDateTime(normalizeText(item.sync_dt));
       const issuedAt = normalizeText(item.frfr_wrnng_issu_dtm);
-      if (!occurredAt || !issuedAt) {
+      if (!occurredAt || !syncedAt || !issuedAt) {
         continue;
       }
 
@@ -128,7 +131,7 @@ export class ForestFireWarningSource implements Source {
       }
 
       const groupKey = buildGroupKey(ctprvCode, stepLabel, occurredAt, issuedAt);
-      const group = groups.get(groupKey) ?? createGroup(ctprvCode, stepLabel, occurredAt, issuedAt);
+      const group = groups.get(groupKey) ?? createGroup(ctprvCode, stepLabel, occurredAt, syncedAt, issuedAt);
       group.items.push(item);
 
       const regionName = resolveRegionName(item);
@@ -165,12 +168,19 @@ function parseResponseJson(rawText: string): unknown {
   }
 }
 
-function createGroup(ctprvCode: string, stepLabel: string, occurredAt: string, issuedAt: string): FireWarningGroup {
+function createGroup(
+  ctprvCode: string,
+  stepLabel: string,
+  occurredAt: string,
+  syncedAt: string,
+  issuedAt: string,
+): FireWarningGroup {
   return {
     ctprvCode,
     stepLabel,
     items: [],
     occurredAt,
+    syncedAt,
     issuedAt,
     regionNames: [],
   };
@@ -184,7 +194,7 @@ function buildEvent(group: FireWarningGroup): SourceEvent {
     kind: EventKinds.Wildfire,
     title: buildTitle(regionText, group.stepLabel),
     body: buildBody(group.issuedAt, group.regionNames, ctprvName),
-    occurredAt: group.occurredAt,
+    occurredAt: group.syncedAt, // API에 경보 반영이 늦어서 동기화 시간(거의 현재 시간)을 사용
     regionText,
     level: mapWarningLevel(group.stepLabel),
     payload: { items: group.items },
@@ -200,9 +210,10 @@ function buildNationalEvents(items: FireWarningItem[]): SourceEvent[] {
       continue;
     }
 
-    const issuedAt = normalizeText(item.frfr_wrnng_issu_dtm);
     const occurredAt = parseKstDateTime(normalizeText(item.frfr_wrnng_rgstn_dtm));
-    if (!issuedAt) {
+    const syncedAt = parseKstDateTime(normalizeText(item.sync_dt));
+    const issuedAt = normalizeText(item.frfr_wrnng_issu_dtm);
+    if (!occurredAt || !syncedAt || !issuedAt) {
       continue;
     }
 
@@ -210,7 +221,7 @@ function buildNationalEvents(items: FireWarningItem[]): SourceEvent[] {
       kind: EventKinds.Wildfire,
       title: buildTitle(NATIONAL_REGION_LABEL, stepLabel),
       body: buildBody(issuedAt, [], null),
-      occurredAt,
+      occurredAt: syncedAt, // API에 경보 반영이 늦어서 동기화 시간(거의 현재 시간)을 사용
       regionText: NATIONAL_REGION_LABEL,
       level: mapWarningLevel(stepLabel),
       payload: { items: [item] },

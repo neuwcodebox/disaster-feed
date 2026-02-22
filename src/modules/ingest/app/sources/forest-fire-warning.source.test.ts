@@ -21,6 +21,7 @@ describe('ForestFireWarningSource', () => {
           frfr_wrnng_step_cd: '주의',
           frfr_wrnng_rgstn_dtm: '2026-01-28 10:54:36',
           frfr_wrnng_issu_dtm: '2026-01-27 17:00',
+          sync_dt: '2026-01-28 10:54:36',
           lgdng_ctprv_cd: '52',
           lgdng_nm: '전북특별자치도',
           lgdng_sgng_cd: '000',
@@ -28,8 +29,9 @@ describe('ForestFireWarningSource', () => {
         {
           frfr_wrnng_id: '200',
           frfr_wrnng_step_cd: '주의',
-          frfr_wrnng_rgstn_dtm: '2026-01-26 00:00:00',
+          frfr_wrnng_rgstn_dtm: '2026-01-24 00:00:00',
           frfr_wrnng_issu_dtm: '2026-01-25 17:00',
+          sync_dt: '2026-01-24 00:00:00',
           lgdng_ctprv_cd: '51',
           lgdng_nm: '강원특별자치도',
           lgdng_sgng_cd: '000',
@@ -65,6 +67,7 @@ describe('ForestFireWarningSource', () => {
           frfr_wrnng_step_cd: '주의',
           frfr_wrnng_rgstn_dtm: '2026-01-28 10:54:36',
           frfr_wrnng_issu_dtm: '2026-01-27 17:00',
+          sync_dt: '2026-01-28 10:27:02',
           lgdng_ctprv_cd: '52',
           lgdng_nm: '전북특별자치도',
           loest_ara_nm: '전북특별자치도',
@@ -75,6 +78,7 @@ describe('ForestFireWarningSource', () => {
           frfr_wrnng_step_cd: '주의',
           frfr_wrnng_rgstn_dtm: '2026-01-28 10:54:36',
           frfr_wrnng_issu_dtm: '2026-01-27 17:00',
+          sync_dt: '2026-01-28 10:27:02',
           lgdng_ctprv_cd: '52',
           lgdng_nm: '전북특별자치도 전주시',
           loest_ara_nm: '전주시',
@@ -85,6 +89,7 @@ describe('ForestFireWarningSource', () => {
           frfr_wrnng_step_cd: '주의',
           frfr_wrnng_rgstn_dtm: '2026-01-28 10:54:36',
           frfr_wrnng_issu_dtm: '2026-01-27 17:00',
+          sync_dt: '2026-01-28 10:27:02',
           lgdng_ctprv_cd: '51',
           lgdng_nm: '강원특별자치도 양구군',
           loest_ara_nm: '양구군',
@@ -115,7 +120,7 @@ describe('ForestFireWarningSource', () => {
     expect(result.events).toHaveLength(1);
     expect(result.events[0].title).toBe('전북특별자치도 산불경보 주의 단계 발령');
     expect(result.events[0].level).toBe(EventLevels.Minor);
-    expect(result.events[0].occurredAt).toBe('2026-01-28T01:54:36.000Z');
+    expect(result.events[0].occurredAt).toBe('2026-01-28T01:27:02.000Z');
     expect(result.events[0].body).toBe('발령 시각: 2026-01-27 17:00\n대상 지역: 전북특별자치도, 전주시');
     const payload = result.events[0].payload as { items?: unknown[] } | null;
     expect(payload?.items).toHaveLength(2);
@@ -129,6 +134,7 @@ describe('ForestFireWarningSource', () => {
           frfr_wrnng_step_cd: '경계',
           frfr_wrnng_rgstn_dtm: '2026-01-28 10:00:00',
           frfr_wrnng_issu_dtm: '2026-01-28 09:00',
+          sync_dt: '2026-01-28 10:00:00',
           lgdng_ctprv_cd: '52',
           lgdng_nm: '전북특별자치도',
           loest_ara_nm: '전북특별자치도',
@@ -139,6 +145,7 @@ describe('ForestFireWarningSource', () => {
           frfr_wrnng_step_cd: '경계',
           frfr_wrnng_rgstn_dtm: '2026-01-28 10:00:00',
           frfr_wrnng_issu_dtm: '2026-01-28 09:30',
+          sync_dt: '2026-01-28 10:00:00',
           lgdng_ctprv_cd: '52',
           lgdng_nm: '전북특별자치도 전주시',
           loest_ara_nm: '전주시',
@@ -149,6 +156,7 @@ describe('ForestFireWarningSource', () => {
           frfr_wrnng_step_cd: '경계',
           frfr_wrnng_rgstn_dtm: '2026-01-28 11:00:00',
           frfr_wrnng_issu_dtm: '2026-01-28 09:00',
+          sync_dt: '2026-01-28 11:00:00',
           lgdng_ctprv_cd: '52',
           lgdng_nm: '전북특별자치도 익산시',
           loest_ara_nm: '익산시',
@@ -197,6 +205,7 @@ describe('ForestFireWarningSource', () => {
           frfr_wrnng_step_cd: '주의',
           frfr_wrnng_rgstn_dtm: '2026-01-28 12:00:00',
           frfr_wrnng_issu_dtm: '2026-01-28 11:00',
+          sync_dt: '2026-01-28 12:00:00',
           lgdng_ctprv_cd: '26',
           lgdng_nm: '부산광역시',
           lgdng_sgng_cd: '000',
@@ -206,6 +215,7 @@ describe('ForestFireWarningSource', () => {
           frfr_wrnng_step_cd: '주의',
           frfr_wrnng_rgstn_dtm: '2026-01-28 12:00:00',
           frfr_wrnng_issu_dtm: '2026-01-28 11:00',
+          sync_dt: '2026-01-28 12:00:00',
           lgdng_ctprv_cd: '26',
           lgdng_nm: '부산광역시 사하구',
           lgdng_sgng_cd: '290',
@@ -215,6 +225,7 @@ describe('ForestFireWarningSource', () => {
           frfr_wrnng_step_cd: '주의',
           frfr_wrnng_rgstn_dtm: '2026-01-28 12:00:00',
           frfr_wrnng_issu_dtm: '2026-01-28 11:00',
+          sync_dt: '2026-01-28 12:00:00',
           lgdng_ctprv_cd: '26',
           lgdng_nm: '부산광역시 해운대구',
           lgdng_sgng_cd: '300',
@@ -252,6 +263,7 @@ describe('ForestFireWarningSource', () => {
           frfr_wrnng_step_cd: '관심',
           frfr_wrnng_rgstn_dtm: '2026-01-28 09:00:00',
           frfr_wrnng_issu_dtm: '2026-01-28 08:30',
+          sync_dt: '2026-01-28 09:00:00',
           lgdng_cd: '전국',
         },
       ],
