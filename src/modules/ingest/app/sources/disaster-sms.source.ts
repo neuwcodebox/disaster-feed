@@ -37,7 +37,7 @@ const SAFETY_INFO_DIRECT_KEYWORDS = [
 ] as const;
 
 // 사건발생을 의미하는 키워드들 (레벨 격하 조건이 만족되어도 이 키워드가 검출되면 분류기를 탐)
-const SAFETY_INCIDENT_KEYWORDS = ['이동제한', '통제', '붕괴', '대피', '유출', '누출', '우회'] as const;
+const SAFETY_INCIDENT_KEYWORDS = ['이동제한', '통제', '붕괴', '대피', '유출', '누출', '우회', '연기'] as const;
 
 const schemaDisasterSmsItem = z.object({
   DSSTR_SE_NM: z.string().nullable().optional(), // 예: "한파"
