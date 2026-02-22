@@ -20,7 +20,7 @@ const SAFETY_LEVEL_EXCLUDED_KEYWORDS = ['[기상청]', 'Heavy', 'Evacuation', '�
 // 예방안내를 의미하는 키워드들
 const SAFETY_PRECAUTION_KEYWORDS = ['예상', '예방', '우려', '주의', '유의', '자제', '당부', '협조'] as const;
 // 예방안내시 자주 사용되는 기호들
-const SAFETY_INFO_SYMBOL_KEYWORDS = ['▲', '△', '▶', '▷', '●', '○'] as const;
+const SAFETY_INFO_SYMBOL_KEYWORDS = ['▲', '△', '▶', '▷', '●', '○', '◆', '◇', '■', '□'] as const;
 // 예방안내시 자주 언급되는 키워드들
 const SAFETY_INFO_DIRECT_KEYWORDS = [
   '불씨',
