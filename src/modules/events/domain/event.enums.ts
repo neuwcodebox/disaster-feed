@@ -44,6 +44,7 @@ export enum EventKinds {
   WildAnimal = 38, // 야생동물 출현
   Cyber = 39, // 사이버
   SpaceWeather = 40, // 우주환경
+  MarineAccident = 41, // 해양사고
 }
 
 export enum EventLevels {

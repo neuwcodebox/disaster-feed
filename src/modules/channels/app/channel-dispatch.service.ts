@@ -242,4 +242,5 @@ const EVENT_KIND_LABELS: Record<EventKinds, string> = {
   [EventKinds.WildAnimal]: '야생동물',
   [EventKinds.Cyber]: '사이버',
   [EventKinds.SpaceWeather]: '우주환경',
+  [EventKinds.MarineAccident]: '해양사고',
 };
