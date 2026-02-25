@@ -45,6 +45,7 @@ export enum EventKinds {
   Cyber = 39, // 사이버
   SpaceWeather = 40, // 우주환경
   MarineAccident = 41, // 해양사고
+  AviationAccident = 42, // 항공사고
 }
 
 export enum EventLevels {

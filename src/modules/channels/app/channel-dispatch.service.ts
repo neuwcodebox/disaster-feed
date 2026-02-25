@@ -243,4 +243,5 @@ const EVENT_KIND_LABELS: Record<EventKinds, string> = {
   [EventKinds.Cyber]: '사이버',
   [EventKinds.SpaceWeather]: '우주환경',
   [EventKinds.MarineAccident]: '해양사고',
+  [EventKinds.AviationAccident]: '항공사고',
 };
