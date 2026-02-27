@@ -8,6 +8,9 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "up": "docker compose up -d",
+    "stop": "docker compose stop",
+    "down": "docker compose down",
     "dev": "tsx watch --clear-screen=false src/index.ts | pino-pretty",
     "build": "tsup-node --format esm",
     "start": "node dist/index.js",
