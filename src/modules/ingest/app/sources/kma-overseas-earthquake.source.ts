@@ -472,9 +472,5 @@ function parseState(state: string | null): OverseasEarthquakeState {
 }
 
 function buildState(seen: Map<string, string>): string | null {
-  if (seen.size === 0) {
-    return null;
-  }
-
   return JSON.stringify({ seen: Object.fromEntries(seen) });
 }
