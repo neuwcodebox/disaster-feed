@@ -86,6 +86,8 @@ HTTP API 및 SSE로 최신 이벤트 목록을 제공한다.
 - 영어로 작성.
 - Conventional Commits 규칙을 따릅니다.
 - 서로 다른 변경을 한 커밋에 묶지 않습니다.
+- 버그 수정은 `fix`를 사용합니다.
+- `refactor`는 큰 동작 변화 없는 코드 구조 개선에 사용합니다.
 
 ## Tech stack
 
