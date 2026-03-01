@@ -68,7 +68,7 @@ export class KpxPowerSupplySource implements Source {
     }
 
     if (nowMs - confirmedAtMs < DOWNGRADE_DELAY_MS) {
-      return { events: [], nextState: state };
+      return { events: [], nextState: buildState(previousState.stage, previousState.confirmedAt) };
     }
 
     const event = buildEvent('down', previousState, currentStage, nowIso);

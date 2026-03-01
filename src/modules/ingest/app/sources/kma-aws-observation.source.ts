@@ -960,7 +960,7 @@ function parseState(state: string | null): AwsState {
   }
 }
 
-function buildState(stateMap: Map<string, AwsStateEntry>): string | null {
+function buildState(stateMap: Map<string, AwsStateEntry>): string {
   return JSON.stringify({ entries: Object.fromEntries(stateMap) });
 }
 

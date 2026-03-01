@@ -358,11 +358,7 @@ const parseState = (state: string | null): WarningState => {
   }
 };
 
-const buildState = (seen: Map<string, string>): string | null => {
-  if (seen.size === 0) {
-    return null;
-  }
-
+const buildState = (seen: Map<string, string>): string => {
   return JSON.stringify({ seen: Object.fromEntries(seen) });
 };
 

@@ -75,7 +75,7 @@ export class KmaPewsEarthquakeSource implements Source {
       const simulatedTimeMs = Date.now() - this.timeOffsetMs;
       if (simulatedTimeMs >= this.simEndUtcMs) {
         this.stopSimulation();
-        return { events: [], nextState: state };
+        return { events: [], nextState: buildState(parsedState) };
       }
     }
 
@@ -107,7 +107,7 @@ export class KmaPewsEarthquakeSource implements Source {
 
     const phase = parsePhase(bytes, this.headerLengthBytes);
     if (phase < 2) {
-      return { events: [], nextState: state };
+      return { events: [], nextState: buildState(parsedState) };
     }
 
     const info = parseEarthquakeInfo(bytes);
@@ -119,7 +119,7 @@ export class KmaPewsEarthquakeSource implements Source {
     const previousAlarmId = buildAlarmId(parsedState.lastEqkId, parsedState.lastPhase);
     const currentAlarmId = buildAlarmId(info.eqkId, phase);
     if (currentAlarmId && previousAlarmId === currentAlarmId) {
-      return { events: [], nextState: state };
+      return { events: [], nextState: buildState(parsedState) };
     }
 
     const event = buildEarthquakeEvent(phase, info, parsedState.lastEqkId, parsedState.lastPhase, binTimeStr);
@@ -232,11 +232,7 @@ const parseState = (state: string | null): PewsState => {
   }
 };
 
-const buildState = (state: PewsState): string | null => {
-  if (!state.lastEqkId && state.lastPhase === null) {
-    return null;
-  }
-
+const buildState = (state: PewsState): string => {
   return JSON.stringify(state);
 };
 

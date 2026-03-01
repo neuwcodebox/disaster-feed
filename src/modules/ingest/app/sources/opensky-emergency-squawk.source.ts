@@ -376,14 +376,10 @@ function parseSeenState(value: unknown): Record<string, string> {
   return seen;
 }
 
-function buildState(seen: Map<string, string>): string | null {
+function buildState(seen: Map<string, string>): string {
   const payload: Record<string, string> = {};
   for (const [key, value] of seen) {
     payload[key] = value;
-  }
-
-  if (Object.keys(payload).length === 0) {
-    return null;
   }
 
   return JSON.stringify({ seen: payload });

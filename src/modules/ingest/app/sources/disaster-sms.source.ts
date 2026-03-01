@@ -492,9 +492,9 @@ const parseSerial = (value: string | null): number | null => {
   return Math.trunc(parsed);
 };
 
-const getNextSerialState = (items: DisasterSmsItem[], lastSeenSerial: number | null): string | null => {
+const getNextSerialState = (items: DisasterSmsItem[], lastSeenSerial: number | null): string => {
   if (items.length === 0) {
-    return lastSeenSerial === null ? null : String(lastSeenSerial);
+    return lastSeenSerial === null ? '' : String(lastSeenSerial);
   }
 
   const maxSerial = Math.max(...items.map((item) => item.MD101_SN));

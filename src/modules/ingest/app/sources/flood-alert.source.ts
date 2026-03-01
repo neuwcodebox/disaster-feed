@@ -338,10 +338,6 @@ function parseState(state: string | null): FloodAlertState {
   }
 }
 
-function buildState(seen: Map<string, string>): string | null {
-  if (seen.size === 0) {
-    return null;
-  }
-
+function buildState(seen: Map<string, string>): string {
   return JSON.stringify({ seen: Object.fromEntries(seen) });
 }

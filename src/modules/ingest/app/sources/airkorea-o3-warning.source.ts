@@ -52,16 +52,16 @@ export class AirkoreaO3WarningSource implements Source {
 
     const html = await response.text();
     const rows = parseWarningRows(html);
+    const previousState = parseState(state);
+    const seen = new Map<string, string>(Object.entries(previousState.seen));
     if (rows.length === 0) {
-      return { events: [], nextState: state };
+      return { events: [], nextState: buildState(seen) };
     }
 
     const now = new Date();
     const nowIso = now.toISOString();
     const nowMs = now.getTime();
     const groups = groupWarningRows(rows, nowMs);
-    const previousState = parseState(state);
-    const seen = new Map<string, string>(Object.entries(previousState.seen));
 
     const events: SourceEvent[] = [];
     for (const group of groups) {
@@ -233,11 +233,7 @@ const parseState = (state: string | null): O3WarningState => {
   }
 };
 
-const buildState = (seen: Map<string, string>): string | null => {
-  if (seen.size === 0) {
-    return null;
-  }
-
+const buildState = (seen: Map<string, string>): string => {
   const payload: Record<string, string> = {};
   for (const [key, value] of seen) {
     payload[key] = value;

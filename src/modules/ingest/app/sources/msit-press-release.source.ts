@@ -341,11 +341,7 @@ function parseState(state: string | null): MsitPressState {
   }
 }
 
-function buildState(seen: Map<string, string>): string | null {
-  if (seen.size === 0) {
-    return null;
-  }
-
+function buildState(seen: Map<string, string>): string {
   const payload: Record<string, string> = {};
   for (const [key, value] of seen) {
     payload[key] = value;

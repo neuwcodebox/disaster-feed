@@ -15,7 +15,7 @@ export type SourceEvent = {
 
 export type SourceRunResult = {
   events: SourceEvent[];
-  nextState: string | null;
+  nextState: string;
 };
 
 export interface Source {
