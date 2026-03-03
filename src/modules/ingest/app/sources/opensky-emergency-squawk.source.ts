@@ -209,7 +209,7 @@ function buildEvent(row: OpenSkyStateVector, squawk: string, occurredAt: string 
   const label = EMERGENCY_SQUAWK_LABELS[squawk] ?? squawk;
 
   return {
-    kind: EventKinds.Transport,
+    kind: EventKinds.AviationAccident,
     title: `한국 상공 ${callsign}편 ${squawk}(${label}) 선언`,
     body: buildBody(row),
     occurredAt,
