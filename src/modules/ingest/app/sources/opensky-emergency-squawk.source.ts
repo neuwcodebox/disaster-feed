@@ -6,8 +6,6 @@ import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/sou
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
-import { pruneTimedMap } from './_shared/prune-timed-map';
-import { shouldEmitEvent } from './_shared/should-emit-event';
 
 const OPENSKY_TOKEN_ENDPOINT =
   'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
@@ -16,7 +14,7 @@ const OPENSKY_STATES_ENDPOINT =
 const REQUEST_TIMEOUT_MS = 20000;
 const TOKEN_DEFAULT_TTL_SEC = 60 * 30;
 const TOKEN_SAFETY_WINDOW_MS = 1000 * 60;
-const STATE_TTL_MS = 1000 * 60 * 60 * 24;
+const SQUAWK_CONFIRMATION_MS = 1000 * 60 * 10;
 const EVENT_MAX_AGE_MS = 1000 * 60 * 30;
 
 const EMERGENCY_SQUAWK_LABELS: Record<string, string> = {
@@ -35,13 +33,27 @@ const schemaStatesResponse = z.object({
   states: z.array(z.array(z.unknown())).nullable(),
 });
 
+const schemaTrackedSquawkState = z.object({
+  squawk: z.string().min(1),
+  firstObservedAt: z.string().datetime(),
+  emittedAt: z.string().datetime().nullable(),
+});
+
+const schemaCheckpointState = z
+  .object({
+    tracked: z.record(z.string(), schemaTrackedSquawkState).default({}),
+  })
+  .passthrough();
+
 type TokenState = {
   accessToken: string;
   expiresAt: string;
 };
 
+type TrackedSquawkState = z.infer<typeof schemaTrackedSquawkState>;
+
 type OpenSkyState = {
-  seen: Record<string, string>;
+  tracked: Record<string, TrackedSquawkState>;
 };
 
 type OpenSkyStateVector = {
@@ -79,7 +91,7 @@ export class OpenSkyEmergencySquawkSource implements Source {
     }
 
     const previousState = parseState(state);
-    const seen = new Map<string, string>(Object.entries(previousState.seen));
+    const tracked = new Map<string, TrackedSquawkState>(Object.entries(previousState.tracked));
     const now = new Date();
     const nowMs = now.getTime();
     const nowIso = now.toISOString();
@@ -121,6 +133,7 @@ export class OpenSkyEmergencySquawkSource implements Source {
     const responseTime = parsed.data.time;
     const rows = parsed.data.states ?? [];
     const events: SourceEvent[] = [];
+    const activeAircraft = new Set<string>();
 
     for (const rawRow of rows) {
       const row = parseStateVector(rawRow);
@@ -128,25 +141,52 @@ export class OpenSkyEmergencySquawkSource implements Source {
         continue;
       }
 
+      activeAircraft.add(row.icao24);
+
       const squawk = row.squawk;
       if (!squawk || !EMERGENCY_SQUAWK_LABELS[squawk]) {
+        tracked.delete(row.icao24);
         continue;
       }
 
       const occurredAt = resolveOccurredAt(row, responseTime);
       if (isTooOld(occurredAt, nowMs, EVENT_MAX_AGE_MS)) {
+        tracked.delete(row.icao24);
         continue;
       }
 
-      const key = buildDedupKey(row.icao24, squawk);
-      if (shouldEmitEvent(seen.get(key), nowMs, STATE_TTL_MS)) {
-        events.push(buildEvent(row, squawk, occurredAt));
+      const currentState = tracked.get(row.icao24);
+      if (!currentState || currentState.squawk !== squawk) {
+        tracked.set(row.icao24, {
+          squawk,
+          firstObservedAt: nowIso,
+          emittedAt: null,
+        });
+        continue;
       }
-      seen.set(key, nowIso);
+
+      if (!hasPersistedLongEnough(currentState.firstObservedAt, nowMs)) {
+        continue;
+      }
+
+      if (currentState.emittedAt) {
+        continue;
+      }
+
+      events.push(buildEvent(row, squawk, occurredAt));
+      tracked.set(row.icao24, {
+        ...currentState,
+        emittedAt: nowIso,
+      });
     }
 
-    pruneTimedMap(seen, nowMs, STATE_TTL_MS);
-    const nextState = buildState(seen);
+    for (const icao24 of tracked.keys()) {
+      if (!activeAircraft.has(icao24)) {
+        tracked.delete(icao24);
+      }
+    }
+
+    const nextState = buildState(tracked);
 
     return { events, nextState };
   }
@@ -322,8 +362,13 @@ function resolveOccurredAt(row: OpenSkyStateVector, responseTime: number): strin
   return new Date(timestamp * 1000).toISOString();
 }
 
-function buildDedupKey(icao24: string, squawk: string): string {
-  return `${icao24}_${squawk}`;
+function hasPersistedLongEnough(firstObservedAt: string, nowMs: number): boolean {
+  const firstObservedAtMs = Date.parse(firstObservedAt);
+  if (!Number.isFinite(firstObservedAtMs)) {
+    return false;
+  }
+
+  return nowMs - firstObservedAtMs >= SQUAWK_CONFIRMATION_MS;
 }
 
 function isTokenValid(token: TokenState | null, nowMs: number): boolean {
@@ -341,48 +386,30 @@ function isTokenValid(token: TokenState | null, nowMs: number): boolean {
 
 function parseState(state: string | null): OpenSkyState {
   if (!state) {
-    return { seen: {} };
+    return { tracked: {} };
   }
 
   try {
-    const parsed = JSON.parse(state) as { seen?: unknown };
-    if (!parsed || typeof parsed !== 'object') {
-      return { seen: {} };
+    const parsed = schemaCheckpointState.safeParse(JSON.parse(state));
+    if (!parsed.success) {
+      logger.warn({ error: parsed.error }, 'Failed to parse OpenSky state checkpoint');
+      return { tracked: {} };
     }
 
-    const seen = parseSeenState(parsed.seen);
-
-    return { seen };
+    return { tracked: parsed.data.tracked };
   } catch (error) {
     logger.warn({ error }, 'Failed to parse OpenSky state checkpoint');
-    return { seen: {} };
+    return { tracked: {} };
   }
 }
 
-function parseSeenState(value: unknown): Record<string, string> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {};
-  }
-
-  const seen: Record<string, string> = {};
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    const trimmedKey = key.trim();
-    if (!trimmedKey || typeof entry !== 'string') {
-      continue;
-    }
-    seen[trimmedKey] = entry;
-  }
-
-  return seen;
-}
-
-function buildState(seen: Map<string, string>): string {
-  const payload: Record<string, string> = {};
-  for (const [key, value] of seen) {
+function buildState(tracked: Map<string, TrackedSquawkState>): string {
+  const payload: Record<string, TrackedSquawkState> = {};
+  for (const [key, value] of tracked) {
     payload[key] = value;
   }
 
-  return JSON.stringify({ seen: payload });
+  return JSON.stringify({ tracked: payload });
 }
 
 function parseStateVector(raw: unknown): OpenSkyStateVector | null {
