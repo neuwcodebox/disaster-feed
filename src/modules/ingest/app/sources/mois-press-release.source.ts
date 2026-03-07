@@ -12,7 +12,7 @@ import { pruneTimedMap } from './_shared/prune-timed-map';
 import { shouldEmitEvent } from './_shared/should-emit-event';
 
 const MOIS_PRESS_RSS_ENDPOINT = 'https://www.mois.go.kr/gpms/view/jsp/rss/rss.jsp?ctxCd=1012';
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 30_000;
 const STATE_TTL_MS = 1000 * 60 * 60 * 24;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 const CRISIS_KEYWORD = '위기경보';
