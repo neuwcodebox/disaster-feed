@@ -16,17 +16,16 @@ export function resolveDateOnlyWithServerTime(parts: DateOnlyParts, now: Date): 
   const todayTime = Date.UTC(nowKst.getUTCFullYear(), nowKst.getUTCMonth(), nowKst.getUTCDate());
   const targetTime = target.getTime();
 
-  const { hour, minute, second, millisecond } =
-    targetTime === todayTime
-      ? {
-          hour: nowKst.getUTCHours(),
-          minute: nowKst.getUTCMinutes(),
-          second: nowKst.getUTCSeconds(),
-          millisecond: nowKst.getUTCMilliseconds(),
-        }
-      : targetTime < todayTime
-        ? { hour: 23, minute: 59, second: 59, millisecond: 999 }
-        : { hour: 0, minute: 0, second: 0, millisecond: 0 };
+  if (targetTime >= todayTime) {
+    return now.toISOString();
+  }
+
+  const { hour, minute, second, millisecond } = {
+    hour: 23,
+    minute: 59,
+    second: 59,
+    millisecond: 999,
+  };
 
   const kstIso = buildKstIso(parts, hour, minute, second, millisecond);
   const resolved = new Date(kstIso);
