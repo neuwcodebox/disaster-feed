@@ -3,6 +3,14 @@ import { EventKinds } from '@/modules/events/domain/event.enums';
 import type { IRegionRepository, RegionCenter } from '../../domain/port/region-repo.interface';
 import { NfdsFireDispatchSource } from './nfds-fire-dispatch.source';
 
+vi.mock('undici', async () => {
+  const actual = await vi.importActual<typeof import('undici')>('undici');
+  return {
+    ...actual,
+    fetch: vi.fn(),
+  };
+});
+
 type RegionRepositoryMocks = {
   findCodeByNamePrefix: ReturnType<typeof vi.fn<() => Promise<string | null>>>;
   findCodeByNamePostfix: ReturnType<typeof vi.fn<() => Promise<string | null>>>;
@@ -44,7 +52,9 @@ describe('NfdsFireDispatchSource', () => {
       ],
     };
 
-    const fetchMock = vi.fn().mockImplementation(() =>
+    const { Response, fetch } = await import('undici');
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    fetchMock.mockImplementation(() =>
       Promise.resolve(
         new Response(JSON.stringify(responseBody), {
           status: 200,
@@ -52,7 +62,6 @@ describe('NfdsFireDispatchSource', () => {
         }),
       ),
     );
-    vi.stubGlobal('fetch', fetchMock);
 
     const regionRepository = createRegionRepository();
     regionRepository.findCentersByCodes.mockResolvedValue(new Map());
