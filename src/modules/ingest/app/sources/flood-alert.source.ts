@@ -8,8 +8,8 @@ import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
 import { pruneTimedMap } from './_shared/prune-timed-map';
 
-const FLOOD_BASE_TIME_ENDPOINT = 'https://m.flood.go.kr/cmmn/lsttm.do';
-const FLOOD_OBS_LIST_ENDPOINT = 'https://m.flood.go.kr/data/getFloodObsList.do';
+const FLOOD_BASE_TIME_ENDPOINT = 'https://m.flood.go.kr:9987/cmmn/lsttm.do';
+const FLOOD_OBS_LIST_ENDPOINT = 'https://m.flood.go.kr:9987/data/getFloodObsList.do';
 const REQUEST_TIMEOUT_MS = 15000;
 const STATE_TTL_MS = 1000 * 60 * 60 * 24;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
