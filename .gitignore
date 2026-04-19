@@ -25,3 +25,5 @@ sqlite.db
 *.njsproj
 *.sln
 *.sw?
+
+.codex
