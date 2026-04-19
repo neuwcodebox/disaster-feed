@@ -1,10 +1,10 @@
 import { load } from 'cheerio';
-import { Agent, fetch, Headers, type Response } from 'undici';
 import { z } from 'zod';
 import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
 import { pruneTimedMap } from './_shared/prune-timed-map';
@@ -14,7 +14,6 @@ import { shouldEmitEvent } from './_shared/should-emit-event';
 const KASA_SPACE_WEATHER_CRISIS_ENDPOINT = 'https://spaceweather.kasa.go.kr/Alarm.do';
 const TABLE_SELECTOR = '#content table';
 const REQUEST_TIMEOUT_MS = 15000;
-const INSECURE_DISPATCHER = new Agent({ connect: { rejectUnauthorized: false } });
 const STATE_TTL_MS = 1000 * 60 * 60 * 24 * 3;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 const REQUIRED_KEYWORDS = ['우주전파재난', '위기경보 발령'];
@@ -48,6 +47,7 @@ export class KasaSpaceWeatherCrisisAlertSource implements Source {
       url: KASA_SPACE_WEATHER_CRISIS_ENDPOINT,
       init: { method: 'POST' },
       timeoutMs: REQUEST_TIMEOUT_MS,
+      useInsecureTls: true,
     });
     if (!response) {
       throw new Error('KASA space weather crisis alert request failed');
@@ -256,45 +256,4 @@ function parseIssuedAt(value: string, now: Date): string | null {
   }
 
   return resolveDateOnlyWithServerTime({ year: yearNum, month: monthNum, day: dayNum }, now);
-}
-
-type FetchInit = NonNullable<Parameters<typeof fetch>[1]>;
-
-type FetchWithTimeoutOptions = {
-  url: string;
-  init?: FetchInit;
-  timeoutMs?: number;
-};
-
-async function fetchWithTimeout(options: FetchWithTimeoutOptions): Promise<Response | null> {
-  const controller = new AbortController();
-  const timeoutMs = options.timeoutMs ?? 10000;
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  const initWithSignal: FetchInit = {
-    ...(options.init ?? {}),
-    signal: controller.signal,
-    dispatcher: INSECURE_DISPATCHER,
-  };
-
-  const headers = new Headers(initWithSignal.headers);
-  if (!headers.has('User-Agent')) {
-    headers.set('User-Agent', 'Mozilla/5.0');
-  }
-  initWithSignal.headers = headers;
-
-  try {
-    const response = await fetch(options.url, initWithSignal);
-    if (!response.ok) {
-      logger.warn({ status: response.status, url: options.url }, 'KASA space weather crisis alert request failed');
-      return null;
-    }
-
-    return response;
-  } catch (error) {
-    logger.warn(error, 'KASA space weather crisis alert request error');
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
 }

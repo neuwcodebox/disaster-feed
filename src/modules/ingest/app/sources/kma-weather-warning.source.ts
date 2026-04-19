@@ -4,7 +4,7 @@ import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
-import { fetchWithTimeout } from './_shared/fetch-with-timeout';
+import { type FetchResponse, fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
 import { pruneTimedMap } from './_shared/prune-timed-map';
@@ -410,7 +410,7 @@ const buildRequestUrl = (authKey: string): string => {
   return url.toString();
 };
 
-const decodeEucKrResponse = async (response: Response): Promise<string> => {
+const decodeEucKrResponse = async (response: FetchResponse): Promise<string> => {
   const buffer = Buffer.from(await response.arrayBuffer());
   return iconv.decode(buffer, 'euc-kr');
 };

@@ -1,14 +1,13 @@
-import { Agent, fetch, Headers, type Response } from 'undici';
 import { z } from 'zod';
 import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 
 const KASA_SPACE_WEATHER_ENDPOINT = 'https://spaceweather.kasa.go.kr/api/warn';
 const REQUEST_TIMEOUT_MS = 30000;
 const DOWNGRADE_DELAY_MS = 1000 * 60 * 60;
-const INSECURE_DISPATCHER = new Agent({ connect: { rejectUnauthorized: false } });
 
 const WARN_TYPES = [
   { key: 'R', name: '태양흑점폭발' },
@@ -59,14 +58,6 @@ const schemaSpaceWeatherState = z.object({
 
 type SpaceWeatherResponse = z.infer<typeof schemaSpaceWeatherResponse>;
 
-type FetchInit = NonNullable<Parameters<typeof fetch>[1]>;
-
-type FetchWithTimeoutOptions = {
-  url: string;
-  init?: FetchInit;
-  timeoutMs?: number;
-};
-
 export class KasaSpaceWeatherWarningSource implements Source {
   public readonly sourceId = EventSources.KasaSpaceWeatherWarning;
   public readonly pollIntervalSec = 60 * 3;
@@ -79,6 +70,7 @@ export class KasaSpaceWeatherWarningSource implements Source {
     const response = await fetchWithTimeout({
       url: KASA_SPACE_WEATHER_ENDPOINT,
       timeoutMs: REQUEST_TIMEOUT_MS,
+      useInsecureTls: true,
       init: {
         headers: {
           Accept: 'application/json',
@@ -331,38 +323,5 @@ function parseState(state: string | null): SpaceWeatherState | null {
   } catch (error) {
     logger.warn({ error }, 'Failed to parse KASA space weather checkpoint state');
     return null;
-  }
-}
-
-async function fetchWithTimeout(options: FetchWithTimeoutOptions): Promise<Response | null> {
-  const controller = new AbortController();
-  const timeoutMs = options.timeoutMs ?? 10000;
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  const initWithSignal: FetchInit = {
-    ...(options.init ?? {}),
-    signal: controller.signal,
-    dispatcher: INSECURE_DISPATCHER,
-  };
-
-  const headers = new Headers(initWithSignal.headers);
-  if (!headers.has('User-Agent')) {
-    headers.set('User-Agent', 'Mozilla/5.0');
-  }
-  initWithSignal.headers = headers;
-
-  try {
-    const response = await fetch(options.url, initWithSignal);
-    if (!response.ok) {
-      logger.warn({ status: response.status, url: options.url }, 'KASA space weather request failed');
-      return null;
-    }
-
-    return response;
-  } catch (error) {
-    logger.warn(error, 'KASA space weather request error');
-    return null;
-  } finally {
-    clearTimeout(timeout);
   }
 }

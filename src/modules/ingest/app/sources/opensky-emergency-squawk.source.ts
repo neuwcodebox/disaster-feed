@@ -3,7 +3,7 @@ import { env } from '@/core/env';
 import { logger } from '@/core/logger';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
-import { fetchWithTimeout } from './_shared/fetch-with-timeout';
+import { type FetchResponse, fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
 
@@ -231,7 +231,7 @@ async function issueToken(clientId: string, clientSecret: string, nowMs: number)
   return { accessToken: parsed.data.access_token, expiresAt };
 }
 
-async function fetchStates(accessToken: string): Promise<Response | null> {
+async function fetchStates(accessToken: string): Promise<FetchResponse | null> {
   return fetchWithTimeout({
     url: OPENSKY_STATES_ENDPOINT,
     init: {

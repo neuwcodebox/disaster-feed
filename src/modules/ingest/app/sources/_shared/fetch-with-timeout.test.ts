@@ -1,9 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('undici', async () => {
+  const actual = await vi.importActual<typeof import('undici')>('undici');
+
+  return {
+    ...actual,
+    fetch: vi.fn(async () => new actual.Response('ok', { status: 200 })),
+  };
+});
+
 import { fetchWithTimeout } from './fetch-with-timeout';
 
 describe('fetchWithTimeout', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.clearAllMocks();
   });
 
   it('should return response and set default user agent header', async () => {
@@ -46,5 +57,23 @@ describe('fetchWithTimeout', () => {
     const response = await fetchWithTimeout({ url: 'https://example.com' });
 
     expect(response).toBeNull();
+  });
+
+  it('should use undici fetch and dispatcher when useInsecureTls is true', async () => {
+    const globalFetchMock = vi.fn();
+    vi.stubGlobal('fetch', globalFetchMock);
+
+    const { fetch: undiciFetch } = await import('undici');
+
+    const response = await fetchWithTimeout({ url: 'https://example.com', useInsecureTls: true });
+
+    expect(response).not.toBeNull();
+    expect(globalFetchMock).not.toHaveBeenCalled();
+    expect(undiciFetch).toHaveBeenCalledOnce();
+
+    const mockedFetch = vi.mocked(undiciFetch);
+    const init = mockedFetch.mock.calls[0]?.[1];
+    expect(init).toBeDefined();
+    expect(init && 'dispatcher' in init).toBe(true);
   });
 });

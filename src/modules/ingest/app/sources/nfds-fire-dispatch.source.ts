@@ -56,6 +56,7 @@ export class NfdsFireDispatchSource implements Source {
   public async run(state: string | null): Promise<SourceRunResult> {
     const response = await fetchWithTimeout({
       url: NFDS_FIRE_DISPATCH_ENDPOINT,
+      useInsecureTls: true,
       init: {
         headers: {
           Accept: 'application/json',

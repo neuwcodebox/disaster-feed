@@ -1,11 +1,11 @@
 import { type Cheerio, load } from 'cheerio';
 import type { AnyNode } from 'domhandler';
 import iconv from 'iconv-lite';
-import { Agent, fetch, type Response } from 'undici';
 import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { type FetchResponse, fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
 import { pruneTimedMap } from './_shared/prune-timed-map';
@@ -15,7 +15,6 @@ const UTIC_INCIDENT_ENDPOINT = 'https://www.utic.go.kr/tsdms/incident.do';
 const REQUEST_TIMEOUT_MS = 20000;
 const STATE_TTL_MS = 1000 * 60 * 60 * 6;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
-const INSECURE_DISPATCHER = new Agent({ connect: { rejectUnauthorized: false } });
 
 const COMMON_INCIDENT_TYPE = '{"사고":"","공사":"none","행사":"none","기상":"","통제":"","재난":"","기타":"none"}';
 
@@ -68,7 +67,11 @@ export class UticTrafficIncidentSource implements Source {
 
     const grades: IncidentGrade[] = ['A', 'B', 'C'];
     for (const grade of grades) {
-      const response = await fetchWithTimeout(buildRequestUrl(grade));
+      const response = await fetchWithTimeout({
+        url: buildRequestUrl(grade),
+        timeoutMs: REQUEST_TIMEOUT_MS,
+        useInsecureTls: true,
+      });
       if (!response) {
         throw new Error(`UTIC traffic incident request failed: ${grade}`);
       }
@@ -366,7 +369,7 @@ const buildRequestUrl = (grade: IncidentGrade): string => {
   return url.toString();
 };
 
-const decodeHtmlResponse = async (response: Response): Promise<string | null> => {
+const decodeHtmlResponse = async (response: FetchResponse): Promise<string | null> => {
   try {
     const buffer = Buffer.from(await response.arrayBuffer());
     const contentType = response.headers.get('content-type') ?? '';
@@ -384,30 +387,4 @@ const resolveEncoding = (contentType: string): string => {
     return 'euc-kr';
   }
   return 'utf-8';
-};
-
-const fetchWithTimeout = async (url: string): Promise<Response | null> => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      dispatcher: INSECURE_DISPATCHER,
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-      },
-    });
-    if (!response.ok) {
-      logger.warn({ status: response.status }, 'UTIC traffic incident request failed');
-      return null;
-    }
-
-    return response;
-  } catch (error) {
-    logger.warn(error, 'UTIC traffic incident request error');
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
 };

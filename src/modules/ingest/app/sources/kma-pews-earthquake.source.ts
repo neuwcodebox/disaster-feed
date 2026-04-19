@@ -2,7 +2,7 @@ import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
-import { fetchWithTimeout } from './_shared/fetch-with-timeout';
+import { type FetchResponseHeaders, fetchWithTimeout } from './_shared/fetch-with-timeout';
 
 const KMA_PEWS_ENDPOINT = 'https://www.weather.go.kr/pews/data';
 const DEFAULT_HEADER_LENGTH_BYTES = 4;
@@ -577,7 +577,7 @@ const formatUtcTimestamp = (date: Date): string => {
   return `${year}${month}${day}${hour}${minute}${second}`;
 };
 
-const updateOffsetFromHeaders = (headers: Headers, fallbackOffsetMs: number): number => {
+const updateOffsetFromHeaders = (headers: FetchResponseHeaders, fallbackOffsetMs: number): number => {
   const stHeader = headers.get('ST');
   if (stHeader) {
     const serverSeconds = Number.parseFloat(stHeader);
