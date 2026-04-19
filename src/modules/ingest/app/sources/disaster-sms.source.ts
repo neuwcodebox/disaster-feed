@@ -1,5 +1,7 @@
-import { z } from 'zod';
+import { type Cheerio, type CheerioAPI, load } from 'cheerio';
+import type { AnyNode } from 'domhandler';
 import { logger } from '@/core/logger';
+import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { IRegionRepository } from '../../domain/port/region-repo.interface';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
@@ -9,9 +11,8 @@ import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { normalizeText } from './_shared/normalize';
 import { resolveRegionCodeByPrefix } from './_shared/resolve-region-code';
 
-const DISASTER_SMS_ENDPOINT = 'https://www.safekorea.go.kr/idsiSFK/sfk/cs/sua/web/DisasterSmsList.do';
-const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-const PAGE_SIZE = 50;
+const DISASTER_SMS_ENDPOINT = 'https://safekorea.go.kr/safekorea-kor/ctim/cmsg/calamitySms.do?menuSn=34&firstYn=Y';
+const DISASTER_SMS_LIST_SELECTOR = '#content_area > div.cont-area > div.brd-listarea > ul';
 
 // 예방안내/사건발생 분류를 하지 않을 키워드들
 const SAFETY_LEVEL_EXCLUDED_KEYWORDS = ['[기상청]', 'Heavy', 'Evacuation', '비상저감조치', '지진발생'] as const;
@@ -42,24 +43,22 @@ const SAFETY_INFO_DIRECT_KEYWORDS = [
 // 사건발생을 의미하는 키워드들 (레벨 격하 조건이 만족되어도 이 키워드가 검출되면 분류기를 탐)
 const SAFETY_INCIDENT_KEYWORDS = ['이동제한', '통제', '붕괴', '대피', '유출', '누출', '우회', '연기'] as const;
 
-const schemaDisasterSmsItem = z.object({
-  DSSTR_SE_NM: z.string().nullable().optional(), // 예: "한파"
-  CREAT_DT: z.string(), // 예: "2025/12/25 15:31:33"
-  RCV_AREA_NM: z.string(), // 예: "전라남도 곡성군 "
-  MD101_SN: z.coerce.number().int(), // 예: 251341
-  DSSTR_SE_ID: z.string(), // 예: "7"
-  MSG_CN: z.string(), // 예: "금일부터 내리는 눈이..."
-  EMRGNCY_STEP_NM: z.string(), // 예: "안전안내"
-  EMRGNCY_STEP_ID: z.string().optional(), // 예: "4372"
-  REGIST_DT: z.string().optional(), // 예: "2025-12-25 15:31:40.0"
-  MSG_SE_CD: z.string().optional(), // 예: "cbs"
-});
+type DisasterSmsItem = {
+  serial: number;
+  disasterType: string | null;
+  message: string;
+  sentAt: string | null;
+  emergencyStep: string;
+  regionText: string | null;
+};
 
-const schemaDisasterSmsResponse = z.object({
-  disasterSmsList: z.array(schemaDisasterSmsItem),
-});
+type DisasterSmsRowMetadata = {
+  sentAt: string | null;
+  emergencyStep: string;
+  regionText: string | null;
+};
 
-type DisasterSmsItem = z.infer<typeof schemaDisasterSmsItem>;
+type DisasterSmsLabelClassifier = Pick<LlmLabelClassifierService, 'isEnabled' | 'classifyBatch'>;
 
 export class DisasterSmsSource implements Source {
   public readonly sourceId = EventSources.SafekoreaSms;
@@ -71,18 +70,13 @@ export class DisasterSmsSource implements Source {
   ) {}
 
   public async run(state: string | null): Promise<SourceRunResult> {
-    const { startDate, endDate } = getKstDateRange(1);
-    const payload = buildRequestBody(startDate, endDate);
-
     const response = await fetchWithTimeout({
       url: DISASTER_SMS_ENDPOINT,
       init: {
-        method: 'POST',
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json;charset=UTF-8',
-          Accept: 'application/json',
+          Accept: 'text/html,application/xhtml+xml',
         },
-        body: JSON.stringify(payload),
       },
     });
 
@@ -90,16 +84,10 @@ export class DisasterSmsSource implements Source {
       throw new Error('Disaster SMS request failed');
     }
 
-    const data = await response.json();
-
-    const parsed = schemaDisasterSmsResponse.safeParse(data);
-    if (!parsed.success) {
-      logger.warn({ error: parsed.error }, 'Failed to parse disaster SMS response');
-      throw new Error('Failed to parse disaster SMS response');
-    }
-
+    const html = await response.text();
+    const parsedItems = parseDisasterSmsItems(html);
     const lastSeenSerial = parseSerial(state);
-    const items = filterNewItems(parsed.data.disasterSmsList, lastSeenSerial);
+    const items = filterNewItems(parsedItems, lastSeenSerial);
     const nextState = getNextSerialState(items, lastSeenSerial);
     const [resolvedKinds, resolvedLevels] = await Promise.all([
       resolveDisasterKinds(items, this.labelClassifier),
@@ -109,11 +97,10 @@ export class DisasterSmsSource implements Source {
 
     const events: SourceEvent[] = [];
     for (const item of items) {
-      const resolvedKind = resolvedKinds.get(item.MD101_SN) ?? EventKinds.Other;
-      const resolvedLevel = resolvedLevels.get(item.MD101_SN) ?? mapEmergencyLevel(item.EMRGNCY_STEP_NM, item.MSG_CN);
-      const regionText = normalizeRegionText(item.RCV_AREA_NM);
-      const regionCodes = await resolveRegionCodes(regionText, this.regionRepository, regionCodeCache);
-      events.push(toSourceEvent(item, resolvedKind, resolvedLevel, regionText, regionCodes));
+      const resolvedKind = resolvedKinds.get(item.serial) ?? EventKinds.Other;
+      const resolvedLevel = resolvedLevels.get(item.serial) ?? mapEmergencyLevel(item.emergencyStep, item.message);
+      const regionCodes = await resolveRegionCodes(item.regionText, this.regionRepository, regionCodeCache);
+      events.push(toSourceEvent(item, resolvedKind, resolvedLevel, item.regionText, regionCodes));
     }
 
     return {
@@ -123,7 +110,115 @@ export class DisasterSmsSource implements Source {
   }
 }
 
-type DisasterSmsLabelClassifier = Pick<LlmLabelClassifierService, 'isEnabled' | 'classifyBatch'>;
+function parseDisasterSmsItems(html: string): DisasterSmsItem[] {
+  const $ = load(html);
+  const list = $(DISASTER_SMS_LIST_SELECTOR).first();
+  if (list.length === 0) {
+    logger.warn({ selector: DISASTER_SMS_LIST_SELECTOR }, 'Failed to find disaster SMS list');
+    throw new Error('Failed to find disaster SMS list');
+  }
+
+  const items: DisasterSmsItem[] = [];
+  const rows = list.find('li').toArray();
+
+  for (const row of rows) {
+    const contentCell = $(row).find('.brd-context').first();
+    const messageLink = contentCell.find('h3.title-text a').first();
+    const message = normalizeText(messageLink.text());
+    const serial = extractSerialFromHref(messageLink.attr('href'));
+    if (serial === null || !message) {
+      logger.warn(
+        {
+          href: messageLink.attr('href') ?? null,
+          message,
+        },
+        'Failed to parse disaster SMS row with invalid serial or message',
+      );
+      throw new Error('Failed to parse disaster SMS row');
+    }
+
+    const metadata = parseDisasterSmsRowMetadata($, contentCell.find('.brd-infolist').first());
+    items.push({
+      serial,
+      disasterType: metadata.disasterType,
+      message,
+      sentAt: metadata.sentAt,
+      emergencyStep: metadata.emergencyStep,
+      regionText: metadata.regionText,
+    });
+  }
+
+  return items;
+}
+
+function parseDisasterSmsRowMetadata(
+  $: CheerioAPI,
+  infoList: Cheerio<AnyNode>,
+): DisasterSmsRowMetadata & { disasterType: string | null } {
+  if (infoList.length === 0) {
+    throw new Error('Failed to parse disaster SMS row metadata');
+  }
+
+  const fields = new Map<string, string>();
+  const infoItems = infoList.find('p').toArray();
+
+  for (const infoItem of infoItems) {
+    const labelElement = $(infoItem).find('span').first();
+    const rawLabel = normalizeText(labelElement.text().replace(/\u00a0/g, ' '));
+    if (!rawLabel) {
+      continue;
+    }
+
+    const normalizedKey = normalizeText(rawLabel.replace(/\s*:\s*$/, ''));
+    const normalizedValue = normalizeText(
+      $(infoItem)
+        .clone()
+        .find('span')
+        .remove()
+        .end()
+        .text()
+        .replace(/\u00a0/g, ' '),
+    );
+    if (!normalizedKey || !normalizedValue) {
+      continue;
+    }
+
+    fields.set(normalizedKey, normalizedValue);
+  }
+
+  const sentAt = fields.get('발송일시');
+  const emergencyStep = fields.get('긴급단계');
+  const disasterType = fields.get('재해구분') ?? null;
+  if (!sentAt || !emergencyStep) {
+    logger.warn({ fields: Object.fromEntries(fields) }, 'Failed to parse disaster SMS row metadata');
+    throw new Error('Failed to parse disaster SMS row metadata');
+  }
+
+  return {
+    disasterType,
+    sentAt,
+    emergencyStep,
+    regionText: normalizeRegionText(fields.get('송출지역') ?? ''),
+  };
+}
+
+function extractSerialFromHref(value: string | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const matched = value.match(/onSubmit\(['"]?(\d+)['"]?\)/);
+  if (!matched) {
+    return null;
+  }
+
+  const serial = Number(matched[1]);
+  if (!Number.isInteger(serial)) {
+    return null;
+  }
+
+  return serial;
+}
 
 function toSourceEvent(
   item: DisasterSmsItem,
@@ -132,22 +227,36 @@ function toSourceEvent(
   regionText: string | null,
   regionCodes: string[] | null,
 ): SourceEvent {
-  const sender = extractSenderName(item.MSG_CN);
+  const sender = extractSenderName(item.message);
   const titlePrefix = sender ?? pickRegionPrefix(regionText ?? '') ?? '';
-  const disasterLabel = normalizeText(item.DSSTR_SE_NM) ?? '기타';
+  const disasterLabel = normalizeText(item.disasterType) ?? '기타';
+  const emergencyStep = normalizeText(item.emergencyStep);
+
   return {
     kind: resolvedKind,
-    title: `${titlePrefix} ${disasterLabel} ${item.EMRGNCY_STEP_NM}`.trim(),
-    body: item.MSG_CN.trim(),
-    occurredAt: parseKstDateTime(item.CREAT_DT),
+    title: [titlePrefix, disasterLabel, emergencyStep].filter((value): value is string => Boolean(value)).join(' '),
+    body: item.message.trim(),
+    occurredAt: item.sentAt ? parseKstDateTime(item.sentAt) : null,
     regionText,
     regionCodes,
     level: resolvedLevel,
-    payload: item,
+    payload: buildPayload(item),
   };
 }
 
-const extractSenderName = (message: string): string | null => {
+function buildPayload(item: DisasterSmsItem): EventPayload {
+  return {
+    serial: item.serial,
+    disasterType: item.disasterType,
+    message: item.message,
+    sentAt: item.sentAt,
+    sentAtIso: item.sentAt ? parseKstDateTime(item.sentAt) : null,
+    emergencyStep: normalizeText(item.emergencyStep),
+    regionText: item.regionText,
+  };
+}
+
+function extractSenderName(message: string): string | null {
   const matched = message.match(/\[([^[\]]+)\]\s*$/);
   if (!matched) {
     return null;
@@ -155,7 +264,7 @@ const extractSenderName = (message: string): string | null => {
 
   const sender = matched[1].trim();
   return sender.length > 0 ? sender : null;
-};
+}
 
 async function resolveDisasterKinds(
   items: DisasterSmsItem[],
@@ -166,24 +275,24 @@ async function resolveDisasterKinds(
   const isClassifierEnabled = labelClassifier.isEnabled();
 
   for (const item of items) {
-    const nameKind = resolveKindByName(item.DSSTR_SE_NM);
+    const nameKind = resolveKindByName(item.disasterType);
     if (nameKind) {
-      resolved.set(item.MD101_SN, nameKind);
+      resolved.set(item.serial, nameKind);
       continue;
     }
 
     if (!isClassifierEnabled) {
-      resolved.set(item.MD101_SN, EventKinds.Other);
+      resolved.set(item.serial, EventKinds.Other);
       continue;
     }
 
-    const text = normalizeText(item.MSG_CN);
+    const text = normalizeText(item.message);
     if (!text) {
-      resolved.set(item.MD101_SN, EventKinds.Other);
+      resolved.set(item.serial, EventKinds.Other);
       continue;
     }
 
-    pending.push({ id: String(item.MD101_SN), serial: item.MD101_SN, text });
+    pending.push({ id: String(item.serial), serial: item.serial, text });
   }
 
   if (!isClassifierEnabled || pending.length === 0) {
@@ -234,7 +343,7 @@ function resolveKindByName(value: string | null | undefined): EventKinds | null 
   return kind;
 }
 
-const pickRegionPrefix = (region: string): string | null => {
+function pickRegionPrefix(region: string): string | null {
   const trimmed = region.trim();
   if (!trimmed) {
     return null;
@@ -242,7 +351,7 @@ const pickRegionPrefix = (region: string): string | null => {
 
   const [first] = trimmed.split(/\s+/);
   return first ?? null;
-};
+}
 
 function normalizeRegionText(value: string): string | null {
   const normalized = normalizeText(value.replace(/\s*,\s*/g, ', '));
@@ -326,37 +435,37 @@ async function resolveEmergencyLevels(
   const isClassifierEnabled = labelClassifier.isEnabled();
 
   for (const item of items) {
-    if (!isSafetyEmergencyStep(item.EMRGNCY_STEP_NM)) {
-      resolved.set(item.MD101_SN, mapEmergencyLevel(item.EMRGNCY_STEP_NM, item.MSG_CN));
+    if (!isSafetyEmergencyStep(item.emergencyStep)) {
+      resolved.set(item.serial, mapEmergencyLevel(item.emergencyStep, item.message));
       continue;
     }
 
-    if (isEvacuationOrderOrAdvisory(item.MSG_CN)) {
-      resolved.set(item.MD101_SN, EventLevels.Moderate);
+    if (isEvacuationOrderOrAdvisory(item.message)) {
+      resolved.set(item.serial, EventLevels.Moderate);
       continue;
     }
 
-    const normalizedMessage = normalizeText(item.MSG_CN) ?? '';
+    const normalizedMessage = normalizeText(item.message) ?? '';
     const keywordSignals = matchSafetyLevelKeywords(normalizedMessage);
 
     if (keywordSignals.hasExcludedKeyword) {
-      resolved.set(item.MD101_SN, EventLevels.Minor);
+      resolved.set(item.serial, EventLevels.Minor);
       continue;
     }
 
     if (keywordSignals.shouldSetInfoImmediately) {
-      resolved.set(item.MD101_SN, EventLevels.Info);
+      resolved.set(item.serial, EventLevels.Info);
       continue;
     }
 
     if (!keywordSignals.hasClassifierTriggerKeyword || !isClassifierEnabled || !normalizedMessage) {
-      resolved.set(item.MD101_SN, EventLevels.Minor);
+      resolved.set(item.serial, EventLevels.Minor);
       continue;
     }
 
     pending.push({
-      id: String(item.MD101_SN),
-      serial: item.MD101_SN,
+      id: String(item.serial),
+      serial: item.serial,
       text: normalizedMessage,
     });
   }
@@ -474,15 +583,15 @@ function mapEmergencyLevel(emergencyStep: string, message: string): EventLevels 
   return EventLevels.Info;
 }
 
-const filterNewItems = (items: DisasterSmsItem[], lastSeenSerial: number | null): DisasterSmsItem[] => {
+function filterNewItems(items: DisasterSmsItem[], lastSeenSerial: number | null): DisasterSmsItem[] {
   if (lastSeenSerial === null) {
     return items;
   }
 
-  return items.filter((item) => item.MD101_SN > lastSeenSerial);
-};
+  return items.filter((item) => item.serial > lastSeenSerial);
+}
 
-const parseSerial = (value: string | null): number | null => {
+function parseSerial(value: string | null): number | null {
   if (!value) {
     return null;
   }
@@ -493,43 +602,18 @@ const parseSerial = (value: string | null): number | null => {
   }
 
   return Math.trunc(parsed);
-};
+}
 
-const getNextSerialState = (items: DisasterSmsItem[], lastSeenSerial: number | null): string => {
+function getNextSerialState(items: DisasterSmsItem[], lastSeenSerial: number | null): string {
   if (items.length === 0) {
     return lastSeenSerial === null ? '' : String(lastSeenSerial);
   }
 
-  const maxSerial = Math.max(...items.map((item) => item.MD101_SN));
+  const maxSerial = Math.max(...items.map((item) => item.serial));
   return String(maxSerial);
-};
+}
 
-const buildRequestBody = (startDate: string, endDate: string) => {
-  const pageSizeText = String(PAGE_SIZE);
-
-  return {
-    searchInfo: {
-      pageIndex: '1',
-      pageUnit: pageSizeText,
-      pageSize: pageSizeText,
-      firstIndex: '1',
-      lastIndex: pageSizeText,
-      recordCountPerPage: pageSizeText,
-      searchBgnDe: startDate,
-      searchEndDe: endDate,
-      searchGb: '1',
-      searchWrd: '',
-      rcv_Area_Id: '',
-      dstr_se_Id: '',
-      c_ocrc_type: '',
-      sbLawArea1: '',
-      sbLawArea2: '',
-      sbLawArea3: '',
-    },
-  };
-};
-
-const parseKstDateTime = (value: string): string | null => {
+function parseKstDateTime(value: string): string | null {
   const matched = value.match(/^(\d{4})[./-](\d{2})[./-](\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
   if (!matched) {
     return null;
@@ -544,23 +628,4 @@ const parseKstDateTime = (value: string): string | null => {
   }
 
   return parsed.toISOString();
-};
-
-const getKstDateRange = (daysBack: number) => {
-  const nowUtc = new Date(Date.now() + KST_OFFSET_MS);
-  const endDate = formatUtcDate(nowUtc);
-  const startUtc = new Date(nowUtc);
-  startUtc.setUTCDate(startUtc.getUTCDate() - daysBack);
-
-  return {
-    startDate: formatUtcDate(startUtc),
-    endDate,
-  };
-};
-
-const formatUtcDate = (date: Date): string => {
-  const year = date.getUTCFullYear();
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(date.getUTCDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+}
