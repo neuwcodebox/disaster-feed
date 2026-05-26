@@ -111,6 +111,59 @@ describe('YnaNewsSource', () => {
     expect(result.events[0].title).toBe('호우로 인한 침수 발생');
   });
 
+  it('should include concise waterworks guidance in news classification prompt', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-01-02T03:00:00.000Z'));
+
+    process.env.YNA_SERVICE_KEY = 'test-key';
+    vi.resetModules();
+    const { YnaNewsSource } = await import('./yna-news.source');
+
+    const responseBody = {
+      header: { resultCode: '00', resultMsg: 'OK' },
+      numOfRows: 1,
+      pageNo: 1,
+      totalCount: 1,
+      body: [
+        {
+          YNA_NO: 125,
+          YNA_TTL: '전북 익산시 신흥동 상수도관 파열…일대 단수로 주민 불편',
+          YNA_CN: '상수도관 파열로 단수가 발생했습니다.',
+          YNA_YMD: '20250102',
+          CRT_DT: '2025-01-02 11:00:00',
+        },
+      ],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const classifier: MockClassifier = {
+      isEnabled: vi.fn(() => true),
+      classifyBatch: vi.fn(() => Promise.resolve(new Map([['125', '수도']]))),
+    };
+
+    const source = new YnaNewsSource(classifier);
+    const result = await source.run(JSON.stringify({ version: 2, seen: {} }));
+
+    expect(classifier.classifyBatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.stringContaining(
+          '"수도" means water-supply infrastructure incidents such as water pipe damage',
+        ),
+      }),
+    );
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].kind).toBe(EventKinds.Water);
+  });
+
   it('should throw when classification is unavailable', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-01-02T03:00:00.000Z'));
