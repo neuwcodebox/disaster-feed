@@ -13,6 +13,8 @@ import { resolveRegionCodeByPrefix } from './_shared/resolve-region-code';
 
 const DISASTER_SMS_ENDPOINT = 'https://safekorea.go.kr/safekorea-kor/ctim/cmsg/calamitySms.do?menuSn=34&firstYn=Y';
 const DISASTER_SMS_LIST_SELECTOR = '#content_area > div.cont-area > div.brd-listarea > ul';
+const DISASTER_SMS_LLM_KIND_EXCLUDED_LABELS = ['민방공'] as const;
+const DISASTER_SMS_LLM_KIND_LABELS = buildLlmKindLabels(DISASTER_KIND_LABELS, DISASTER_SMS_LLM_KIND_EXCLUDED_LABELS);
 
 // 예방안내/사건발생 분류를 하지 않을 키워드들
 const SAFETY_LEVEL_EXCLUDED_KEYWORDS = ['[기상청]', 'Heavy', 'Evacuation', '비상저감조치', '지진발생'] as const;
@@ -302,14 +304,13 @@ async function resolveDisasterKinds(
   let classified: Map<string, string> | null = null;
   try {
     classified = await labelClassifier.classifyBatch({
-      labels: DISASTER_KIND_LABELS,
+      labels: DISASTER_SMS_LLM_KIND_LABELS,
       items: pending.map((item) => ({
         id: item.id,
         text: item.text,
       })),
       request: [
         'Prefer labels that describe a CONFIRMED event over labels that describe risk, prevention, guidance, or general context.',
-        '- "민방공" is ONLY for wartime / national-security civil-defense alerts (e.g., air-raid/missile warnings, evacuation orders, civil-defense drills/sirens). NEVER use "민방공" for general safety tips, accident prevention, weather-related cautions, or ambiguous public-safety notices. If it’s not clearly civil-defense, choose another label; if none fits, choose "기타".',
         '- "AI" means Avian Influenza (조류인플루엔자), NOT Artificial Intelligence. Use "AI" only for messages about poultry/birds + outbreaks/suspected/confirmed cases, quarantine, culling, movement restrictions, test results, etc. If the text mentions “AI” as Artificial Intelligence or is unclear, prefer "기타".',
         '- "테러" is ONLY for terrorism-related threats/incidents or official counter-terror alerts. Do NOT use it for ordinary crime, accidents, or vague danger warnings; if unclear, prefer "기타".',
         '- "사이버" is ONLY for cyber incidents (hacking, ransomware, DDoS, malware, data breaches, unauthorized access). If it is primarily a communication/service outage without cyber-attack evidence, consider "통신" instead; if still unclear, use "기타".',
@@ -327,6 +328,27 @@ async function resolveDisasterKinds(
   }
 
   return resolved;
+}
+
+function buildLlmKindLabels(
+  labels: readonly [string, ...string[]],
+  excludedLabels: readonly string[],
+): [string, ...string[]] {
+  const excluded = new Set<string>(excludedLabels);
+  const filtered: string[] = [];
+
+  for (const label of labels) {
+    if (!excluded.has(label)) {
+      filtered.push(label);
+    }
+  }
+
+  const [first, ...rest] = filtered;
+  if (!first) {
+    throw new Error('Disaster SMS LLM kind labels must not be empty');
+  }
+
+  return [first, ...rest];
 }
 
 function resolveKindByName(value: string | null | undefined): EventKinds | null {

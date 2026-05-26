@@ -430,6 +430,73 @@ describe('DisasterSmsSource', () => {
     expect(result.events[0].title).toBe('서울특별시 기타 안전안내');
   });
 
+  it('should exclude civil defense from LLM kind labels for missing disaster type messages', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-03-01T00:00:00.000Z'));
+
+    const rows: DisasterSmsFixture[] = [
+      {
+        disasterType: null,
+        sentAt: '2025/03/01 16:00:00',
+        regionText: '강원특별자치도 춘천시',
+        serial: 302,
+        message:
+          '오늘 16시∼17시 비상방류 설비점검을 위해 소양강댐 방류 예정(40분 내외), 댐 하류 및 하천 주변에 계신 분은 안전한 곳으로 이동바랍니다.[한국수자원공사]',
+        emergencyStep: '안전안내',
+      },
+    ];
+
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(createHtmlResponse(rows)));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const regionRepository = createRegionRepository();
+    const labelClassifier = createLabelClassifier();
+    labelClassifier.isEnabled.mockReturnValue(true);
+    labelClassifier.classifyBatch.mockResolvedValue(new Map([['302', '기타']]));
+
+    const source = new DisasterSmsSource(labelClassifier, regionRepository);
+    const result = await source.run(null);
+
+    expect(labelClassifier.classifyBatch).toHaveBeenCalledTimes(1);
+    expect(labelClassifier.classifyBatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        labels: expect.not.arrayContaining(['민방공']),
+      }),
+    );
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].kind).toBe(EventKinds.Other);
+  });
+
+  it('should keep civil defense mapping when disaster type explicitly says civil defense', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-03-01T00:00:00.000Z'));
+
+    const rows: DisasterSmsFixture[] = [
+      {
+        disasterType: '민방공',
+        sentAt: '2025/03/01 14:00:00',
+        regionText: '전국',
+        serial: 303,
+        message: '민방공 훈련 안내입니다. [행정안전부]',
+        emergencyStep: '안전안내',
+      },
+    ];
+
+    const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(createHtmlResponse(rows)));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const regionRepository = createRegionRepository();
+    const labelClassifier = createLabelClassifier();
+    labelClassifier.isEnabled.mockReturnValue(true);
+
+    const source = new DisasterSmsSource(labelClassifier, regionRepository);
+    const result = await source.run(null);
+
+    expect(labelClassifier.classifyBatch).not.toHaveBeenCalled();
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].kind).toBe(EventKinds.CivDef);
+  });
+
   it('should fallback to other when disaster type is missing and classifier is disabled', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-03-02T00:00:00.000Z'));
