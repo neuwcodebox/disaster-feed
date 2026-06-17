@@ -2,6 +2,7 @@ import { load } from 'cheerio';
 import { logger } from '@/core/logger';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { decodeHtmlEntities } from './_shared/decode-html-entities';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 import { isTooOld } from './_shared/is-too-old';
 import { normalizeText } from './_shared/normalize';
@@ -119,7 +120,7 @@ function parseRssItems(xml: string, now: Date): KdcaPressItem[] {
 
   const items: KdcaPressItem[] = [];
   for (const node of nodes) {
-    const title = normalizeText($(node).find('title').first().text());
+    const title = normalizeRssTitle($(node).find('title').first().text());
     const rawLink = normalizeText($(node).find('link').first().text());
     if (!title || !rawLink) {
       continue;
@@ -135,8 +136,8 @@ function parseRssItems(xml: string, now: Date): KdcaPressItem[] {
       logger.warn({ link, title }, 'Using title as KDCA press release id fallback');
     }
 
-    const author = normalizeText($(node).find('author').first().text());
-    const description = normalizeText($(node).find('description').first().text());
+    const author = normalizeRssText($(node).find('author').first().text());
+    const description = normalizeRssText($(node).find('description').first().text());
     const rawDate = normalizeText($(node).find('pubDate').first().text());
     const occurredAt = parseKdcaDate(rawDate, now);
     if (rawDate && !occurredAt) {
@@ -155,6 +156,28 @@ function parseRssItems(xml: string, now: Date): KdcaPressItem[] {
   }
 
   return items;
+}
+
+function normalizeRssTitle(value: string | null | undefined): string | null {
+  const normalized = normalizeRssText(value);
+  if (!normalized) {
+    return null;
+  }
+
+  if (!normalized.includes('{')) {
+    return normalizeText(normalized.replace(/\}+$/, ''));
+  }
+
+  return normalized;
+}
+
+function normalizeRssText(value: string | null | undefined): string | null {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return null;
+  }
+
+  return decodeHtmlEntities(normalized, { maxPasses: 3 });
 }
 
 function mapCrisisLevel(title: string): EventLevels {

@@ -2,18 +2,10 @@ import { logger } from '@/core/logger';
 import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
+import { decodeHtmlEntities } from './_shared/decode-html-entities';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
 
 const KMA_MICRO_EARTHQUAKE_ENDPOINT = 'https://www.weather.go.kr/w/wnuri-eqk-vol/eqk/eqk-micro.do';
-
-const NAMED_ENTITIES = new Map<string, string>([
-  ['nbsp', ' '],
-  ['lt', '<'],
-  ['gt', '>'],
-  ['amp', '&'],
-  ['quot', '"'],
-  ['apos', "'"],
-]);
 
 type MicroEarthquakeDetail = {
   occurredAt: string | null;
@@ -194,19 +186,6 @@ const sanitizeHtmlFragment = (fragment: string): string => {
   text = text.replace(/<[^>]+>/g, '');
   text = decodeHtmlEntities(text);
   return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
-};
-
-const decodeHtmlEntities = (text: string): string => {
-  return text
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) => {
-      const codePoint = Number.parseInt(hex, 16);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : _;
-    })
-    .replace(/&#(\d+);/g, (_, num: string) => {
-      const codePoint = Number.parseInt(num, 10);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : _;
-    })
-    .replace(/&([a-zA-Z]+);/g, (full, name: string) => NAMED_ENTITIES.get(name) ?? full);
 };
 
 const parseKstDateTime = (value: string): string | null => {
