@@ -11,21 +11,51 @@ import { pruneTimedMap } from './_shared/prune-timed-map';
 import { resolveDateOnlyWithServerTime } from './_shared/resolve-date-only-with-server-time';
 import { shouldEmitEvent } from './_shared/should-emit-event';
 
-const NCSC_CYBER_CRISIS_ENDPOINT =
-  'https://www.ncsc.go.kr/cop/bbs/selectBoardList.do?bbsId=CyberCrisis_main&nttId=0&bbsTyCode=BBST01&bbsAttrbCode=BBSA15&authFlag&pageIndex=1&searchBranchId';
-const TABLE_SELECTOR = '#cnt0 > form > table';
+const NCSC_CYBER_CRISIS_ENDPOINT = 'https://www.ncsc.go.kr/api/usr/bbs/selectBbscttList';
+const NCSC_CYBER_CRISIS_BBS_ID = 'BBS000313';
+const PAGE_SIZE = 10;
 const REQUEST_TIMEOUT_MS = 15000;
 const STATE_TTL_MS = 1000 * 60 * 60 * 24 * 3;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS * 0.9;
 
-const schemaCyberCrisisRow = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  level: z.string().min(1),
-  issuedAt: z.string().min(1),
+const schemaNcscApiEnvelope = z.object({
+  header: z.object({
+    msgCode: z.string(),
+    msg: z.string().optional(),
+  }),
+  data: z
+    .array(
+      z.object({
+        list: z.array(z.unknown()),
+      }),
+    )
+    .min(1),
 });
 
-type CyberCrisisRow = z.infer<typeof schemaCyberCrisisRow>;
+const schemaCyberCrisisApiRow = z.object({
+  bbscttId: z.string().min(1),
+  bbsId: z.string().optional().nullable(),
+  sj: z.string().min(1),
+  scrtyLevel: z.string().min(1),
+  gnfdDe: z.string().optional().nullable(),
+  registDttm: z.string().optional().nullable(),
+  cnHtml: z.string().optional().nullable(),
+  rowIdx: z.string().optional().nullable(),
+  updtDttm: z.string().optional().nullable(),
+});
+
+type CyberCrisisApiRow = z.infer<typeof schemaCyberCrisisApiRow>;
+
+type CyberCrisisRow = {
+  id: string;
+  title: string;
+  body: string | null;
+  level: string;
+  issuedAt: string;
+  bbsId: string | null;
+  rowIdx: string | null;
+  updatedAt: string | null;
+};
 
 type CyberCrisisState = {
   seen: Record<string, string>;
@@ -42,17 +72,7 @@ export class NcscCyberCrisisSource implements Source {
     const nowMs = now.getTime();
     const nowIso = now.toISOString();
 
-    const response = await fetchWithTimeout({
-      url: NCSC_CYBER_CRISIS_ENDPOINT,
-      init: { method: 'POST' },
-      timeoutMs: REQUEST_TIMEOUT_MS,
-    });
-    if (!response) {
-      throw new Error('NCSC cyber crisis request failed');
-    }
-
-    const html = await response.text();
-    const rows = parseRows(html);
+    const rows = await fetchRows();
 
     const events: SourceEvent[] = [];
     for (const row of rows) {
@@ -73,11 +93,39 @@ export class NcscCyberCrisisSource implements Source {
   }
 }
 
+async function fetchRows(): Promise<CyberCrisisRow[]> {
+  const response = await fetchWithTimeout({
+    url: NCSC_CYBER_CRISIS_ENDPOINT,
+    init: {
+      method: 'POST',
+      headers: buildJsonHeaders(),
+      body: JSON.stringify({
+        bbsId: NCSC_CYBER_CRISIS_BBS_ID,
+        pageIndex: 1,
+        pageSize: PAGE_SIZE,
+      }),
+    },
+    timeoutMs: REQUEST_TIMEOUT_MS,
+  });
+  if (!response) {
+    throw new Error('NCSC cyber crisis list request failed');
+  }
+
+  return parseRows(await response.json());
+}
+
+function buildJsonHeaders(): Record<string, string> {
+  return {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+}
+
 function buildEvent(row: CyberCrisisRow, occurredAt: string | null): SourceEvent {
   return {
     kind: EventKinds.Cyber,
     title: row.title,
-    body: null,
+    body: row.body,
     occurredAt,
     regionText: null,
     level: mapCrisisLevel(row.level),
@@ -87,10 +135,13 @@ function buildEvent(row: CyberCrisisRow, occurredAt: string | null): SourceEvent
 
 function buildPayload(row: CyberCrisisRow, occurredAt: string | null): EventPayload {
   return {
-    num: row.id,
+    bbscttId: row.id,
+    bbsId: row.bbsId,
+    rowIdx: row.rowIdx,
     level: row.level,
     issuedAt: row.issuedAt,
     issuedAtIso: occurredAt,
+    updatedAt: row.updatedAt,
   };
 }
 
@@ -112,41 +163,80 @@ function mapCrisisLevel(value: string): EventLevels {
   return EventLevels.Info;
 }
 
-function parseRows(html: string): CyberCrisisRow[] {
-  const $ = load(html);
-  const table = $(TABLE_SELECTOR).first();
-  if (table.length === 0) {
-    logger.warn('Failed to find NCSC cyber crisis table');
-    throw new Error('Failed to find NCSC cyber crisis table');
+function parseRows(payload: unknown): CyberCrisisRow[] {
+  const rowPayloads = parseEnvelopeList(payload);
+  if (rowPayloads.length === 0) {
+    logger.warn('Failed to find NCSC cyber crisis API rows');
   }
 
   const rows: CyberCrisisRow[] = [];
-  const elements = table.find('tr').toArray();
-
-  for (const element of elements) {
-    const cells = $(element).find('td').toArray();
-    if (cells.length < 4) {
-      continue;
-    }
-
-    const values = cells.map((cell) => normalizeText($(cell).text()) ?? '');
-    const row = {
-      id: values[0] ?? '',
-      title: values[1] ?? '',
-      level: values[2] ?? '',
-      issuedAt: values[3] ?? '',
-    };
-
-    const parsed = schemaCyberCrisisRow.safeParse(row);
+  for (const rowPayload of rowPayloads) {
+    const parsed = schemaCyberCrisisApiRow.safeParse(rowPayload);
     if (!parsed.success) {
       logger.warn({ error: parsed.error }, 'Failed to parse NCSC cyber crisis row');
       continue;
     }
 
-    rows.push(parsed.data);
+    const row = buildRow(parsed.data);
+    if (!row) {
+      continue;
+    }
+
+    rows.push(row);
   }
 
   return rows;
+}
+
+function parseEnvelopeList(payload: unknown): unknown[] {
+  const parsedResponse = schemaNcscApiEnvelope.safeParse(payload);
+  if (!parsedResponse.success) {
+    logger.warn({ error: parsedResponse.error }, 'Failed to parse NCSC cyber crisis API response');
+    throw new Error('Failed to parse NCSC cyber crisis API response');
+  }
+
+  if (parsedResponse.data.header.msgCode !== '1000') {
+    logger.warn(
+      { msgCode: parsedResponse.data.header.msgCode, msg: parsedResponse.data.header.msg },
+      'NCSC cyber crisis API returned failure response',
+    );
+    throw new Error('NCSC cyber crisis API returned failure response');
+  }
+
+  const rows = parsedResponse.data.data[0]?.list ?? [];
+  return rows;
+}
+
+function buildRow(row: CyberCrisisApiRow): CyberCrisisRow | null {
+  const title = normalizeText(row.sj);
+  const level = normalizeText(row.scrtyLevel);
+  const issuedAt = normalizeText(row.gnfdDe) ?? normalizeText(row.registDttm);
+  if (!title || !level || !issuedAt) {
+    logger.warn({ bbscttId: row.bbscttId }, 'NCSC cyber crisis row is missing required values');
+    return null;
+  }
+
+  return {
+    id: row.bbscttId,
+    title,
+    body: htmlToText(row.cnHtml),
+    level,
+    issuedAt,
+    bbsId: normalizeText(row.bbsId) ?? null,
+    rowIdx: normalizeText(row.rowIdx) ?? null,
+    updatedAt: normalizeText(row.updtDttm) ?? null,
+  };
+}
+
+function htmlToText(value: string | null | undefined): string | null {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const html = normalized.replace(/<br\s*\/?>/gi, ' ').replace(/<\/(p|div|li|tr|td|th|h[1-6])>/gi, ' </$1>');
+  const $ = load(html);
+  return normalizeText($.root().text());
 }
 
 function parseState(state: string | null): CyberCrisisState {
@@ -195,12 +285,20 @@ function parseKstDate(value: string, now: Date): string | null {
     return null;
   }
 
-  const matched = normalized.match(/^(\d{4})[./-](\d{2})[./-](\d{2})$/);
-  if (!matched) {
+  const dateTimeMatched = normalized.match(/^(\d{4})[./-](\d{2})[./-](\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (!dateTimeMatched) {
     return null;
   }
 
-  const [, year, month, day] = matched;
+  const [, year, month, day, hour, minute, second] = dateTimeMatched;
+  if (hour && minute) {
+    const kstDate = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second ?? '00'}+09:00`);
+    if (Number.isNaN(kstDate.getTime())) {
+      return null;
+    }
+    return kstDate.toISOString();
+  }
+
   const yearNum = Number(year);
   const monthNum = Number(month);
   const dayNum = Number(day);
