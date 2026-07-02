@@ -22,7 +22,7 @@ const schemaFireDispatchDetailItem = z.object({
   cntrNm: z.string().optional().describe('예: "마포소방서"'),
   overDate: z.string().describe('예: "11:11"'),
   addr: z.string().describe('예: "서울특별시 마포구 상암동"'),
-  sidoNm: z.string().describe('예: "서울"'),
+  sidoNm: z.string().optional().describe('예: "서울"'),
   cntrId: z.string().optional().describe('예: "1136000"'),
   investNo: z.string().optional().describe('예: "251226010636669"'),
   lawSidoCd: z.string().optional().describe('예: "11"'),
@@ -221,7 +221,7 @@ const buildPayload = (item: FireDispatchDetailItem, rawNowDate: string | null): 
     sidoOvrNum: item.sidoOvrNum,
     investNo: normalizeText(item.investNo),
     cntrId: normalizeText(item.cntrId),
-    sidoNm: item.sidoNm.trim(),
+    sidoNm: normalizeText(item.sidoNm),
     cntrNm: normalizeText(item.cntrNm),
     overDate: normalizeText(item.overDate),
     progressStat: item.progressStat,
@@ -282,7 +282,7 @@ const normalizeLawSidoCode = (value: string | null | undefined): string | null =
   return normalized;
 };
 
-const buildRegionText = (addr: string, sidoNm: string): string | null => {
+const buildRegionText = (addr: string, sidoNm: string | null | undefined): string | null => {
   const address = normalizeText(addr);
   if (address) {
     return address;

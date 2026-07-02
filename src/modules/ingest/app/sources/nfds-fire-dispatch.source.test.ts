@@ -74,4 +74,49 @@ describe('NfdsFireDispatchSource', () => {
     expect(result.events[0].title).toBe('중앙소방서 화재접수');
     expect(result.events[0].regionCodes).toEqual(['1168010300']);
   });
+
+  it('should accept incidents without sidoNm', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-02T12:00:00.000Z'));
+
+    const responseBody = {
+      nowDate: '2026-07-02 21:00:00',
+      defail: [
+        {
+          sidoOvrNum: '1U1212261110',
+          progressStat: 'A',
+          progressNm: '화재접수',
+          cntrNm: '무안소방서',
+          overDate: '21:00',
+          addr: '전남광주통합특별시 무안군 일로읍 광암리',
+          lawSidoCd: '12',
+          lawGunguCd: '840',
+          lawDongCd: '250',
+          lawRiCd: '21',
+        },
+      ],
+    };
+
+    const { Response, fetch } = await import('undici');
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responseBody), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+
+    const regionRepository = createRegionRepository();
+    regionRepository.findCentersByCodes.mockResolvedValue(new Map());
+
+    const source = new NfdsFireDispatchSource(regionRepository);
+    const result = await source.run(null);
+
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0].title).toBe('무안소방서 화재접수');
+    expect(result.events[0].regionText).toBe('전남광주통합특별시 무안군 일로읍 광암리');
+    expect(result.events[0].payload).toMatchObject({ sidoNm: null });
+  });
 });
