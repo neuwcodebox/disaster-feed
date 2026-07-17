@@ -34,6 +34,7 @@ const WARNING_LEVEL_BY_NAME: Record<string, EventLevels> = {
   주의: EventLevels.Minor,
   주의보: EventLevels.Minor,
   경보: EventLevels.Moderate,
+  중대경보: EventLevels.Severe,
 };
 
 type WarningRow = {
