@@ -54,6 +54,21 @@
 - Hono, Kysely
 - Postgres, Redis, BullMQ
 
+## 데이터 출처 및 라이선스
+
+### 행정동 경계
+
+`data/HangJeongDong_ver20260701.geojson`은 통계청 통계지리정보서비스(SGIS)의 행정동 경계를 바탕으로
+[vuski/admdongkor](https://github.com/vuski/admdongkor)에서 수정·보정하고 시계열로 확장한 데이터를 사용합니다.
+
+- 원천 데이터: [통계청 통계지리정보서비스(SGIS)](https://sgis.kostat.go.kr)
+- 원천 데이터 이용조건: [공공누리 제1유형(출처표시)](https://www.kogl.or.kr/info/licenseType1.do)
+- 가공물 제공: [vuski/admdongkor](https://github.com/vuski/admdongkor)
+- 가공물 라이선스: [CC BY 4.0 및 LICENSE-DATA](https://github.com/vuski/admdongkor/blob/master/LICENSE-DATA)
+
+SGIS 데이터의 출처표시 의무는 수정·가공·재배포 여부와 관계없이 유지됩니다.
+행정동 경계와 이를 이용해 계산한 중심점은 실제 이용 목적에 맞는지 공식 자료와 함께 확인해야 합니다.
+
 ## 면책 조항
 
 이 프로젝트는 개인 학습 및 실험 목적으로 개발된 비상업적 오픈소스 소프트웨어입니다.

@@ -20,7 +20,7 @@ export class RegionRepository implements IRegionRepository {
       .selectFrom('regions')
       .select('code')
       .where('name', 'like', `${namePrefix}%`)
-      .where('abolished', '=', false)
+      .orderBy('abolished', 'asc')
       .orderBy('code', 'asc')
       .limit(1)
       .executeTakeFirst();
@@ -37,7 +37,7 @@ export class RegionRepository implements IRegionRepository {
       .selectFrom('regions')
       .select('code')
       .where('name', 'like', `%${namePostfix}`)
-      .where('abolished', '=', false)
+      .orderBy('abolished', 'asc')
       .orderBy('code', 'asc')
       .limit(1)
       .executeTakeFirst();
@@ -55,7 +55,6 @@ export class RegionRepository implements IRegionRepository {
       .selectFrom('regions')
       .select(['code', 'center_lat', 'center_lng'])
       .where('code', 'in', uniqueCodes)
-      .where('abolished', '=', false)
       .execute();
 
     const result = new Map<string, RegionCenter>();

@@ -15,14 +15,16 @@ const createRegionRepository = (): RegionRepositoryMocks & IRegionRepository => 
 });
 
 describe('normalizeRegionName', () => {
-  it('should normalize aliases and prefix matches', () => {
+  it('should normalize aliases and prefix matches without changing their era', () => {
     expect(normalizeRegionName('충북')).toBe('충청북도');
     expect(normalizeRegionName('충북 청주시')).toBe('충청북도 청주시');
+    expect(normalizeRegionName('전남 신안군')).toBe('전라남도 신안군');
     expect(normalizeRegionName('서울특별시')).toBe('서울특별시');
   });
 
   it('should keep full province names intact', () => {
     expect(normalizeRegionName('전북특별자치도')).toBe('전북특별자치도');
+    expect(normalizeRegionName('전남광주통합특별시')).toBe('전남광주통합특별시');
   });
 
   it('should return null for blank values', () => {
