@@ -99,4 +99,37 @@ describe('KmaWeatherWarningSource', () => {
       regionText: '경상북도 경산시, 경상북도 포항시',
     });
   });
+
+  it('should map a tropical night warning to heat', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-18T02:00:00.000Z'));
+
+    process.env.KMA_API_KEY = 'test-key';
+    vi.resetModules();
+    const { KmaWeatherWarningSource } = await import('./kma-weather-warning.source');
+
+    const csvText = ['L1010000,서울특별시,L1010100,서울 동남권,202607181000,202607181100,열대야,주의보,발령,'].join(
+      '\n',
+    );
+
+    const encoded = iconv.encode(csvText, 'euc-kr');
+    const buffer = encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength) as ArrayBuffer;
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve(new Response(buffer, { status: 200, headers: { 'Content-Type': 'text/plain' } })),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const source = new KmaWeatherWarningSource();
+    const result = await source.run(null);
+
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]).toMatchObject({
+      kind: EventKinds.Heat,
+      level: EventLevels.Minor,
+      title: '서울특별시 열대야 주의보 발령',
+      regionText: '서울특별시 서울 동남권',
+    });
+  });
 });

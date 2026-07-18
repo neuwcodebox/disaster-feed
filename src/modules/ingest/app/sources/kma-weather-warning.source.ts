@@ -25,6 +25,7 @@ const WARNING_KIND_BY_NAME: Record<string, EventKinds> = {
   대설: EventKinds.Snow,
   황사: EventKinds.YellowDust,
   폭염: EventKinds.Heat,
+  열대야: EventKinds.Heat,
   안개: EventKinds.Fog,
 };
 
