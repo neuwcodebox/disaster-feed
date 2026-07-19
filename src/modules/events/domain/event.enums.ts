@@ -80,5 +80,5 @@ export enum EventSources {
   KmaOverseasEarthquake = 21,
   KmaAwsObservation = 22,
   KdcaPressRelease = 23,
-  OpenSkyEmergencySquawk = 24,
+  OpenSkyEmergencySquawk = 24, // 수집 종료, 기존 이벤트 호환을 위해 값 보존
 }
