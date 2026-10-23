@@ -1,4 +1,4 @@
-FROM node:24.11.1-slim AS builder
+FROM node:24.22.1-slim AS builder
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -15,7 +15,7 @@ COPY . .
 # Build the TypeScript files
 RUN npm run build
 
-FROM node:24.11.1-slim AS runner
+FROM node:24.22.1-slim AS runner
 
 WORKDIR /usr/src/app
 
