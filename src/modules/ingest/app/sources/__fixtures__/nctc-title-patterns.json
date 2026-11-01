@@ -1,0 +1,458 @@
+[
+  {
+    "id": "17986",
+    "title": "제1차 한.중앙아시아 정상회의 대비 테러경보단계 상향 조정(경계)",
+    "registeredAt": "2026.09.09",
+    "expectedStage": 3
+  },
+  {
+    "id": "17985",
+    "title": "제1차 한.중앙아시아 정상회의 대비 테러경보단계 상향 조정(주의)",
+    "registeredAt": "2026.09.09",
+    "expectedStage": 2
+  },
+  {
+    "id": "8801",
+    "title": "제9회 전국동시지방선거 대비 테러경보단계 상향 조정(주의)",
+    "registeredAt": "2026.05.20",
+    "expectedStage": 2
+  },
+  {
+    "id": "8677",
+    "title": "광화문 BTS  컴백 행사 대비 테러경보단계 상향 조정(주의)",
+    "registeredAt": "2026.03.17",
+    "expectedStage": 2
+  },
+  {
+    "id": "8427",
+    "title": "2025 APEC  정상회의 대비 테러경보단계 상향 조정(경계)",
+    "registeredAt": "2025.10.27",
+    "expectedStage": 3
+  },
+  {
+    "id": "8418",
+    "title": "2025 APEC  정상회의 대비 테러경보단계 상향 조정(주의)",
+    "registeredAt": "2025.10.23",
+    "expectedStage": 2
+  },
+  {
+    "id": "8208",
+    "title": "<일부 재외공관 테러경보단계 하향 조정>",
+    "registeredAt": "2025.06.09",
+    "expectedStage": null
+  },
+  {
+    "id": "7646",
+    "title": "한-아프리카 정상회의 대비 테러경보단계 상향 조정(경계)",
+    "registeredAt": "2024.05.31",
+    "expectedStage": 3
+  },
+  {
+    "id": "7645",
+    "title": "한-아프리카 정상회의 대비 테러경보단계 상향 조정(주의)",
+    "registeredAt": "2024.05.31",
+    "expectedStage": 2
+  },
+  {
+    "id": "7617",
+    "title": "일부 재외공관 테러경보단계 상향 조정",
+    "registeredAt": "2024.05.02",
+    "expectedStage": null
+  },
+  {
+    "id": "7592",
+    "title": "2024 강원 동계청소년올림픽 대비 테러경보 상향 조정(강원)",
+    "registeredAt": "2024.04.08",
+    "expectedStage": null
+  },
+  {
+    "id": "7368",
+    "title": "2023 새만금 제25회 세계스카우트잼버리 행사 대비 테러경보 상향 조정(전북)",
+    "registeredAt": "2023.07.25",
+    "expectedStage": null
+  },
+  {
+    "id": "5785",
+    "title": "2019년 한아세안 정상회의 대비 테러경보 상향 조정(부산)",
+    "registeredAt": "2019.11.14",
+    "expectedStage": null
+  },
+  {
+    "id": "5784",
+    "title": "2019년 한아세안 정상회의 대비 테러경보 상향 조정(전국)",
+    "registeredAt": "2019.11.14",
+    "expectedStage": null
+  },
+  {
+    "id": "5523",
+    "title": "2019년 광주세계수영선수권대회 테레경보 상향(관심에서 주의) 조정",
+    "registeredAt": "2019.07.03",
+    "expectedStage": 2
+  },
+  {
+    "id": "5515",
+    "title": "미국 대통령 방한 대비 테러경보 상향(관심-주의)  조정",
+    "registeredAt": "2019.06.27",
+    "expectedStage": 2
+  },
+  {
+    "id": "4699",
+    "title": "테러경보 등급 환원(주의→관심) 조정 안내",
+    "registeredAt": "2018.09.14",
+    "expectedStage": 1
+  },
+  {
+    "id": "4576",
+    "title": "2018 창원 세계사격선수권 대회 대비 테러경보 상향(관심→주의) 조정",
+    "registeredAt": "2018.08.25",
+    "expectedStage": 2
+  },
+  {
+    "id": "539",
+    "title": "테러경보 등급 환원(경계→관심) 조정 안내",
+    "registeredAt": "2018.03.20",
+    "expectedStage": 1
+  },
+  {
+    "id": "538",
+    "title": "2018 평창동계올림픽/패럴림픽대회 대비 테러경보 상향(주의→경계) 조정",
+    "registeredAt": "2018.03.06",
+    "expectedStage": 3
+  },
+  {
+    "id": "537",
+    "title": "테러 경보 등급 일부 환원(경계→주의) 조정 안내",
+    "registeredAt": "2018.02.27",
+    "expectedStage": 2
+  },
+  {
+    "id": "536",
+    "title": "2018 평창동계올림픽/패럴림픽대회 대비 테러경보 상향(주의→경계) 조정",
+    "registeredAt": "2018.02.06",
+    "expectedStage": 3
+  },
+  {
+    "id": "535",
+    "title": "2018 평창동계올림픽/패럴림픽대회 대비 테러경보 상향(관심→주의) 조정",
+    "registeredAt": "2018.02.02",
+    "expectedStage": 2
+  },
+  {
+    "id": "534",
+    "title": "테러경보 환원(주의->관심) 조정 안내",
+    "registeredAt": "2017.11.09",
+    "expectedStage": 1
+  },
+  {
+    "id": "533",
+    "title": "미국 대통령 방한 대비 테러경보 상향(관심→주의) 조정",
+    "registeredAt": "2017.11.04",
+    "expectedStage": 2
+  },
+  {
+    "id": "532",
+    "title": "테러경보 등급 환원(주의→관심) 조정 안내",
+    "registeredAt": "2017.10.25",
+    "expectedStage": 1
+  },
+  {
+    "id": "531",
+    "title": "테러경보 등급 환원(경계→ 주의) 조정 안내",
+    "registeredAt": "2017.06.13",
+    "expectedStage": 2
+  },
+  {
+    "id": "530",
+    "title": "U-20 월드컵 축구대회 대비 테러경보 상향(주의→경계) 조정",
+    "registeredAt": "2017.05.17",
+    "expectedStage": 3
+  },
+  {
+    "id": "529",
+    "title": "프랑스 파리 연쇄테러 관련 테러대책실무회의에 따른 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2015.11.17",
+    "expectedStage": 2
+  },
+  {
+    "id": "528",
+    "title": "테러 경보 등급 환원(주의→관심) 조정 안내",
+    "registeredAt": "2015.10.23",
+    "expectedStage": 1
+  },
+  {
+    "id": "527",
+    "title": "세계과학정상회의 대비 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2015.10.16",
+    "expectedStage": 2
+  },
+  {
+    "id": "526",
+    "title": "세계군인체육대회 테러경보 환원(주의→관심) 조정 안내",
+    "registeredAt": "2015.10.14",
+    "expectedStage": 1
+  },
+  {
+    "id": "525",
+    "title": "세계군인체육대회 대비 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2015.09.25",
+    "expectedStage": 2
+  },
+  {
+    "id": "524",
+    "title": "테러 경보 등급 환원(경계→관심) 조정 안내",
+    "registeredAt": "2015.07.17",
+    "expectedStage": 1
+  },
+  {
+    "id": "523",
+    "title": "테러 경보 등급 일부 환원(경계→주의) 조정 안내",
+    "registeredAt": "2015.07.09",
+    "expectedStage": 2
+  },
+  {
+    "id": "522",
+    "title": "테레 경보 등급 일부 환원(경계→주의) 조정안내",
+    "registeredAt": "2015.07.04",
+    "expectedStage": 2
+  },
+  {
+    "id": "521",
+    "title": "광주하계유니버시아드 대비 테러경보 상향(주의→경계) 조정",
+    "registeredAt": "2015.06.30",
+    "expectedStage": 3
+  },
+  {
+    "id": "520",
+    "title": "광주하계유니버시아드 대비 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2015.06.26",
+    "expectedStage": 2
+  },
+  {
+    "id": "519",
+    "title": "테러 경보 등급 환원(경계->관심) 조정 안내",
+    "registeredAt": "2014.12.13",
+    "expectedStage": 1
+  },
+  {
+    "id": "518",
+    "title": "韓ㆍ아세안 정상회의 대비 테러경보(주의→경계) 상향 조정",
+    "registeredAt": "2014.12.08",
+    "expectedStage": 3
+  },
+  {
+    "id": "517",
+    "title": "韓ㆍ아세안 정상회의 대비 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2014.12.04",
+    "expectedStage": 2
+  },
+  {
+    "id": "516",
+    "title": "테러 경보 등급 환원(경계→관심) 조정 안내",
+    "registeredAt": "2014.10.07",
+    "expectedStage": 1
+  },
+  {
+    "id": "515",
+    "title": "인천AG 대비 테러경보(주의→경계) 상향 조정",
+    "registeredAt": "2014.09.17",
+    "expectedStage": 3
+  },
+  {
+    "id": "514",
+    "title": "인천AG 대비 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2014.09.12",
+    "expectedStage": 2
+  },
+  {
+    "id": "513",
+    "title": "테러 경보 등급 환원(경계→관심) 조정 안내",
+    "registeredAt": "2014.08.18",
+    "expectedStage": 1
+  },
+  {
+    "id": "512",
+    "title": "교황 방한 대비 테러경보(주의→경계) 상향 조정",
+    "registeredAt": "2014.08.13",
+    "expectedStage": 3
+  },
+  {
+    "id": "511",
+    "title": "교황 방한 대비 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2014.08.11",
+    "expectedStage": 2
+  },
+  {
+    "id": "510",
+    "title": "테러 경보 등급(주의→관심) 환원 조정 안내",
+    "registeredAt": "2013.05.28",
+    "expectedStage": 1
+  },
+  {
+    "id": "509",
+    "title": "북한 테러위협 대비 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2013.04.09",
+    "expectedStage": 2
+  },
+  {
+    "id": "508",
+    "title": "테러 경보 등급(주의→관심) 환원 조정 안내",
+    "registeredAt": "2013.03.21",
+    "expectedStage": 1
+  },
+  {
+    "id": "507",
+    "title": "북한 테러위협 대비 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2013.03.08",
+    "expectedStage": 2
+  },
+  {
+    "id": "506",
+    "title": "테러 경보 등급(주의→관심) 환원 조정 안내",
+    "registeredAt": "2013.02.26",
+    "expectedStage": 1
+  },
+  {
+    "id": "505",
+    "title": "대통령 취임식 대비 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2013.02.22",
+    "expectedStage": 2
+  },
+  {
+    "id": "504",
+    "title": "테러 경보 등급(주의→관심) 환원 조정 안내",
+    "registeredAt": "2012.08.12",
+    "expectedStage": 1
+  },
+  {
+    "id": "503",
+    "title": "2012 세계여수박람회 대비 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2012.05.09",
+    "expectedStage": 2
+  },
+  {
+    "id": "502",
+    "title": "테러 경보 등급(심각→관심) 환원 조정 안내",
+    "registeredAt": "2012.03.28",
+    "expectedStage": 1
+  },
+  {
+    "id": "501",
+    "title": "핵안보정상회의 계기 테러경보(경계→심각) 상향 조정",
+    "registeredAt": "2012.03.23",
+    "expectedStage": 4
+  },
+  {
+    "id": "500",
+    "title": "핵안보정상회의 계기 테러경보(주의→경계) 상향 조정",
+    "registeredAt": "2012.03.19",
+    "expectedStage": 3
+  },
+  {
+    "id": "499",
+    "title": "핵안보정상회의 계기 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2012.03.11",
+    "expectedStage": 2
+  },
+  {
+    "id": "498",
+    "title": "테러 경보 등급(주의→관심) 환원 조정 안내",
+    "registeredAt": "2011.12.30",
+    "expectedStage": 1
+  },
+  {
+    "id": "497",
+    "title": "김정일 사망 계기 테러경보(관심->주의) 상향 조정",
+    "registeredAt": "2011.12.19",
+    "expectedStage": 2
+  },
+  {
+    "id": "496",
+    "title": "테러 경보 등급(경계→관심) 환원 조정 안내",
+    "registeredAt": "2011.09.05",
+    "expectedStage": 1
+  },
+  {
+    "id": "495",
+    "title": "대구세계육상대회 테러경보(주의→경계) 상향 조정",
+    "registeredAt": "2011.08.24",
+    "expectedStage": 3
+  },
+  {
+    "id": "494",
+    "title": "대구세계육상대회 테러경보(관심->주의) 상향 조정",
+    "registeredAt": "2011.08.10",
+    "expectedStage": 2
+  },
+  {
+    "id": "493",
+    "title": "테러 경보 등급(주의→관심) 환원 조정 안내",
+    "registeredAt": "2010.12.13",
+    "expectedStage": 1
+  },
+  {
+    "id": "492",
+    "title": "테러 경보 등급 일부 환원(경계→주의) 조정 안내",
+    "registeredAt": "2010.11.12",
+    "expectedStage": 2
+  },
+  {
+    "id": "491",
+    "title": "G20 계기 서울 지역 테러경보(경계→심각) 상향 조정",
+    "registeredAt": "2010.11.08",
+    "expectedStage": 4
+  },
+  {
+    "id": "490",
+    "title": "G20 계기 수도권 지역 테러경보(주의→경계) 상향 조정",
+    "registeredAt": "2010.11.04",
+    "expectedStage": 3
+  },
+  {
+    "id": "489",
+    "title": "천안함 사건 결과 발표 계기 국가 테러 대비태세 강화",
+    "registeredAt": "2010.05.20",
+    "expectedStage": null
+  },
+  {
+    "id": "488",
+    "title": "테러 경보 등급(주의→관심) 환원 조정 안내",
+    "registeredAt": "2009.06.30",
+    "expectedStage": 1
+  },
+  {
+    "id": "487",
+    "title": "북한 해커 부산 중요시설 집중 탐색 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2009.06.16",
+    "expectedStage": 2
+  },
+  {
+    "id": "486",
+    "title": "테러 경보 등급(주의→관심) 환원 조정 안내",
+    "registeredAt": "2009.06.02",
+    "expectedStage": 1
+  },
+  {
+    "id": "485",
+    "title": "한-아세안특별정상회의 대비 테러경보(주의→심각) 상향 조정",
+    "registeredAt": "2009.05.29",
+    "expectedStage": 4
+  },
+  {
+    "id": "484",
+    "title": "한-아세안특별정상회의 대비 테러경보(관심→주의) 상향 조정",
+    "registeredAt": "2009.05.21",
+    "expectedStage": 2
+  },
+  {
+    "id": "483",
+    "title": "국가정보원 테러정보통합센터, 테러경보(주의→관심) 단계로 하향 조정",
+    "registeredAt": "2005.11.23",
+    "expectedStage": 1
+  },
+  {
+    "id": "482",
+    "title": "정부, 런던 폭파테러 관련 대비태세 강화 및 테러 '주의' 경보 발령",
+    "registeredAt": "2005.07.08",
+    "expectedStage": 2
+  }
+]

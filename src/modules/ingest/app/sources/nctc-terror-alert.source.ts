@@ -1,8 +1,5 @@
-import { type Cheerio, load } from 'cheerio';
-import type { AnyNode } from 'domhandler';
-import { z } from 'zod';
+import { load } from 'cheerio';
 import { logger } from '@/core/logger';
-import type { EventPayload } from '@/modules/events/domain/entity/event.entity';
 import { EventKinds, EventLevels, EventSources } from '@/modules/events/domain/event.enums';
 import type { Source, SourceEvent, SourceRunResult } from '../../domain/port/source.interface';
 import { fetchWithTimeout } from './_shared/fetch-with-timeout';
@@ -13,49 +10,27 @@ import { resolveDateOnlyWithServerTime } from './_shared/resolve-date-only-with-
 import { shouldEmitEvent } from './_shared/should-emit-event';
 
 const NCTC_TERROR_ALERT_LIST_ENDPOINT =
-  'http://www.nctc.go.kr/nctc/information/alertIssuanceStatus.do?mode=list&articleLimit=10&article.offset=0';
-const NCTC_TERROR_ALERT_VIEW_BASE = 'http://www.nctc.go.kr/nctc/information/alertIssuanceStatus.do';
-const TABLE_SELECTOR = '#real-content table';
-const DETAIL_TITLE_SELECTOR = 'dd.view-tit';
-const DETAIL_BODY_SELECTOR = '#real-content dl.board-write-box.board-write-box-v03 > dd';
+  'http://www.nctc.go.kr/base/board/list?boardManagementNo=20&menuLevel=3&menuNo=4';
 const REQUEST_TIMEOUT_MS = 15000;
 const STATE_TTL_MS = 1000 * 60 * 60 * 24 * 3;
 const EVENT_MAX_AGE_MS = STATE_TTL_MS;
-const ALERT_LABEL_BY_STAGE: Record<number, string> = {
-  1: '관심',
-  2: '주의',
-  3: '경계',
-  4: '심각',
-};
+const ALERT_STAGE_BY_LABEL: Record<string, number> = { 관심: 1, 주의: 2, 경계: 3, 심각: 4 };
 
-const schemaNctcAlertRow = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  issuedAt: z.string().min(1),
-  closedAt: z.string().nullable(),
-  regionText: z.string().nullable(),
-  detailUrl: z.string().min(1).nullable(),
-  levelStage: z.number().int().min(1).max(4).nullable(),
-  levelLabel: z.string().nullable(),
-  levelRaw: z.string().nullable(),
-});
-
-type NctcAlertRow = z.infer<typeof schemaNctcAlertRow>;
-
-type NctcAlertState = {
-  seen: Record<string, string>;
-};
-
-type NctcAlertDetail = {
-  title: string | null;
-  body: string | null;
-};
-
+type AlertChange = 'raise' | 'lower' | null;
 type AlertLevelInfo = {
   stage: number | null;
   label: string | null;
-  raw: string | null;
+  previousStage: number | null;
+  change: AlertChange;
 };
+type NctcAlertRow = {
+  id: string;
+  title: string;
+  registeredAt: string;
+  registeredAtIso: string;
+  detailUrl: string;
+};
+type NctcAlertState = { seen: Record<string, string> };
 
 export class NctcTerrorAlertSource implements Source {
   public readonly sourceId = EventSources.NctcTerrorAlert;
@@ -67,279 +42,138 @@ export class NctcTerrorAlertSource implements Source {
     const now = new Date();
     const nowMs = now.getTime();
     const nowIso = now.toISOString();
-
-    const response = await fetchWithTimeout({
-      url: NCTC_TERROR_ALERT_LIST_ENDPOINT,
-      timeoutMs: REQUEST_TIMEOUT_MS,
-    });
+    const response = await fetchWithTimeout({ url: NCTC_TERROR_ALERT_LIST_ENDPOINT, timeoutMs: REQUEST_TIMEOUT_MS });
     if (!response) {
       throw new Error('NCTC terror alert list request failed');
     }
 
-    const html = await response.text();
-    const rows = parseRows(html);
-
+    const rows = parseRows(await response.text(), now);
     const events: SourceEvent[] = [];
     for (const row of rows) {
-      const occurredAt = parseKstDate(row.issuedAt, now);
-      if (isTooOld(occurredAt, nowMs, EVENT_MAX_AGE_MS)) {
+      if (isTooOld(row.registeredAtIso, nowMs, EVENT_MAX_AGE_MS)) {
         continue;
       }
-
-      if (!shouldEmitEvent(seen.get(row.id), nowMs, STATE_TTL_MS)) {
-        seen.set(row.id, nowIso);
-        continue;
+      if (shouldEmitEvent(seen.get(row.id), nowMs, STATE_TTL_MS)) {
+        events.push(buildEvent(row));
       }
-
-      const detail = await fetchDetail(row.detailUrl);
-      const title = detail?.title ?? row.title;
-      const body = detail?.body ?? buildFallbackBody(row);
-
-      events.push(buildEvent(row, occurredAt, title, body, detail));
       seen.set(row.id, nowIso);
     }
-
     pruneTimedMap(seen, nowMs, STATE_TTL_MS);
-    const nextState = buildState(seen);
-
-    return { events, nextState };
+    return { events, nextState: buildState(seen) };
   }
 }
 
-function buildEvent(
-  row: NctcAlertRow,
-  occurredAt: string | null,
-  title: string,
-  body: string | null,
-  detail: NctcAlertDetail | null,
-): SourceEvent {
+function buildEvent(row: NctcAlertRow): SourceEvent {
+  const level = parseAlertLevel(row.title);
   return {
     kind: EventKinds.Terror,
-    title,
-    body,
-    occurredAt,
-    regionText: row.regionText,
-    level: mapAlertLevel(row.levelStage, row.levelLabel),
-    payload: buildPayload(row, occurredAt, detail),
+    title: row.title,
+    body: null,
+    occurredAt: row.registeredAtIso,
+    regionText: null,
+    level: mapAlertLevel(level.stage),
+    payload: {
+      alertId: row.id,
+      stage: level.stage,
+      stageLabel: level.label,
+      stageRaw: row.title,
+      previousStage: level.previousStage,
+      change: level.change,
+      registeredAt: row.registeredAt,
+      issuedAt: null,
+      issuedAtIso: null,
+      closedAt: null,
+      regionText: null,
+      detailUrl: row.detailUrl,
+      listTitle: row.title,
+    },
   };
 }
 
-function buildPayload(row: NctcAlertRow, occurredAt: string | null, detail: NctcAlertDetail | null): EventPayload {
-  return {
-    alertId: row.id,
-    stage: row.levelStage,
-    stageLabel: row.levelLabel,
-    stageRaw: row.levelRaw,
-    issuedAt: row.issuedAt,
-    issuedAtIso: occurredAt,
-    closedAt: row.closedAt,
-    regionText: row.regionText,
-    detailUrl: row.detailUrl,
-    listTitle: row.title,
-    detailTitle: detail?.title ?? null,
-  };
-}
-
-function buildFallbackBody(row: NctcAlertRow): string | null {
-  const stage = row.levelLabel ?? (row.levelStage ? ALERT_LABEL_BY_STAGE[row.levelStage] : null);
-  const parts = [
-    stage ? `단계: ${stage}` : null,
-    row.issuedAt ? `발령일: ${row.issuedAt}` : null,
-    row.regionText ? `지역: ${row.regionText}` : null,
-  ].filter((value): value is string => Boolean(value));
-
-  return parts.length > 0 ? parts.join('\n') : null;
-}
-
-function mapAlertLevel(stage: number | null, label: string | null): EventLevels {
-  if (stage === 4 || label?.includes('심각')) {
+function mapAlertLevel(stage: number | null): EventLevels {
+  if (stage === 4) {
     return EventLevels.Severe;
   }
-  if (stage === 3 || label?.includes('경계')) {
+  if (stage === 3) {
     return EventLevels.Moderate;
   }
-  if (stage === 2 || label?.includes('주의')) {
+  if (stage === 2) {
     return EventLevels.Minor;
-  }
-  if (stage === 1 || label?.includes('관심')) {
-    return EventLevels.Info;
   }
   return EventLevels.Info;
 }
 
-function parseRows(html: string): NctcAlertRow[] {
+function parseRows(html: string, now: Date): NctcAlertRow[] {
   const $ = load(html);
-  const table = $(TABLE_SELECTOR).first();
-  if (table.length === 0) {
-    logger.warn('Failed to find NCTC terror alert table');
+  const table = $('table.board_list').first();
+  const headings = table
+    .find('thead th')
+    .toArray()
+    .map((cell) => normalizeText($(cell).text()));
+  if (table.length === 0 || headings.join('|') !== '구분|제목|첨부파일|등록일|조회수') {
     throw new Error('Failed to find NCTC terror alert table');
   }
-
-  const rows: NctcAlertRow[] = [];
-  const elements = table.find('tr').toArray();
-
-  for (const element of elements) {
-    const cells = $(element).find('td').toArray();
-    if (cells.length < 6) {
-      continue;
-    }
-
-    const id = normalizeText($(cells[0]).text()) ?? '';
-    const titleCell = $(cells[1]);
-    const title = normalizeText(titleCell.text()) ?? '';
-    const detailUrl = buildDetailUrl(titleCell.find('a').attr('href'));
-    const levelInfo = parseAlertLevel($(cells[2]));
-    const issuedAt = normalizeText($(cells[3]).text()) ?? '';
-    const closedAt = normalizeText($(cells[4]).text());
-    const regionText = normalizeText($(cells[5]).text());
-
-    const row = {
-      id,
-      title,
-      issuedAt,
-      closedAt,
-      regionText,
-      detailUrl,
-      levelStage: levelInfo.stage,
-      levelLabel: levelInfo.label,
-      levelRaw: levelInfo.raw,
-    };
-
-    const parsed = schemaNctcAlertRow.safeParse(row);
-    if (!parsed.success) {
-      logger.warn({ error: parsed.error }, 'Failed to parse NCTC terror alert row');
-      continue;
-    }
-
-    rows.push(parsed.data);
+  const elements = table.find('tbody > tr').toArray();
+  if (elements.length === 0) {
+    throw new Error('NCTC terror alert table has no rows');
   }
-
+  const rows: NctcAlertRow[] = [];
+  for (const element of elements) {
+    const cells = $(element).children('td');
+    const titleLink = cells.eq(1).find('a').first();
+    const title = normalizeText(titleLink.text());
+    const registeredAt = normalizeText(cells.eq(3).text());
+    const registeredAtIso = registeredAt ? parseKstDate(registeredAt, now) : null;
+    const detailUrl = buildDetailUrl(titleLink.attr('href'));
+    if (cells.length !== 5 || !title || !registeredAt || !registeredAtIso || !detailUrl) {
+      throw new Error('Failed to parse NCTC terror alert row');
+    }
+    rows.push({
+      id: detailUrl.searchParams.get('boardNo') ?? '',
+      title,
+      registeredAt,
+      registeredAtIso,
+      detailUrl: detailUrl.toString(),
+    });
+  }
   return rows;
 }
 
-function parseAlertLevel(cell: Cheerio<AnyNode>): AlertLevelInfo {
-  const image = cell.find('img').first();
-  const alt = normalizeText(image.attr('alt'));
-  const src = normalizeText(image.attr('src'));
-  const text = normalizeText(cell.text());
-  const raw = alt ?? text;
+function parseAlertLevel(title: string): AlertLevelInfo {
+  const labels = title.match(/관심|주의|경계|심각/g) ?? [];
+  const change: AlertChange = title.includes('상향') ? 'raise' : /하향|환원/.test(title) ? 'lower' : null;
+  if (labels.length === 0 || labels.length > 2) {
+    return { stage: null, label: null, previousStage: null, change };
+  }
 
-  const stage = parseStageFromText(alt) ?? parseStageFromText(text) ?? parseStageFromSrc(src);
-  const label = parseLabelFromText(alt) ?? parseLabelFromText(text) ?? (stage ? ALERT_LABEL_BY_STAGE[stage] : null);
-
-  return { stage, label, raw };
+  // 공고 제목에 두 단계가 나오면 앞이 이전 단계, 뒤가 조정 후 단계다.
+  const label = labels[labels.length - 1];
+  return {
+    stage: ALERT_STAGE_BY_LABEL[label],
+    label,
+    previousStage: labels.length === 2 ? ALERT_STAGE_BY_LABEL[labels[0]] : null,
+    change,
+  };
 }
 
-function parseStageFromText(value: string | null): number | null {
-  const normalized = normalizeText(value);
-  if (!normalized) {
+function buildDetailUrl(href: string | undefined): URL | null {
+  if (!href) {
     return null;
   }
-
-  const matchIn = normalized.match(/중\s*([1-4])\s*단계/);
-  if (matchIn) {
-    return Number(matchIn[1]);
-  }
-
-  if (normalized.includes('관심')) {
-    return 1;
-  }
-  if (normalized.includes('주의')) {
-    return 2;
-  }
-  if (normalized.includes('경계')) {
-    return 3;
-  }
-  if (normalized.includes('심각')) {
-    return 4;
-  }
-
-  return null;
-}
-
-function parseStageFromSrc(value: string | null): number | null {
-  const normalized = normalizeText(value);
-  if (!normalized) {
-    return null;
-  }
-
-  const matched = normalized.match(/([1-4])\.(?:gif|png|jpg)$/i);
-  if (!matched) {
-    return null;
-  }
-
-  return Number(matched[1]);
-}
-
-function parseLabelFromText(value: string | null): string | null {
-  const normalized = normalizeText(value);
-  if (!normalized) {
-    return null;
-  }
-
-  if (normalized.includes('관심')) {
-    return '관심';
-  }
-  if (normalized.includes('주의')) {
-    return '주의';
-  }
-  if (normalized.includes('경계')) {
-    return '경계';
-  }
-  if (normalized.includes('심각')) {
-    return '심각';
-  }
-
-  return null;
-}
-
-function buildDetailUrl(href: string | undefined): string | null {
-  const normalized = normalizeText(href);
-  if (!normalized) {
-    return null;
-  }
-
   try {
-    return new URL(normalized, NCTC_TERROR_ALERT_VIEW_BASE).toString();
-  } catch (error) {
-    logger.warn({ error, href: normalized }, 'Failed to build NCTC terror alert detail URL');
-    return null;
-  }
-}
-
-async function fetchDetail(detailUrl: string | null): Promise<NctcAlertDetail | null> {
-  if (!detailUrl) {
-    return null;
-  }
-
-  const response = await fetchWithTimeout({
-    url: detailUrl,
-    timeoutMs: REQUEST_TIMEOUT_MS,
-  });
-  if (!response) {
-    logger.warn({ detailUrl }, 'NCTC terror alert detail request failed');
-    return null;
-  }
-
-  const html = await response.text();
-  return parseDetail(html);
-}
-
-function parseDetail(html: string): NctcAlertDetail {
-  const $ = load(html);
-  const title = normalizeText($(DETAIL_TITLE_SELECTOR).first().text());
-  const bodyElement = $(DETAIL_BODY_SELECTOR).first();
-  const blocks = bodyElement.find('> div').toArray();
-  const blockTexts: string[] = [];
-  for (const block of blocks) {
-    const text = normalizeText($(block).text());
-    if (text) {
-      blockTexts.push(text);
+    const url = new URL(href, NCTC_TERROR_ALERT_LIST_ENDPOINT);
+    if (
+      url.origin !== new URL(NCTC_TERROR_ALERT_LIST_ENDPOINT).origin ||
+      url.pathname !== '/base/board/read' ||
+      url.searchParams.get('boardManagementNo') !== '20' ||
+      !/^\d+$/.test(url.searchParams.get('boardNo') ?? '')
+    ) {
+      return null;
     }
+    return url;
+  } catch {
+    return null;
   }
-
-  const body = blockTexts.length > 0 ? blockTexts.join('\n') : normalizeText(bodyElement.text());
-  return { title, body };
 }
 
 function parseState(state: string | null): NctcAlertState {
@@ -383,19 +217,17 @@ function buildState(seen: Map<string, string>): string {
 }
 
 function parseKstDate(value: string, now: Date): string | null {
-  const normalized = normalizeText(value);
-  if (!normalized) {
+  const match = value.match(/^(\d{4})[./-](\d{2})[./-](\d{2})$/);
+  if (!match) {
     return null;
   }
-
-  const matched = normalized.match(/^(\d{4})[./-](\d{2})[./-](\d{2})$/);
-  if (!matched) {
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText),
+    month = Number(monthText),
+    day = Number(dayText);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
     return null;
   }
-
-  const [, year, month, day] = matched;
-  const yearNum = Number(year);
-  const monthNum = Number(month);
-  const dayNum = Number(day);
-  return resolveDateOnlyWithServerTime({ year: yearNum, month: monthNum, day: dayNum }, now);
+  return resolveDateOnlyWithServerTime({ year, month, day }, now);
 }
