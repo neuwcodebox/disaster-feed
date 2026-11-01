@@ -11,6 +11,45 @@ describe('YnaNewsSource', () => {
     vi.unstubAllGlobals();
   });
 
+  it.each([
+    null,
+    '',
+    JSON.stringify({ version: 2, seen: { previous: '2025-01-02T03:00:00.000Z' } }),
+  ])('should skip disabled classification without requests and preserve state %s', async (state) => {
+    delete process.env.YNA_SERVICE_KEY;
+    vi.resetModules();
+    const { YnaNewsSource } = await import('./yna-news.source');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const classifier: MockClassifier = {
+      isEnabled: vi.fn(() => false),
+      classifyBatch: vi.fn(),
+    };
+
+    const source = new YnaNewsSource(classifier);
+    const result = await source.run(state);
+
+    expect(result).toEqual({ events: [], nextState: state ?? '' });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(classifier.classifyBatch).not.toHaveBeenCalled();
+  });
+
+  it('should still require the YNA service key when classification is enabled', async () => {
+    delete process.env.YNA_SERVICE_KEY;
+    vi.resetModules();
+    const { YnaNewsSource } = await import('./yna-news.source');
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const classifier: MockClassifier = {
+      isEnabled: vi.fn(() => true),
+      classifyBatch: vi.fn(),
+    };
+
+    await expect(new YnaNewsSource(classifier).run(null)).rejects.toThrow('YNA service key is missing');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(classifier.classifyBatch).not.toHaveBeenCalled();
+  });
+
   it('should initialize checkpoint and not emit events on first run', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-01-02T03:00:00.000Z'));
