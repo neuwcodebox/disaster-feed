@@ -69,8 +69,7 @@ function buildEvent(row: NctcAlertRow): SourceEvent {
     kind: EventKinds.Terror,
     title: row.title,
     body: null,
-    // 게시판 등록일은 실제 발령일이 아니므로 발생 시각으로 사용하지 않는다.
-    occurredAt: null,
+    occurredAt: row.registeredAtIso,
     regionText: null,
     level: mapAlertLevel(level.stage),
     payload: {

@@ -61,9 +61,17 @@ describe('NctcTerrorAlertSource', () => {
     });
     expect(result.events[0].level).toBe(EventLevels.Moderate);
     expect(result.events[1].payload).toMatchObject({ alertId: '17985', stage: 2, stageLabel: '주의' });
-    expect(result.events[0].occurredAt).toBeNull();
+    expect(result.events[0].occurredAt).toBe('2026-09-09T03:00:00.000Z');
     expect(result.events[0].body).toBeNull();
     expect(fetchMock).toHaveBeenCalledExactlyOnceWith(listUrl, expect.any(Object));
+  });
+
+  it('should use registration date with the shared date-only convention', async () => {
+    setNow('2026-09-10T03:00:00.000Z');
+    mockList(listFixture);
+    const result = await new NctcTerrorAlertSource().run(null);
+    expect(result.events[0].occurredAt).toBe('2026-09-09T14:59:59.999Z');
+    expect(result.events[0].payload?.registeredAt).toBe('2026.09.09');
   });
 
   it('should not re-emit the old September notices on migration in November', async () => {
