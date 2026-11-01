@@ -75,15 +75,15 @@ export class YnaNewsSource implements Source {
   constructor(private readonly labelClassifier: YnaNewsLabelClassifier) {}
 
   public async run(state: string | null): Promise<SourceRunResult> {
+    if (!this.labelClassifier.isEnabled()) {
+      logger.debug('Skipping YNA news because LLM label classifier is disabled');
+      return { events: [], nextState: state ?? '' };
+    }
+
     const serviceKey = env.YNA_SERVICE_KEY;
     if (!serviceKey) {
       logger.error('YNA service key is missing');
       throw new Error('YNA service key is missing');
-    }
-
-    if (!this.labelClassifier.isEnabled()) {
-      logger.error('LLM label classifier is not enabled');
-      throw new Error('LLM label classifier is not enabled');
     }
 
     const inqDate = formatKstCompactDate(new Date());
