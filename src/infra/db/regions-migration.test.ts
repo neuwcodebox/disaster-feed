@@ -106,3 +106,30 @@ describe('new region centroid migration data', () => {
     }
   });
 });
+
+describe('November legal district changes', () => {
+  it('should retire only the 16 existing Guji-myeon codes and add their Guji-eup counterparts', async () => {
+    const dataDir = path.join(process.cwd(), 'data');
+    const july = new Map<string, { name: string; abolished: boolean }>();
+    for await (const row of readRegionRows(path.join(dataDir, 'regions20260706.txt'))) {
+      july.set(row.code, { name: row.name, abolished: row.abolished });
+    }
+
+    const changes = await Array.fromAsync(readRegionRows(path.join(dataDir, 'regions20261111-delta.txt')));
+    const changed = new Map(changes.map((row) => [row.code, row]));
+    expect(changes).toHaveLength(32);
+    for (const suffix of ['00', ...Array.from({ length: 15 }, (_, index) => String(21 + index))]) {
+      const oldCode = `27710380${suffix}`;
+      const newCode = `27710268${suffix}`;
+      const old = july.get(oldCode);
+      expect(old?.abolished).toBe(false);
+      expect(july.has(newCode)).toBe(false);
+      expect(changed.get(oldCode)).toEqual({ code: oldCode, name: old?.name, abolished: true });
+      expect(changed.get(newCode)).toEqual({
+        code: newCode,
+        name: old?.name.replace('구지면', '구지읍'),
+        abolished: false,
+      });
+    }
+  });
+});

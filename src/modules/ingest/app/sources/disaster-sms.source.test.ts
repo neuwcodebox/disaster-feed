@@ -93,6 +93,34 @@ describe('DisasterSmsSource', () => {
     vi.unstubAllGlobals();
   });
 
+  it('should keep both Guji names and codes when a sender mixes address versions', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-24T01:00:00Z'));
+    const regionText = '대구 달성군 구지면 창리, 대구 달성군 구지읍 창리';
+    const row: DisasterSmsFixture = {
+      serial: 101,
+      disasterType: '호우',
+      emergencyStep: '안전안내',
+      regionText,
+      message: '침수에 주의하세요. [달성군]',
+      sentAt: '2026/11/24 10:00:00',
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => createHtmlResponse([row])),
+    );
+    const repository = createRegionRepository();
+    const codes = new Map([
+      ['대구광역시 달성군 구지면 창리', '2771038021'],
+      ['대구광역시 달성군 구지읍 창리', '2771026821'],
+    ]);
+    const findCodeByNamePrefix = async (name: string) => codes.get(name) ?? null;
+    const source = new DisasterSmsSource(createLabelClassifier(), { ...repository, findCodeByNamePrefix });
+    const result = await source.run('100');
+    expect(result.events).toHaveLength(1);
+    expect(result.events[0]).toMatchObject({ regionText, regionCodes: ['2771038021', '2771026821'] });
+  });
+
   it('should map disaster kinds and resolve region codes for new messages', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-01-02T00:00:00.000Z'));

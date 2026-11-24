@@ -55,10 +55,16 @@
 
 ## 데이터 출처 및 라이선스
 
+### 법정동 코드
+
+`data/regions20261111-delta.txt`는 행정안전부의 2026년 11월 11일자 말소 포함 법정동 코드에서 7월 6일 스냅샷 이후 생성되거나 말소된 행을 추출한 자료입니다. [행정안전부 주소코드 원본](https://www.mois.go.kr/frt/bbs/type001/commonSelectBoardArticle.do?bbsId=BBSMSTR_000000000052&nttId=131063)
+
 ### 행정동 경계
 
 `data/HangJeongDong_ver20260701.geojson`은 통계청 통계지리정보서비스(SGIS)의 행정동 경계를 바탕으로
 [vuski/admdongkor](https://github.com/vuski/admdongkor)에서 수정·보정하고 시계열로 확장한 데이터를 사용합니다.
+
+구지읍 중심점은 같은 출처의 10월 1일판에서 `adm_cd2=2771026800`인 구지읍 도형에 프로젝트의 `computeGeometryCentroid`를 적용한 값입니다. [10월 1일 경계 파일](https://github.com/vuski/admdongkor/blob/master/ver20261001/HangJeongDong_ver20261001.geojson)
 
 - 원천 데이터: [통계청 통계지리정보서비스(SGIS)](https://sgis.kostat.go.kr)
 - 원천 데이터 이용조건: [공공누리 제1유형(출처표시)](https://www.kogl.or.kr/info/licenseType1.do)

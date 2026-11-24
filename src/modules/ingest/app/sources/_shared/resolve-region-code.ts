@@ -1,6 +1,7 @@
 import type { IRegionRepository } from '@/modules/ingest/domain/port/region-repo.interface';
 
 const REGION_ALIASES: Record<string, string> = {
+  대구: '대구광역시',
   충북: '충청북도',
   충남: '충청남도',
   전북: '전북특별자치도',

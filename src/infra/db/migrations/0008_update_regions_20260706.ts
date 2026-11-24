@@ -82,7 +82,7 @@ export async function* readRegionRows(filePath: string): AsyncGenerator<RegionMi
   }
 
   if (!headerParsed) {
-    throw new Error('regions20260706.txt header not found.');
+    throw new Error(`${filePath} header not found.`);
   }
 }
 
@@ -110,17 +110,17 @@ async function* readTextLines(filePath: string): AsyncGenerator<string> {
 export function parseRegionLine(line: string, lineNumber: number): RegionMigrationRow {
   const columns = line.split('\t').map((column) => column.trim());
   if (columns.length !== REGION_HEADERS.length) {
-    throw new Error(`regions20260706.txt column count mismatch at line ${lineNumber}`);
+    throw new Error(`Region snapshot column count mismatch at line ${lineNumber}`);
   }
 
   const [code, name, status] = columns;
   if (status !== '존재' && status !== '폐지') {
-    throw new Error(`regions20260706.txt invalid 폐지여부 at line ${lineNumber}: ${status}`);
+    throw new Error(`Region snapshot invalid 폐지여부 at line ${lineNumber}: ${status}`);
   }
 
   const result = schemaRegionRow.safeParse({ code, name, abolished: status === '폐지' });
   if (!result.success) {
-    throw new Error(`regions20260706.txt validation failed at line ${lineNumber}: ${result.error.message}`);
+    throw new Error(`Region snapshot validation failed at line ${lineNumber}: ${result.error.message}`);
   }
 
   return result.data;
@@ -133,11 +133,11 @@ function parseRegionHeader(line: string, lineNumber: number): void {
     .map((column) => column.trim());
 
   if (columns.length !== REGION_HEADERS.length || columns.some((column, index) => column !== REGION_HEADERS[index])) {
-    throw new Error(`regions20260706.txt header mismatch at line ${lineNumber}`);
+    throw new Error(`Region snapshot header mismatch at line ${lineNumber}`);
   }
 }
 
-function resolveDataPath(fileName: string): string {
+export function resolveDataPath(fileName: string): string {
   const currentDir = path.dirname(new URL(import.meta.url).pathname);
   const candidates = [path.join(process.cwd(), 'data', fileName), path.join(currentDir, 'data', fileName)];
 

@@ -29,6 +29,47 @@ describe('NfdsFireDispatchSource', () => {
     vi.unstubAllGlobals();
   });
 
+  it.each([
+    ['구지면', '380', '2771038021', '2771038000'],
+    ['구지읍', '268', '2771026821', '2771026800'],
+  ])('should preserve a supplied %s ri code when using its parent for coordinates', async (name, dong, code, parent) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-24T01:00:00Z'));
+    const addr = `대구광역시 달성군 ${name} 창리`;
+    const { Response, fetch } = await import('undici');
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          nowDate: '2026-11-24 10:00:00',
+          defail: [
+            {
+              sidoOvrNum: 'ZZ123',
+              progressStat: 'A',
+              progressNm: '화재접수',
+              overDate: '10:00',
+              addr,
+              lawSidoCd: '27',
+              lawGunguCd: '710',
+              lawDongCd: dong,
+              lawRiCd: '21',
+            },
+          ],
+        }),
+      ),
+    );
+    const repository = createRegionRepository();
+    repository.findCentersByCodes.mockResolvedValue(
+      new Map([[parent, { code: parent, centerLat: 35.657, centerLng: 128.403 }]]),
+    );
+    const result = await new NfdsFireDispatchSource(repository).run(null);
+    expect(repository.findCentersByCodes).toHaveBeenCalledWith([code, parent, '2771000000']);
+    expect(result.events[0]).toMatchObject({
+      regionText: addr,
+      regionCodes: [code],
+      geo: { lat: 35.657, lng: 128.403 },
+    });
+  });
+
   it('should emit fire dispatch events for notable first incidents', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-01-02T00:00:00.000Z'));
